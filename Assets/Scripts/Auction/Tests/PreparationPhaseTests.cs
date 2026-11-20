@@ -20,19 +20,37 @@ namespace AuctionGame.Auction.Tests
         {
             var source = AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>("Assets/AuctionMvp/MvpAuctionLevel.asset");
             Assert.That(source, Is.Not.Null);
-            CollectionAssert.AreEqual(new[]
+            var expected = new[]
             {
-                "news_clay_tablet:clay-tablet", "news_ibis:ibis", "news_blue_horse:blue-horse",
-                "news_obsidian_blade:obsidian-blade", "news_bronze_statue:bronze-statue",
-                "news_glass_vase:glass-vase"
-            }, source.Clues.Select(clue => $"{clue.ClueKey}:{clue.ItemId}"));
+                ("art_venus",
+                    "Venuša bez rúk sa vynorila zo súkromnej zbierky.",
+                    "Antická socha z bieleho mramoru nemá ruky a hlavu má sklonenú doľava. Odborníci hovoria o objave storočia."),
+                ("arch_chalice",
+                    "Zlatý kalich bez uší.",
+                    "Archeológovia vykopali jednoduchý zlatý kalich s tromi červenými kameňmi. Nemá žiadne uchá, presne ako na starých kresbách."),
+                ("arch_sword",
+                    "Rímsky meč s rovnou čepeľou.",
+                    "Pri Dunaji sa našiel krátky meč s rovnou čepeľou a ostrou špičkou. Legionári takými bojovali v prvej línii."),
+                ("art_vase",
+                    "Modrá amfora z potopenej lode.",
+                    "Potápači vyniesli na breh tmavomodrú vázu s bielymi vlnami okolo pásu. Je jediná svojho druhu."),
+                ("pop_cd",
+                    "Prvé vydanie bez škrabanca.",
+                    "Na aukciu ide CD z prvého vydania albumu. Disk je celý, bez jedinej praskliny."),
+                ("silly_tears",
+                    "Slzy nepriateľov pod korkom.",
+                    "Zberateľ ich vraj plnil tridsať rokov. Pravá fľaštička je uzavretá obyčajnou korkovou zátkou.")
+            };
+            CollectionAssert.AreEqual(expected, source.Clues.Select(clue =>
+                (clue.ItemType.TypeId, clue.Headline, clue.Body)));
+            CollectionAssert.AreEqual(expected.Select(article => $"news_{article.Item1}"),
+                source.Clues.Select(clue => clue.ClueKey));
             Assert.That(source.Clues.Count(clue => clue.Importance == NewspaperImportance.MainArticle), Is.EqualTo(3));
             Assert.That(source.Clues.Count(clue => clue.Importance == NewspaperImportance.ShortReport), Is.EqualTo(3));
             foreach (var clue in source.Clues)
             {
-                var item = source.Database.GetItemById(clue.ItemId);
-                Assert.That(item, Is.Not.Null);
-                Assert.That(source.Database.GetVariantsByType(item.ItemType), Has.Count.EqualTo(2));
+                Assert.That(source.CreateRun().Count(item => item.ItemType == clue.ItemType), Is.EqualTo(1));
+                Assert.That(source.Database.GetVariantsByType(clue.ItemType), Has.Count.EqualTo(2));
             }
         }
 

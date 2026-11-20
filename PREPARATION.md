@@ -14,16 +14,16 @@ This audit describes the project before scene integration. `AuctionDemo` now use
 
 ## Approved clue mappings
 
-Each clue points to a catalog item ID. Both variants of that item type share the article because the view renders the entire approved edition from the level.
+Each clue references an item family. Its article describes variant A and applies to both variants. The view renders the complete edition from the level.
 
-| Section | Clue key | Catalog item ID |
+| Section | Clue key | Item family |
 | --- | --- | --- |
-| Main articles | `news_clay_tablet` | `clay-tablet` |
-| Main articles | `news_ibis` | `ibis` |
-| Main articles | `news_blue_horse` | `blue-horse` |
-| Short reports | `news_obsidian_blade` | `obsidian-blade` |
-| Short reports | `news_bronze_statue` | `bronze-statue` |
-| Short reports | `news_glass_vase` | `glass-vase` |
+| Main articles | `news_art_venus` | `art_venus` |
+| Main articles | `news_arch_chalice` | `arch_chalice` |
+| Main articles | `news_arch_sword` | `arch_sword` |
+| Short reports | `news_art_vase` | `art_vase` |
+| Short reports | `news_pop_cd` | `pop_cd` |
+| Short reports | `news_silly_tears` | `silly_tears` |
 
 ## Inspector setup in AuctionDemo
 

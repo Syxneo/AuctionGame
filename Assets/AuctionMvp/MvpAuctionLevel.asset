@@ -17,40 +17,40 @@ MonoBehaviour:
   aiStartingBudget: 600
   itemDatabase: {fileID: 11400000, guid: f99d5473aa1049bd95a967e68983a1f3, type: 2}
   variants:
-  - {fileID: 11400000, guid: e016942191ad412698308a7f2eaee23c, type: 2}
-  - {fileID: 11400000, guid: 9e7e4398b5ea4e1eba50e367a344cbc7, type: 2}
-  - {fileID: 11400000, guid: f59efd680daf4bb6804a2b6f9889fac7, type: 2}
-  - {fileID: 11400000, guid: ce35966138c94830b0cc468c8c2fd233, type: 2}
-  - {fileID: 11400000, guid: 4b99c82f72ba447b931ee598a10f6f02, type: 2}
-  - {fileID: 11400000, guid: 5213dbfffd0b4d40b94b5658df22dfc3, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a400000d, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a400001e, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000003, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000017, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000014, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000008, type: 2}
   clues:
-  - clueKey: news_clay_tablet
-    itemId: clay-tablet
-    headline: "Hlinená tabuľka budí záujem zberateľov"
-    body: "Vzácna hlinená tabuľka s klinovým písmom sa opäť dostáva do pozornosti trhu. Odborné záznamy opisujú originál ako hnedý predmet s matnou patinou. Nezvyčajne svetlý a lesklý povrch môže byť varovným znakom."
+  - clueKey: news_art_venus
+    itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000001, type: 2}
+    headline: "Venuša bez rúk sa vynorila zo súkromnej zbierky."
+    body: "Antická socha z bieleho mramoru nemá ruky a hlavu má sklonenú doľava. Odborníci hovoria o objave storočia."
     importance: 0
-  - clueKey: news_ibis
-    itemId: ibis
-    headline: "Mumifikovaný ibis opäť na trhu"
-    body: "Mumifikovaný ibis uložený v nádobe priťahuje pozornosť milovníkov starožitností. Dochované opisy pôvodného exemplára hovoria o hnedých pásoch plátna; dokonale čisté biele obväzy vzbudzujú pochybnosti."
+  - clueKey: news_arch_chalice
+    itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400000b, type: 2}
+    headline: "Zlatý kalich bez uší."
+    body: "Archeológovia vykopali jednoduchý zlatý kalich s tromi červenými kameňmi. Nemá žiadne uchá, presne ako na starých kresbách."
     importance: 0
-  - clueKey: news_blue_horse
-    itemId: blue-horse
-    headline: "Stratený „Modrý koník“ možno našiel majiteľa"
-    body: "Olejomaľba známa ako *Modrý koník* opäť rozvírila zberateľské kruhy. Archívne záznamy uvádzajú, že originál má v pravom dolnom rohu červený podpis autora. Pri posudzovaní pravosti môže rozhodnúť práve tento detail."
+  - clueKey: news_arch_sword
+    itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000010, type: 2}
+    headline: "Rímsky meč s rovnou čepeľou."
+    body: "Pri Dunaji sa našiel krátky meč s rovnou čepeľou a ostrou špičkou. Legionári takými bojovali v prvej línii."
     importance: 0
-  - clueKey: news_obsidian_blade
-    itemId: obsidian-blade
-    headline: "Čierna čepeľ z Tokaja"
-    body: "Pri pôvodnej obsidiánovej čepeli z Tokaja môžu tenké hrany na svetle jemne presvitať. Úplne nepriehľadná čepeľ si zaslúži pozornejšie preskúmanie."
+  - clueKey: news_art_vase
+    itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000006, type: 2}
+    headline: "Modrá amfora z potopenej lode."
+    body: "Potápači vyniesli na breh tmavomodrú vázu s bielymi vlnami okolo pásu. Je jediná svojho druhu."
     importance: 1
-  - clueKey: news_bronze_statue
-    itemId: bronze-statue
-    headline: "Čo prezrádza patina bronzovej sochy?"
-    body: "Známa bronzová socha má podľa odborných záznamov zelenú patinu. Hnedý, umelo nanesený povrch nezodpovedá opisu pôvodného kusu."
+  - clueKey: news_pop_cd
+    itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000015, type: 2}
+    headline: "Prvé vydanie bez škrabanca."
+    body: "Na aukciu ide CD z prvého vydania albumu. Disk je celý, bez jedinej praskliny."
     importance: 1
-  - clueKey: news_glass_vase
-    itemId: glass-vase
-    headline: "Modrý poklad historickej sklárne"
-    body: "Zberatelia pátrajú po sklenenej váze s podpisom firmy. Pôvodný variant je podľa katalógu modrý. Zelená verzia sa od opisu originálu odlišuje."
+  - clueKey: news_silly_tears
+    itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400001a, type: 2}
+    headline: "Slzy nepriateľov pod korkom."
+    body: "Zberateľ ich vraj plnil tridsať rokov. Pravá fľaštička je uzavretá obyčajnou korkovou zátkou."
     importance: 1

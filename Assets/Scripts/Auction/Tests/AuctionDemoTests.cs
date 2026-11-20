@@ -94,11 +94,11 @@ namespace AuctionGame.Auction.Tests
             var successfulReport = reportUI.Report;
             Assert.That(successfulReport, Is.Not.Null.And.Not.SameAs(report));
             Assert.That(successfulReport.Succeeded, Is.True);
-            Assert.That(successfulReport.Purchases.Count, Is.EqualTo(2));
-            Assert.That(successfulReport.TotalProfit, Is.EqualTo(365));
+            Assert.That(successfulReport.Purchases.Count, Is.EqualTo(3));
+            Assert.That(successfulReport.TotalProfit, Is.EqualTo(385));
             var labels = GameObject.Find("SALE Report").GetComponentsInChildren<TMP_Text>().Select(label => label.text);
             Assert.That(labels, Does.Contain("SUCCESS").And.Contain(successfulReport.Purchases[0].ItemName).And.Contain("GOOD BUY")
-                .And.Contain("$150").And.Contain("Total profit  $365")
+                .And.Contain("$150").And.Contain("Total profit  $385")
                 .And.Contain("Výborne. Dosiahol si požadovaný zisk. Zdá sa, že máš na obchod dobrý nos."));
             Assert.That(GameObject.Find("Retry Button"), Is.Null);
 
@@ -119,7 +119,7 @@ namespace AuctionGame.Auction.Tests
             config.ApplyModifiedPropertiesWithoutUndo();
             auction.OnStateChanged += state =>
             {
-                if (state == AuctionState.Bidding && auction.CurrentItem.ItemId is "clay-tablet" or "blue-horse")
+                if (state == AuctionState.Bidding && auction.CurrentItem.ItemId is "arch_chalice_a" or "art_venus_a" or "pop_cd_a")
                     Assert.That(auction.TryPlaceBid(BidderIds.Player, auction.CurrentItem.StartingPrice), Is.True);
             };
         }

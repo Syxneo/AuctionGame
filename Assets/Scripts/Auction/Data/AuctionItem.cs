@@ -6,7 +6,8 @@ namespace AuctionGame.Auction
     {
         Historical = 0, Rare = 1, Art = 2, Technology = 3, Misc = 4,
         Luxury = 5, Mechanical = 6, Military = 7, Jewelry = 8,
-        Gaming = 9, Collectible = 10, Coins = 11
+        Gaming = 9, Collectible = 10, Coins = 11,
+        Silly = 12, Archeological = 13, PopCulture = 14, Fantasy = 15
     }
 
     [CreateAssetMenu(menuName = "Auction/Item")]

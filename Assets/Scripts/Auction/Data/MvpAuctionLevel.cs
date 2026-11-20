@@ -12,12 +12,14 @@ namespace AuctionGame.Auction
     {
         [SerializeField] private string clueKey;
         [SerializeField] private string itemId;
+        [SerializeField] private AuctionItemType itemType;
         [SerializeField] private string headline;
         [SerializeField, TextArea] private string body;
         [SerializeField] private NewspaperImportance importance;
 
         public string ClueKey => clueKey;
         public string ItemId => itemId;
+        public AuctionItemType ItemType => itemType;
         public string Headline => headline;
         public string Body => body;
         public NewspaperImportance Importance => importance;

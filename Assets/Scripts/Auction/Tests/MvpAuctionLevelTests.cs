@@ -19,11 +19,11 @@ namespace AuctionGame.Auction.Tests
         }
 
         [Test]
-        public void DatabaseContainsEveryItemAssetAndUsesUniqueIds()
+        public void DatabaseContainsNewAndDemoAssetsWithUniqueIds()
         {
-            var assets = AssetDatabase.FindAssets("t:AuctionItem", new[] { "Assets" })
+            var assets = AssetDatabase.FindAssets("t:AuctionItem", new[] { "Assets/AuctionMvp/ItemsV08", "Assets/AuctionDemo" })
                 .Select(AssetDatabase.GUIDToAssetPath).Select(AssetDatabase.LoadAssetAtPath<AuctionItem>);
-            Assert.That(level.Database.Items, Has.Count.EqualTo(18));
+            Assert.That(level.Database.Items, Has.Count.EqualTo(26));
             Assert.That(level.Database.Items, Is.EquivalentTo(assets));
             Assert.That(level.Database.Items.Select(item => item.ItemId), Is.Unique);
             Assert.That(level.Database.Items.All(item => item.ItemType && item.ItemType.Categories.Count > 0), Is.True);
@@ -51,9 +51,9 @@ namespace AuctionGame.Auction.Tests
         [Test]
         public void SharedCategoriesFindOtherTypesAndOffLevelVariants()
         {
-            AuctionItem item = level.Database.GetItemById("clay-tablet");
-            AuctionItem alternate = level.Database.GetItemById("clay-tablet-polished-gray");
-            Assert.That(item.Categories, Is.EqualTo(new[] { ItemCategory.Historical, ItemCategory.Collectible }));
+            AuctionItem item = level.Database.GetItemById("arch_chalice_a");
+            AuctionItem alternate = level.Database.GetItemById("arch_chalice_b");
+            Assert.That(item.Categories, Is.EqualTo(new[] { ItemCategory.Archeological, ItemCategory.Historical }));
             Assert.That(alternate.Categories, Is.EqualTo(item.Categories));
             Assert.That(level.Database.GetVariantsByType(item.ItemType), Is.EquivalentTo(new[] { item, alternate }));
 
@@ -71,15 +71,20 @@ namespace AuctionGame.Auction.Tests
         {
             Assert.That(level.StartingBudget, Is.EqualTo(1000));
             Assert.That(level.ProfitTarget, Is.EqualTo(300));
-            Assert.That(level.CreateRun(), Is.EqualTo(level.Variants).And.Count.EqualTo(6));
+            Assert.That(level.AiStartingBudget, Is.EqualTo(600));
+            Assert.That(level.CreateRun().Select(item => item.ItemId), Is.EqualTo(new[]
+            {
+                "arch_chalice_a", "silly_tears_b", "art_venus_a",
+                "pop_cd_a", "arch_sword_b", "art_vase_a"
+            }));
             Assert.That(level.Variants.Select(item => item.ItemId), Is.Unique);
             Assert.That(level.Variants.All(item => level.Database.GetItemById(item.ItemId) == item), Is.True);
             Assert.That(level.Clues.Select(clue => clue.ClueKey), Is.Unique);
-            Assert.That(level.Clues.Select(clue => clue.ItemId).Distinct().Count(), Is.EqualTo(6));
+            Assert.That(level.Clues.Select(clue => clue.ItemType).Distinct().Count(), Is.EqualTo(6));
             Assert.That(level.Clues.Count(clue => clue.Importance == NewspaperImportance.MainArticle), Is.EqualTo(3));
             foreach (NewspaperClue clue in level.Clues)
             {
-                Assert.That(level.Database.GetItemById(clue.ItemId), Is.Not.Null);
+                Assert.That(level.Database.GetVariantsByType(clue.ItemType), Has.Count.EqualTo(2));
                 Assert.That(clue.Headline, Is.Not.Empty);
                 Assert.That(clue.Body, Is.Not.Empty);
             }
@@ -88,8 +93,8 @@ namespace AuctionGame.Auction.Tests
         [Test]
         public void VariantsStoreIndependentPricesValuesAndSprites()
         {
-            AuctionItem first = Object.Instantiate(level.Database.GetItemById("clay-tablet"));
-            AuctionItem second = Object.Instantiate(level.Database.GetItemById("clay-tablet-polished-gray"));
+            AuctionItem first = Object.Instantiate(level.Database.GetItemById("arch_chalice_a"));
+            AuctionItem second = Object.Instantiate(level.Database.GetItemById("arch_chalice_b"));
             var texture = new Texture2D(2, 2);
             Sprite firstSprite = Sprite.Create(texture, new Rect(0, 0, 1, 1), Vector2.zero);
             Sprite secondSprite = Sprite.Create(texture, new Rect(1, 0, 1, 1), Vector2.zero);
@@ -175,6 +180,82 @@ namespace AuctionGame.Auction.Tests
                 var report = new AuctionReport(auction.Economy.Purchases, level.ProfitTarget);
                 Assert.That(report.Purchases.Single().TrueValue, Is.EqualTo(variant.TrueValue));
                 Assert.That(report.Purchases.Single().Sprite, Is.SameAs(variant.Sprite));
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+            }
+        }
+
+        [TestCase("art_venus", ItemCategory.Art, ItemRole.Critical, 170, 320, 165, 50)]
+        [TestCase("art_vase", ItemCategory.Art, ItemRole.Fluff, 90, 190, 85, 40)]
+        [TestCase("arch_chalice", ItemCategory.Archeological, ItemRole.Critical, 175, 315, 170, 55)]
+        [TestCase("arch_sword", ItemCategory.Archeological, ItemRole.Critical, 145, 285, 140, 20)]
+        [TestCase("pop_cd", ItemCategory.PopCulture, ItemRole.Fluff, 80, 175, 75, 40)]
+        [TestCase("silly_tears", ItemCategory.Silly, ItemRole.Fluff, 100, 190, 95, 20)]
+        [TestCase("silly_socks", ItemCategory.Silly, ItemRole.Unspecified, 0, -1, 0, -1)]
+        [TestCase("pop_mic", ItemCategory.PopCulture, ItemRole.Unspecified, 0, -1, 0, -1)]
+        [TestCase("fantasy_horn", ItemCategory.Fantasy, ItemRole.Unspecified, 0, -1, 0, -1)]
+        [TestCase("fantasy_costume", ItemCategory.Fantasy, ItemRole.Unspecified, 0, -1, 0, -1)]
+        public void FamilyVariantsUseApprovedEconomyAndImportedSprites(
+            string familyId, ItemCategory category, ItemRole role, int priceA, int valueA, int priceB, int valueB)
+        {
+            var a = CheckVariant(familyId + "_a", priceA, valueA);
+            var b = CheckVariant(familyId + "_b", priceB, valueB);
+            Assert.That(a.ItemType, Is.SameAs(b.ItemType));
+            Assert.That(a.ItemType.TypeId, Is.EqualTo(familyId));
+            Assert.That(a.ItemType.Categories, Does.Contain(category));
+            Assert.That(a.ItemType.Role, Is.EqualTo(role));
+            Assert.That(level.Database.GetVariantsByType(a.ItemType), Is.EquivalentTo(new[] { a, b }));
+        }
+
+        private AuctionItem CheckVariant(string itemId, int price, int value)
+        {
+            var item = level.Database.GetItemById(itemId);
+            Assert.That(item, Is.Not.Null);
+            Assert.That(item.StartingPrice, Is.EqualTo(price));
+            Assert.That(item.TrueValue, Is.EqualTo(value));
+            Assert.That(item.Sprite != null, Is.True, itemId);
+            string path = $"Assets/AuctionMvp/Sprites/WIP/{itemId}.png";
+            Assert.That(AssetDatabase.GetAssetPath(item.Sprite), Is.EqualTo(path));
+            var importer = (TextureImporter)AssetImporter.GetAtPath(path);
+            Assert.That(importer.textureType, Is.EqualTo(TextureImporterType.Sprite));
+            Assert.That(importer.spriteImportMode, Is.EqualTo(SpriteImportMode.Single));
+            Assert.That(item.Sprite.rect.width, Is.EqualTo(512));
+            Assert.That(item.Sprite.rect.height, Is.EqualTo(512));
+            return item;
+        }
+
+        [Test]
+        public void BuyingEveryMvpLotAtOpeningPriceFallsShortOfTarget()
+        {
+            var host = new GameObject("Opening price report test");
+            try
+            {
+                var auction = host.AddComponent<AuctionManager>();
+                var config = new SerializedObject(auction);
+                config.FindProperty("enableAutomaticAi").boolValue = false;
+                config.ApplyModifiedPropertiesWithoutUndo();
+                var economy = new SerializedObject(auction.Economy);
+                economy.FindProperty("startingBudgetLevel").objectReferenceValue = level;
+                economy.ApplyModifiedPropertiesWithoutUndo();
+                var run = level.CreateRun();
+                auction.OnStateChanged += state =>
+                {
+                    if (state == AuctionState.Bidding)
+                        Assert.That(auction.TryPlaceBid(BidderIds.Player, auction.CurrentItem.StartingPrice), Is.True);
+                };
+
+                Assert.That(auction.StartAuction(run, level.Database), Is.True);
+                auction.Tick(1000);
+
+                var report = new AuctionReport(auction.Economy.Purchases, level.ProfitTarget);
+                Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(250));
+                Assert.That(report.Purchases, Has.Count.EqualTo(6));
+                Assert.That(report.Purchases.Select(purchase => purchase.Profit),
+                    Is.EqualTo(new long[] { 140, -75, 150, 95, -120, 100 }));
+                Assert.That(report.TotalProfit, Is.EqualTo(290));
+                Assert.That(report.Succeeded, Is.False);
             }
             finally
             {
