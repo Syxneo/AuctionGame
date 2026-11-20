@@ -829,7 +829,8 @@ PlayerSettings:
   webGLCloseOnQuit: 0
   webWasm2023: 0
   webEnableSubmoduleStrippingCompatibility: 0
-  scriptingDefineSymbols: {}
+  scriptingDefineSymbols:
+    Standalone: SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:
@@ -928,11 +929,11 @@ PlayerSettings:
   captureStartupLogs: {}
   activeInputHandler: 1
   windowsGamepadBackendHint: 0
-  cloudProjectId: 3784b76a-22d3-4cae-b5d3-34ba812d5436
+  cloudProjectId: 55ebe780-f418-4ec7-a47c-59900fa9ddcd
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: AuctionGame
-  organizationId: mrybanskymnfzn7qb
+  projectName: AuctionHouse
+  organizationId: niko-adler97
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}

@@ -1,0 +1,5 @@
+﻿{
+    "name": "AuctionGame.Auction.Editor",
+    "references": ["AuctionGame.Auction", "Unity.TextMeshPro", "UnityEngine.UI", "Unity.InputSystem"],
+    "includePlatforms": ["Editor"]
+}

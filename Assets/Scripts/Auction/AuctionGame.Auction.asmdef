@@ -1,0 +1,5 @@
+﻿{
+    "name": "AuctionGame.Auction",
+    "rootNamespace": "AuctionGame.Auction",
+    "references": ["Unity.TextMeshPro", "UnityEngine.UI"]
+}
