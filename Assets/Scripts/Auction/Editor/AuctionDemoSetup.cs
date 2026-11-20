@@ -43,7 +43,7 @@ namespace AuctionGame.Auction.Editor
             camera.backgroundColor = Background;
             camera.cullingMask = 0;
             var system = new GameObject("AuctionSystem", typeof(PlayerEconomy), typeof(AuctionManager),
-                typeof(AuctionBootstrap));
+                typeof(AuctionBootstrap), typeof(AuctionReportUI));
             var manager = system.GetComponent<AuctionManager>();
             var managerData = new SerializedObject(manager);
             managerData.FindProperty("itemDatabase").objectReferenceValue =
@@ -131,6 +131,13 @@ namespace AuctionGame.Auction.Editor
             Bind("twentyFiveButton", BidButton(panel, font, "+$25", 208, 360, 148, out _));
             Bind("fiftyButton", BidButton(panel, font, "+$50", 376, 360, 148, out _));
             ui.ApplyModifiedPropertiesWithoutUndo();
+
+            var report = new SerializedObject(system.GetComponent<AuctionReportUI>());
+            report.FindProperty("auction").objectReferenceValue = manager;
+            report.FindProperty("auctionPanel").objectReferenceValue = panel;
+            report.FindProperty("level").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>("Assets/AuctionMvp/MvpAuctionLevel.asset");
+            report.ApplyModifiedPropertiesWithoutUndo();
 
             AssetDatabase.SaveAssets();
             if (!EditorSceneManager.SaveScene(scene, ScenePath))

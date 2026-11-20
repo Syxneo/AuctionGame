@@ -58,6 +58,8 @@ namespace AuctionGame.Auction
         public bool StartAuction(IReadOnlyList<AuctionItem> run, ItemDatabase fullCatalog) =>
             fullCatalog && StartRun(run, fullCatalog);
 
+        public bool RestartAuction() => ResetLevel() && StartRun(lots, catalog);
+
         public bool ResetLevel()
         {
             if (processingTime || State != AuctionState.Finished)

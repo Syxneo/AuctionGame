@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Linq;
 using NUnit.Framework;
+using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -14,7 +15,7 @@ namespace AuctionGame.Auction.Tests
     public sealed class AuctionDemoTests
     {
         [UnityTest]
-        public IEnumerator DemoStartsInPlayModeAndCompletesAfterPlayerUsesBidButton()
+        public IEnumerator DemoShowsFailureThenRetriesAndContinuesAfterSuccess()
         {
             const string scenePath = "Assets/Scenes/AuctionDemo.unity";
             Assert.That(AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath), Is.Not.Null);
@@ -51,7 +52,59 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(600));
             Assert.That(auction.Economy.CalculateProfit(), Is.Zero);
 
+            var reportUI = auction.GetComponent<AuctionReportUI>();
+            var report = reportUI.Report;
+            Assert.That(report.Purchases, Is.Empty);
+            Assert.That(report.Succeeded, Is.False);
+            Assert.That(report.TargetProfit, Is.EqualTo(300));
+            Assert.That(GameObject.Find("AuctionPanel"), Is.Null);
+            Assert.That(GameObject.Find("SALE Report").GetComponentsInChildren<TMP_Text>().Select(label => label.text),
+                Does.Contain("Nekúpil si nič. Bez rizika však nepríde ani zisk."));
+            auction.Tick(1000);
+            Assert.That(reportUI.Report, Is.SameAs(report));
+            yield return null;
+            Assert.That(Object.FindObjectsByType<RectTransform>(FindObjectsSortMode.None)
+                .Count(rect => rect.name == "SALE Report"), Is.EqualTo(1));
+
+            GameObject.Find("Retry Button").GetComponent<Button>().onClick.Invoke();
+            Assert.That(reportUI.Report, Is.Null);
+            Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
+            Assert.That(GameObject.Find("AuctionPanel"), Is.Not.Null);
+            Assert.That(auction.Opponents.All(opponent => opponent.AvailableBudget == 600), Is.True);
+            BuyProfitableDemoLots(auction);
+
+            auction.Tick(1000);
+            yield return null;
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
+            var successfulReport = reportUI.Report;
+            Assert.That(successfulReport, Is.Not.Null.And.Not.SameAs(report));
+            Assert.That(successfulReport.Succeeded, Is.True);
+            Assert.That(successfulReport.Purchases.Count, Is.EqualTo(2));
+            Assert.That(successfulReport.TotalProfit, Is.EqualTo(330));
+            var labels = GameObject.Find("SALE Report").GetComponentsInChildren<TMP_Text>().Select(label => label.text);
+            Assert.That(labels, Does.Contain("SUCCESS").And.Contain("Royal Wax Seal").And.Contain("GOOD BUY")
+                .And.Contain("$250").And.Contain("Total profit  $330")
+                .And.Contain("Výborne. Dosiahol si požadovaný zisk. Zdá sa, že máš na obchod dobrý nos."));
+            Assert.That(GameObject.Find("Retry Button"), Is.Null);
+
+            GameObject.Find("Continue Button").GetComponent<Button>().onClick.Invoke();
+            Assert.That(GameObject.Find("Level Completion"), Is.Not.Null);
+            Assert.That(GameObject.Find("SALE Report"), Is.Null);
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
+
             yield return new ExitPlayMode();
+        }
+
+        private static void BuyProfitableDemoLots(AuctionManager auction)
+        {
+            var config = new SerializedObject(auction);
+            config.FindProperty("enableAutomaticAi").boolValue = false;
+            config.ApplyModifiedPropertiesWithoutUndo();
+            auction.OnStateChanged += state =>
+            {
+                if (state == AuctionState.Bidding && auction.CurrentItem.ItemId is "royal-seal" or "observatory-map")
+                    Assert.That(auction.TryPlaceBid(BidderIds.Player, auction.CurrentItem.StartingPrice), Is.True);
+            };
         }
     }
 }

@@ -157,6 +157,9 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(auction.Results.Single().itemId, Is.EqualTo(variant.ItemId));
                 Assert.That(auction.Economy.Purchases.Single().item, Is.SameAs(variant));
                 Assert.That(auction.Economy.CalculateProfit(), Is.EqualTo(variant.TrueValue - variant.StartingPrice));
+                var report = new AuctionReport(auction.Economy.Purchases, level.ProfitTarget);
+                Assert.That(report.Purchases.Single().TrueValue, Is.EqualTo(variant.TrueValue));
+                Assert.That(report.Purchases.Single().Sprite, Is.SameAs(variant.Sprite));
             }
             finally
             {

@@ -46,6 +46,7 @@ namespace AuctionGame.Auction
         public readonly AuctionItem item;
         public readonly int purchasePrice;
         public AuctionItem Variant => item;
+        public long Profit => (long)item.TrueValue - purchasePrice;
 
         internal PurchasedItem(AuctionItem item, int purchasePrice)
         {

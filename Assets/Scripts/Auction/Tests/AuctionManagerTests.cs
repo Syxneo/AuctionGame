@@ -393,6 +393,74 @@ namespace AuctionGame.Auction.Tests
         }
 
         [Test]
+        public void ReportClassifiesPurchasesAndComparesTheirTotalWithTheTarget()
+        {
+            var first = CreateItem("gain", 450);
+            Assert.That(auction.Economy.RecordPurchase(first, 100), Is.True);
+            Assert.That(auction.Economy.RecordPurchase(CreateItem("loss", 50), 100), Is.True);
+            Assert.That(auction.Economy.RecordPurchase(CreateItem("even", 100), 100), Is.True);
+
+            var report = new AuctionReport(auction.Economy.Purchases, 300);
+            Assert.That(report.Purchases.Select(row => row.Outcome), Is.EqualTo(new[]
+                { PurchaseOutcome.GoodBuy, PurchaseOutcome.Overpaid, PurchaseOutcome.BreakEven }));
+            Assert.That(report.Purchases.Select(row => row.Profit), Is.EqualTo(new long[] { 350, -50, 0 }));
+            Assert.That(report.Purchases[0].TrueValue, Is.EqualTo(450));
+            Assert.That(report.Purchases[0].PurchasePrice, Is.EqualTo(100));
+            Assert.That(report.TotalProfit, Is.EqualTo(300));
+            Assert.That(report.Succeeded, Is.True);
+            Assert.That(new AuctionReport(auction.Economy.Purchases, 301).Succeeded, Is.False);
+
+            Assert.That(auction.Economy.RecordPurchase(CreateItem("later", 0), 100), Is.True);
+            Assert.That(report.Purchases.Count, Is.EqualTo(3));
+            Assert.That(report.TotalProfit, Is.EqualTo(300));
+        }
+
+        [Test]
+        public void EmptyReportHasZeroProfitDespiteFullBudget()
+        {
+            Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(600));
+            var report = new AuctionReport(auction.Economy.Purchases, 300);
+            Assert.That(report.Purchases, Is.Empty);
+            Assert.That(report.TotalProfit, Is.Zero);
+            Assert.That(report.Succeeded, Is.False);
+        }
+
+        [Test]
+        public void FinishedReportExcludesAiPurchasesAndRetryRestoresTheSameRunAndAllBudgets()
+        {
+            var playerLot = CreateItem("player-lot", 400);
+            var aiLot = CreateItem("ai-lot", 500);
+            Assert.That(auction.StartAuction(new[] { playerLot, aiLot }, CreateDatabase(playerLot, aiLot)), Is.True);
+            auction.Tick(AuctionManager.RevealDuration);
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 100), Is.True);
+            auction.Tick(19);
+            Assert.That(auction.TryPlaceBid(BidderIds.Collector, 100), Is.True);
+            auction.Tick(17);
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 110), Is.False);
+
+            var report = new AuctionReport(auction.Economy.Purchases, 301);
+            Assert.That(report.Purchases.Single().ItemName, Is.EqualTo(playerLot.ItemName));
+            Assert.That(report.TotalProfit, Is.EqualTo(300));
+            Assert.That(report.Succeeded, Is.False);
+            auction.Tick(100);
+            Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(500));
+            Assert.That(auction.Opponents[0].AvailableBudget, Is.EqualTo(500));
+            Assert.That(auction.Opponents[0].Purchases.Count, Is.EqualTo(1));
+
+            Assert.That(auction.RestartAuction(), Is.True);
+            Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
+            Assert.That(auction.CurrentItem, Is.SameAs(playerLot));
+            Assert.That(auction.Results, Is.Empty);
+            Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(600));
+            Assert.That(auction.Economy.Purchases, Is.Empty);
+            Assert.That(auction.Opponents.Count, Is.EqualTo(3));
+            Assert.That(auction.Opponents.All(opponent =>
+                opponent.AvailableBudget == 600 && opponent.Purchases.Count == 0), Is.True);
+            Assert.That(report.TotalProfit, Is.EqualTo(300));
+        }
+
+        [Test]
         public void DuplicateItemIdsPreventStart()
         {
             var serialized = new SerializedObject(auction);

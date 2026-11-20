@@ -42,7 +42,7 @@ namespace AuctionGame.Auction
         {
             long profit = 0;
             foreach (PurchasedItem purchase in purchases)
-                profit += (long)purchase.item.TrueValue - purchase.purchasePrice;
+                profit += purchase.Profit;
             return profit;
         }
     }

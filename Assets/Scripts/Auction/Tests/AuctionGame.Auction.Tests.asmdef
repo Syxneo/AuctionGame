@@ -1,6 +1,6 @@
 ﻿{
     "name": "AuctionGame.Auction.Tests",
-    "references": ["AuctionGame.Auction", "UnityEngine.UI"],
+    "references": ["AuctionGame.Auction", "UnityEngine.UI", "Unity.TextMeshPro"],
     "includePlatforms": ["Editor"],
     "optionalUnityReferences": ["TestAssemblies"]
 }
