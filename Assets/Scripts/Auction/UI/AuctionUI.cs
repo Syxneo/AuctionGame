@@ -90,8 +90,8 @@ namespace AuctionGame.Auction
             bool hasWinner = manager.HighestBidderId.Length > 0;
             itemImage.sprite = item ? item.Sprite : null;
             itemImage.color = itemImage.sprite ? Color.white : Placeholder;
-            category.gameObject.SetActive(!itemImage.sprite);
-            category.text = item ? item.Category.ToString() : "";
+            category.text = item ? string.Join(", ", item.Categories) : "";
+            category.gameObject.SetActive(!itemImage.sprite && category.text.Length > 0);
             itemName.text = item ? item.ItemName : "Auction";
             openingPrice.text = item ? $"Opening price  ${item.StartingPrice}" : "";
             highestBid.text = hasWinner ? $"Highest bid  ${manager.CurrentPrice}" : "Highest bid  —";

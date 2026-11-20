@@ -16,6 +16,5 @@ MonoBehaviour:
   itemName: "Hlinená tabuľka s klinovým písmom"
   startingPrice: 145
   trueValue: 55
-  category: 0
   sprite: {fileID: 21300000, guid: 1041e35399a044499a0338f24d6a7954, type: 3}
   itemType: {fileID: 11400000, guid: b99d4a104df8475eb73f3485aa703aa9, type: 2}

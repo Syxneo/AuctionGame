@@ -605,8 +605,8 @@ namespace AuctionGame.Auction.Tests
             data.FindProperty("itemName").stringValue = id;
             data.FindProperty("startingPrice").intValue = 100;
             data.FindProperty("trueValue").intValue = value;
-            data.FindProperty("category").enumValueIndex = (int)category;
             data.ApplyModifiedPropertiesWithoutUndo();
+            SetCategories(item, category);
             return item;
         }
     }

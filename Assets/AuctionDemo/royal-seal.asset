@@ -16,6 +16,5 @@ MonoBehaviour:
   itemName: Royal Wax Seal
   startingPrice: 90
   trueValue: 250
-  category: 0
   sprite: {fileID: 0}
   itemType: {fileID: 11400000, guid: 6aa4c39361b64906adbcf93cf59679c7, type: 2}

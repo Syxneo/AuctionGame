@@ -16,7 +16,6 @@ namespace AuctionGame.Auction
         [SerializeField] private string itemName;
         [SerializeField, Min(0)] private int startingPrice = 1;
         [SerializeField, Min(-1)] private int trueValue;
-        [SerializeField] private ItemCategory category;
         [SerializeField] private Sprite sprite;
         [SerializeField] private AuctionItemType itemType;
 
@@ -24,10 +23,9 @@ namespace AuctionGame.Auction
         public string ItemName => itemName;
         public int StartingPrice => startingPrice;
         public int TrueValue => trueValue;
-        public ItemCategory Category => category;
         public Sprite Sprite => sprite;
         public AuctionItemType ItemType => itemType;
         public System.Collections.Generic.IReadOnlyList<ItemCategory> Categories =>
-            itemType ? itemType.Categories : new[] { category };
+            itemType ? itemType.Categories : System.Array.Empty<ItemCategory>();
     }
 }

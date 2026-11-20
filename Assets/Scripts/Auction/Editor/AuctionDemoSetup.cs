@@ -16,6 +16,29 @@ namespace AuctionGame.Auction.Editor
         private static readonly Color Panel = new(0.10f, 0.15f, 0.20f);
         private static readonly Color Accent = new(0.93f, 0.74f, 0.40f);
 
+        private static AuctionItemType GetOrCreateDemoType(string id, string displayName, ItemCategory category)
+        {
+            var type = AssetDatabase.LoadAssetAtPath<AuctionItemType>($"Assets/AuctionMvp/type-{id}.asset");
+            if (type)
+                return type;
+
+            string path = $"{Content}/type-{id}.asset";
+            type = AssetDatabase.LoadAssetAtPath<AuctionItemType>(path);
+            if (type)
+                return type;
+
+            type = ScriptableObject.CreateInstance<AuctionItemType>();
+            var data = new SerializedObject(type);
+            data.FindProperty("typeId").stringValue = id;
+            data.FindProperty("displayName").stringValue = displayName;
+            var categories = data.FindProperty("categories");
+            categories.arraySize = 1;
+            categories.GetArrayElementAtIndex(0).intValue = (int)category;
+            data.ApplyModifiedPropertiesWithoutUndo();
+            AssetDatabase.CreateAsset(type, path);
+            return type;
+        }
+
         [MenuItem("Tools/Auction/Open Demo")]
         private static void OpenDemo()
         {
@@ -72,7 +95,8 @@ namespace AuctionGame.Auction.Editor
                     data.FindProperty("itemName").stringValue = sample.name;
                     data.FindProperty("startingPrice").intValue = sample.price;
                     data.FindProperty("trueValue").intValue = sample.value;
-                    data.FindProperty("category").enumValueIndex = (int)sample.category;
+                    data.FindProperty("itemType").objectReferenceValue =
+                        GetOrCreateDemoType(sample.id, sample.name, sample.category);
                     data.ApplyModifiedPropertiesWithoutUndo();
                     AssetDatabase.CreateAsset(item, path);
                 }

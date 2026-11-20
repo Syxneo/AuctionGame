@@ -34,6 +34,21 @@ namespace AuctionGame.Auction.Tests
         }
 
         [Test]
+        public void ItemWithoutTypeHasNoCategoryOrSharedCandidates()
+        {
+            var item = ScriptableObject.CreateInstance<AuctionItem>();
+            try
+            {
+                Assert.That(item.Categories, Is.Empty);
+                Assert.That(level.Database.GetItemsSharingCategories(item), Is.Empty);
+            }
+            finally
+            {
+                Object.DestroyImmediate(item);
+            }
+        }
+
+        [Test]
         public void SharedCategoriesFindOtherTypesAndOffLevelVariants()
         {
             AuctionItem item = level.Database.GetItemById("clay-tablet");
