@@ -22,27 +22,27 @@ namespace AuctionGame.Auction
 
     public sealed class AIBidder
     {
-        private static readonly int[] LargeFirst = { 50, 25, 10 };
-        private static readonly int[] SmallFirst = { 10, 25, 50 };
-        private readonly Random random;
+        private readonly Random interestRandom;
         private readonly Random evaluationRandom;
         private readonly Random commentRandom;
+        private readonly Random intimidationRandom;
+        private readonly Random reactionRandom;
         private readonly List<AIPurchase> purchases = new();
-        private double bidProbability;
+        private long lastHandledBidSequence;
 
         public string Id { get; }
         public AIPersonality Personality { get; }
         public int StartingBudget { get; }
         public int AvailableBudget { get; private set; }
-        public double EvaluationAccuracy => Personality.EvaluationAccuracy;
-        public double Aggressiveness => Personality.Aggressiveness;
-        public IReadOnlyList<string> Interests => Personality.Interests;
         public int EstimatedValue { get; private set; }
-        public int MaxBid { get; private set; }
-        public int EffectiveMaxBid => Math.Min(MaxBid, AvailableBudget);
+        public int EffectiveInterest { get; private set; }
+        public int EffectiveAccuracy { get; private set; }
+        public bool HasUsedLastBid { get; private set; }
+        public bool HasChickenedOut { get; private set; }
         public IReadOnlyList<AIPurchase> Purchases { get; }
         public long TotalProfit { get; private set; }
         internal double NextDecision { get; private set; }
+        internal int BidLimit => HasUsedLastBid || HasChickenedOut ? 0 : AvailableBudget;
 
         internal AIBidder(string id, AIPersonality personality, int seed)
         {
@@ -53,43 +53,71 @@ namespace AuctionGame.Auction
             Purchases = purchases.AsReadOnly();
             var seeds = new Random(seed);
             evaluationRandom = new Random(seeds.Next());
-            random = new Random(seeds.Next());
+            interestRandom = new Random(seeds.Next());
             commentRandom = new Random(seeds.Next());
+            intimidationRandom = new Random(seeds.Next());
+            reactionRandom = new Random(seeds.Next());
         }
 
-        internal void BeginItem(AuctionItem item, ItemDatabase catalog)
+        internal void SchedulePlayerBidReaction(double elapsed, double minDelay, double maxDelay) =>
+            NextDecision = elapsed + minDelay + ((maxDelay - minDelay) * reactionRandom.NextDouble());
+
+        internal void BeginItem(AuctionItem item, double interval)
         {
-            EstimatedValue = AIEvaluation.Estimate(item, catalog, EvaluationAccuracy, Personality.OverestimateProbability, evaluationRandom);
-            bool preferred = AIEvaluation.HasInterest(Interests, item.Categories);
-            double aggression = Math.Min(1, Aggressiveness + (preferred ? Personality.InterestAggressivenessBonus : 0));
-            double priceFactor = 0.6 + 0.5 * aggression + (preferred ? Personality.InterestPriceBonus : 0);
-            MaxBid = (int)Math.Min(int.MaxValue, Math.Round(EstimatedValue * priceFactor));
-            bidProbability = Math.Clamp(0.35 + 0.6 * aggression + (preferred ? Personality.InterestProbabilityBonus : 0), 0, 1);
-            NextDecision = DecisionInterval();
+            (EffectiveInterest, EffectiveAccuracy) = Personality.GetEffectiveProfile(item.Categories);
+            EstimatedValue = AIEvaluation.Estimate(item.TrueValue, EffectiveAccuracy, Personality.OverestimateBias, evaluationRandom);
+            HasUsedLastBid = false;
+            HasChickenedOut = false;
+            lastHandledBidSequence = 0;
+            NextDecision = interval;
         }
 
         internal void Decide(AuctionManager auction)
         {
-            NextDecision += DecisionInterval();
-            if (auction.HighestBidderId == Id || random.NextDouble() >= bidProbability)
-                return;
-
-            if (auction.HighestBidderId.Length == 0)
+            NextDecision = auction.BiddingElapsed + auction.DecisionInterval;
+            int amount = auction.GetNextBidAmount();
+            if (amount == 0 || !auction.CanPlaceBid(Id, amount))
             {
-                auction.TryPlaceBid(Id, auction.CurrentItem.StartingPrice);
+                if (auction.DebugLogEnabled)
+                    auction.LogAuctionDebug($"{Personality.Name} skipped | next bid={amount} | budget={AvailableBudget} | leading={auction.HighestBidderId == Id} | last bid used={HasUsedLastBid} | chickened out={HasChickenedOut}");
                 return;
             }
 
-            AIBidIncrementOrder order = Personality.IncrementOrder;
-            int[] increments = order == AIBidIncrementOrder.LargeFirst ? LargeFirst : SmallFirst;
-            int start = order == AIBidIncrementOrder.RandomRotation ? random.Next(increments.Length) : 0;
-            for (int index = 0; index < increments.Length; index++)
+            BidRecord opponentBid = auction.FindIntimidationBid(Id, lastHandledBidSequence);
+            if (opponentBid != null)
+                lastHandledBidSequence = opponentBid.sequence;
+
+            double roll = interestRandom.NextDouble();
+            if (roll < EffectiveInterest / 100d)
             {
-                long amount = (long)auction.CurrentPrice + increments[(start + index) % increments.Length];
-                if (amount <= EffectiveMaxBid && auction.TryPlaceBid(Id, (int)amount))
-                    return;
+                if (auction.DebugLogEnabled)
+                    auction.LogAuctionDebug($"{Personality.Name} attempting {amount} | Interest roll={roll:F4} | Interest={EffectiveInterest}% | one last bid={amount > EstimatedValue}");
+                auction.TryPlaceBid(Id, amount);
+                return;
             }
+
+            if (opponentBid == null)
+            {
+                if (auction.DebugLogEnabled)
+                    auction.LogAuctionDebug($"{Personality.Name} skipped | Interest roll={roll:F4} | Interest={EffectiveInterest}% | no new intimidation bid");
+                return;
+            }
+
+            double chance = auction.GetIntimidationChance(opponentBid.increment) * (100 - Personality.IntimidationResistance) / 100d;
+            double intimidationRoll = intimidationRandom.NextDouble();
+            HasChickenedOut = intimidationRoll < chance;
+            if (auction.DebugLogEnabled)
+                auction.LogAuctionDebug($"{Personality.Name} skipped | Interest roll={roll:F4} | Interest={EffectiveInterest}% | intimidation bid #{opponentBid.sequence} (+{opponentBid.increment}) | roll={intimidationRoll:F4} | chance={chance:F4} | chickened out={HasChickenedOut}");
         }
+
+        internal void RecordAcceptedBid(int amount)
+        {
+            if (amount > EstimatedValue)
+                HasUsedLastBid = true;
+        }
+
+        internal void LogEvaluation(AuctionManager auction) =>
+            auction.LogAuctionDebug($"{Personality.Name} evaluation | estimate={EstimatedValue} | Interest={EffectiveInterest}% | Accuracy={EffectiveAccuracy}% | budget={AvailableBudget} | first decision={NextDecision:F3}s");
 
         internal string GetBidComment()
         {
@@ -104,10 +132,5 @@ namespace AuctionGame.Auction
             AvailableBudget -= price;
             TotalProfit += purchase.ItemProfit;
         }
-
-        private double DecisionInterval() =>
-            Between(Personality.MinimumDecisionInterval, Personality.MaximumDecisionInterval);
-
-        private double Between(double min, double max) => min + (max - min) * random.NextDouble();
     }
 }

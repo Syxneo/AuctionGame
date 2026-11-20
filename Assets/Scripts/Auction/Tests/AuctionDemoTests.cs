@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Linq;
-using System.Reflection;
 using NUnit.Framework;
 using TMPro;
 using UnityEditor;
@@ -40,9 +39,7 @@ namespace AuctionGame.Auction.Tests
             Click("Close Newspaper");
             Click("Start Auction");
             Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
-            var catalogField = typeof(AuctionManager).GetField("catalog", BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.That(catalogField.GetValue(auction), Is.SameAs(level.Database));
-            Assert.That(level.Database.Items, Has.Count.EqualTo(26));
+            VerifyAuctionRunsWithNewspaperOpen(auction, newspaper);
 
             float timeScale = Time.timeScale;
             try
@@ -98,11 +95,11 @@ namespace AuctionGame.Auction.Tests
             var successfulReport = reportUI.Report;
             Assert.That(successfulReport, Is.Not.Null.And.Not.SameAs(report));
             Assert.That(successfulReport.Succeeded, Is.True);
-            Assert.That(successfulReport.Purchases.Count, Is.EqualTo(3));
-            Assert.That(successfulReport.TotalProfit, Is.EqualTo(385));
+            Assert.That(successfulReport.Purchases.Count, Is.EqualTo(2));
+            Assert.That(successfulReport.TotalProfit, Is.EqualTo(365));
             var labels = GameObject.Find("SALE Report").GetComponentsInChildren<TMP_Text>().Select(label => label.text);
             Assert.That(labels, Does.Contain("SUCCESS").And.Contain(successfulReport.Purchases[0].ItemName).And.Contain("GOOD BUY")
-                .And.Contain("$150").And.Contain("Total profit  $385")
+                .And.Contain("$150").And.Contain("Total profit  $365")
                 .And.Contain("Výborne. Dosiahol si požadovaný zisk. Zdá sa, že máš na obchod dobrý nos."));
             Assert.That(GameObject.Find("Retry Button"), Is.Null);
 
@@ -116,6 +113,20 @@ namespace AuctionGame.Auction.Tests
 
         private static void Click(string name) => GameObject.Find(name).GetComponent<Button>().onClick.Invoke();
 
+        private static void VerifyAuctionRunsWithNewspaperOpen(AuctionManager auction, NewspaperView newspaper)
+        {
+            Click("Auction Newspaper");
+            Assert.That(newspaper.IsOpen, Is.True);
+            auction.Tick(5);
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Bidding));
+            Assert.That(auction.BiddingElapsed, Is.GreaterThanOrEqualTo(3));
+            var nextDecision = typeof(AIBidder).GetProperty("NextDecision",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            foreach (AIBidder bidder in auction.Opponents)
+                Assert.That(nextDecision.GetValue(bidder), Is.EqualTo(6d));
+            Click("Close Newspaper");
+        }
+
         private static void BuyProfitableMvpLots(AuctionManager auction)
         {
             var config = new SerializedObject(auction);
@@ -123,7 +134,7 @@ namespace AuctionGame.Auction.Tests
             config.ApplyModifiedPropertiesWithoutUndo();
             auction.OnStateChanged += state =>
             {
-                if (state == AuctionState.Bidding && auction.CurrentItem.ItemId is "arch_chalice_a" or "art_venus_a" or "pop_cd_a")
+                if (state == AuctionState.Bidding && auction.CurrentItem.ItemId is "clay-tablet" or "blue-horse")
                     Assert.That(auction.TryPlaceBid(BidderIds.Player, auction.CurrentItem.StartingPrice), Is.True);
             };
         }

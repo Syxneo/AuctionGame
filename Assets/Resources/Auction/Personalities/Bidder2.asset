@@ -14,19 +14,45 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AIPersonality
   bidderName: Trickster
   startingBudget: 600
-  evaluationAccuracy: 0.35
-  overestimateProbability: 0.5
-  aggressiveness: 0.7
-  interests:
-  - Jewelry
-  - Art
-  - Luxury
-  interestAggressivenessBonus: 0.1
-  interestProbabilityBonus: 0.1
-  interestPriceBonus: 0.15
+  overestimateBias: 50
+  intimidationResistance: 40
+  categoryProfiles:
+  - category: 0
+    interest: 45
+    accuracy: 35
+  - category: 1
+    interest: 45
+    accuracy: 35
+  - category: 2
+    interest: 75
+    accuracy: 35
+  - category: 3
+    interest: 45
+    accuracy: 35
+  - category: 4
+    interest: 45
+    accuracy: 35
+  - category: 5
+    interest: 75
+    accuracy: 35
+  - category: 6
+    interest: 45
+    accuracy: 35
+  - category: 7
+    interest: 45
+    accuracy: 35
+  - category: 8
+    interest: 75
+    accuracy: 35
+  - category: 9
+    interest: 45
+    accuracy: 35
+  - category: 10
+    interest: 45
+    accuracy: 35
+  - category: 11
+    interest: 45
+    accuracy: 35
   bidComments:
   - That’s my last bid. Probably.
   - I wouldn’t go much higher if I were you.
-  minimumDecisionInterval: 0.5
-  maximumDecisionInterval: 3.5
-  incrementOrder: 2

@@ -14,17 +14,43 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AIPersonality
   bidderName: Analyst
   startingBudget: 600
-  evaluationAccuracy: 0.9
-  overestimateProbability: 0.5
-  aggressiveness: 0.4
-  interests:
-  - Technology
-  - Mechanical
-  - Coins
-  interestAggressivenessBonus: 0.1
-  interestProbabilityBonus: 0.1
-  interestPriceBonus: 0.15
+  overestimateBias: 45
+  intimidationResistance: 55
+  categoryProfiles:
+  - category: 0
+    interest: 45
+    accuracy: 90
+  - category: 1
+    interest: 45
+    accuracy: 90
+  - category: 2
+    interest: 45
+    accuracy: 90
+  - category: 3
+    interest: 70
+    accuracy: 90
+  - category: 4
+    interest: 45
+    accuracy: 90
+  - category: 5
+    interest: 45
+    accuracy: 90
+  - category: 6
+    interest: 70
+    accuracy: 90
+  - category: 7
+    interest: 45
+    accuracy: 90
+  - category: 8
+    interest: 45
+    accuracy: 90
+  - category: 9
+    interest: 45
+    accuracy: 90
+  - category: 10
+    interest: 45
+    accuracy: 90
+  - category: 11
+    interest: 70
+    accuracy: 90
   bidComments: []
-  minimumDecisionInterval: 1.5
-  maximumDecisionInterval: 3
-  incrementOrder: 0

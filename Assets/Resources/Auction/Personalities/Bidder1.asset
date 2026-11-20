@@ -14,17 +14,43 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AIPersonality
   bidderName: Collector
   startingBudget: 600
-  evaluationAccuracy: 0.65
-  overestimateProbability: 0.5
-  aggressiveness: 0.9
-  interests:
-  - Historical
-  - Luxury
-  - Collectible
-  interestAggressivenessBonus: 0.1
-  interestProbabilityBonus: 0.1
-  interestPriceBonus: 0.15
+  overestimateBias: 55
+  intimidationResistance: 70
+  categoryProfiles:
+  - category: 0
+    interest: 85
+    accuracy: 65
+  - category: 1
+    interest: 45
+    accuracy: 65
+  - category: 2
+    interest: 45
+    accuracy: 65
+  - category: 3
+    interest: 45
+    accuracy: 65
+  - category: 4
+    interest: 45
+    accuracy: 65
+  - category: 5
+    interest: 85
+    accuracy: 65
+  - category: 6
+    interest: 45
+    accuracy: 65
+  - category: 7
+    interest: 45
+    accuracy: 65
+  - category: 8
+    interest: 45
+    accuracy: 65
+  - category: 9
+    interest: 45
+    accuracy: 65
+  - category: 10
+    interest: 85
+    accuracy: 65
+  - category: 11
+    interest: 45
+    accuracy: 65
   bidComments: []
-  minimumDecisionInterval: 0.8
-  maximumDecisionInterval: 2
-  incrementOrder: 1
