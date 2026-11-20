@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: obsidian-blade
   itemName: "Obsidiánová čepeľ z Tokaja"
-  startingPrice: 0
-  trueValue: -1
+  startingPrice: 75
+  trueValue: 155
   category: 0
-  sprite: {fileID: 0}
+  sprite: {fileID: 21300000, guid: ce29cebf6d824bd4a36387e90e41ea4b, type: 3}
   itemType: {fileID: 11400000, guid: a6801d99f41b4767ab7bb75e2a468475, type: 2}
