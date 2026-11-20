@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: be186115500836046a0f8398e5c64c73, type: 3}
+  m_Name: blue-horse
+  m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
+  itemId: blue-horse
+  itemName: "Olejomaľba Modrý koník s neznámym podpisom"
+  startingPrice: 0
+  trueValue: 0
+  category: 2
+  sprite: {fileID: 0}
+  itemRole: 0
+  genuineTrueValue: -1
+  fakeTrueValue: -1
+  genuineSprite: {fileID: 0}
+  fakeSprite: {fileID: 0}
+  newspaperClueKey: news_blue_horse

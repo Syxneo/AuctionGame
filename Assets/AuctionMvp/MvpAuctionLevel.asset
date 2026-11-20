@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d84a34bc60641c19db10951d06113d8, type: 3}
+  m_Name: MvpAuctionLevel
+  m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.MvpAuctionLevel
+  startingBudget: 1000
+  profitTarget: 300
+  useFixedSeed: 0
+  fixedSeed: 0
+  definitions:
+  - {fileID: 11400000, guid: e016942191ad412698308a7f2eaee23c, type: 2}
+  - {fileID: 11400000, guid: e7acdbe270f04e4099bfaed8442c71a1, type: 2}
+  - {fileID: 11400000, guid: f59efd680daf4bb6804a2b6f9889fac7, type: 2}
+  - {fileID: 11400000, guid: 08aa69f600ed42368db4e4bab5bee514, type: 2}
+  - {fileID: 11400000, guid: 4b99c82f72ba447b931ee598a10f6f02, type: 2}
+  - {fileID: 11400000, guid: 0fa46342ea344f52b3c38571974e60e2, type: 2}
+  clues:
+  - clueKey: news_clay_tablet
+    itemId: clay-tablet
+    headline: "Hlinená tabuľka budí záujem zberateľov"
+    body: "Vzácna hlinená tabuľka s klinovým písmom sa opäť dostáva do pozornosti trhu. Odborné záznamy opisujú originál ako hnedý predmet s matnou patinou. Nezvyčajne svetlý a lesklý povrch môže byť varovným znakom."
+    importance: 0
+  - clueKey: news_ibis
+    itemId: ibis
+    headline: "Mumifikovaný ibis opäť na trhu"
+    body: "Mumifikovaný ibis uložený v nádobe priťahuje pozornosť milovníkov starožitností. Dochované opisy pôvodného exemplára hovoria o hnedých pásoch plátna; dokonale čisté biele obväzy vzbudzujú pochybnosti."
+    importance: 0
+  - clueKey: news_blue_horse
+    itemId: blue-horse
+    headline: "Stratený „Modrý koník“ možno našiel majiteľa"
+    body: "Olejomaľba známa ako *Modrý koník* opäť rozvírila zberateľské kruhy. Archívne záznamy uvádzajú, že originál má v pravom dolnom rohu červený podpis autora. Pri posudzovaní pravosti môže rozhodnúť práve tento detail."
+    importance: 0
+  - clueKey: news_obsidian_blade
+    itemId: obsidian-blade
+    headline: "Čierna čepeľ z Tokaja"
+    body: "Pri pôvodnej obsidiánovej čepeli z Tokaja môžu tenké hrany na svetle jemne presvitať. Úplne nepriehľadná čepeľ si zaslúži pozornejšie preskúmanie."
+    importance: 1
+  - clueKey: news_bronze_statue
+    itemId: bronze-statue
+    headline: "Čo prezrádza patina bronzovej sochy?"
+    body: "Známa bronzová socha má podľa odborných záznamov zelenú patinu. Hnedý, umelo nanesený povrch nezodpovedá opisu pôvodného kusu."
+    importance: 1
+  - clueKey: news_glass_vase
+    itemId: glass-vase
+    headline: "Modrý poklad historickej sklárne"
+    body: "Zberatelia pátrajú po sklenenej váze s podpisom firmy. Pôvodný variant je podľa katalógu modrý. Zelená verzia sa od opisu originálu odlišuje."
+    importance: 1
