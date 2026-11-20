@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: fantasy_costume_b
   itemName: "Čarodejnícky plášť"
-  startingPrice: 0
-  trueValue: -1
+  startingPrice: 90
+  trueValue: 40
   sprite: {fileID: 21300000, guid: bfaa7d080e704c349820f988a4000031, type: 3}
   itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400002e, type: 2}

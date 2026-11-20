@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Linq;
+using System.Reflection;
 using NUnit.Framework;
 using TMPro;
 using UnityEditor;
@@ -39,6 +40,9 @@ namespace AuctionGame.Auction.Tests
             Click("Close Newspaper");
             Click("Start Auction");
             Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
+            var catalogField = typeof(AuctionManager).GetField("catalog", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(catalogField.GetValue(auction), Is.SameAs(level.Database));
+            Assert.That(level.Database.Items, Has.Count.EqualTo(26));
 
             float timeScale = Time.timeScale;
             try

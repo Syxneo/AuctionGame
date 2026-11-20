@@ -28,6 +28,9 @@ namespace AuctionGame.Auction.Tests
             Assert.That(level.Database.Items.Select(item => item.ItemId), Is.Unique);
             Assert.That(level.Database.Items.All(item => item.ItemType && item.ItemType.Categories.Count > 0), Is.True);
             Assert.That(level.Database.Items.Select(item => item.ItemType).Distinct().Select(type => type.TypeId), Is.Unique);
+            var roles = level.Database.Items.Select(item => item.ItemType).Distinct().Select(type => type.Role);
+            Assert.That(roles.Count(role => role == ItemRole.Critical), Is.EqualTo(5));
+            Assert.That(roles.Count(role => role == ItemRole.Fluff), Is.EqualTo(5));
             Assert.That(level.Database.GetItemById("unknown"), Is.Null);
             foreach (AuctionItem item in level.Database.Items)
                 Assert.That(level.Database.GetItemById(item.ItemId), Is.SameAs(item));
@@ -193,15 +196,16 @@ namespace AuctionGame.Auction.Tests
         [TestCase("arch_sword", ItemCategory.Archeological, ItemRole.Critical, 145, 285, 140, 20)]
         [TestCase("pop_cd", ItemCategory.PopCulture, ItemRole.Fluff, 80, 175, 75, 40)]
         [TestCase("silly_tears", ItemCategory.Silly, ItemRole.Fluff, 100, 190, 95, 20)]
-        [TestCase("silly_socks", ItemCategory.Silly, ItemRole.Unspecified, 0, -1, 0, -1)]
-        [TestCase("pop_mic", ItemCategory.PopCulture, ItemRole.Unspecified, 0, -1, 0, -1)]
-        [TestCase("fantasy_horn", ItemCategory.Fantasy, ItemRole.Unspecified, 0, -1, 0, -1)]
-        [TestCase("fantasy_costume", ItemCategory.Fantasy, ItemRole.Unspecified, 0, -1, 0, -1)]
+        [TestCase("silly_socks", ItemCategory.Silly, ItemRole.Fluff, 80, 170, 75, 30)]
+        [TestCase("pop_mic", ItemCategory.PopCulture, ItemRole.Critical, 155, 310, 150, 45)]
+        [TestCase("fantasy_horn", ItemCategory.Fantasy, ItemRole.Critical, 170, 325, 165, 35)]
+        [TestCase("fantasy_costume", ItemCategory.Fantasy, ItemRole.Fluff, 95, 190, 90, 40)]
         public void FamilyVariantsUseApprovedEconomyAndImportedSprites(
             string familyId, ItemCategory category, ItemRole role, int priceA, int valueA, int priceB, int valueB)
         {
             var a = CheckVariant(familyId + "_a", priceA, valueA);
             var b = CheckVariant(familyId + "_b", priceB, valueB);
+            Assert.That(a.TrueValue, Is.GreaterThan(b.TrueValue));
             Assert.That(a.ItemType, Is.SameAs(b.ItemType));
             Assert.That(a.ItemType.TypeId, Is.EqualTo(familyId));
             Assert.That(a.ItemType.Categories, Does.Contain(category));

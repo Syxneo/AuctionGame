@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: fantasy_horn_b
   itemName: "Roh jednorožca"
-  startingPrice: 0
-  trueValue: -1
+  startingPrice: 165
+  trueValue: 35
   sprite: {fileID: 21300000, guid: bfaa7d080e704c349820f988a400002c, type: 3}
   itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000029, type: 2}
