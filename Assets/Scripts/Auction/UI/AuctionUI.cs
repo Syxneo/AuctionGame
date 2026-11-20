@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -14,6 +15,7 @@ namespace AuctionGame.Auction
         [SerializeField] private TMP_Text openingPrice;
         [SerializeField] private TMP_Text highestBid;
         [SerializeField] private TMP_Text highestBidder;
+        [SerializeField] private TMP_Text opponentNames;
         [SerializeField] private TMP_Text timer;
         [SerializeField] private TMP_Text budget;
         [SerializeField] private TMP_Text history;
@@ -93,7 +95,9 @@ namespace AuctionGame.Auction
             itemName.text = item ? item.ItemName : "Auction";
             openingPrice.text = item ? $"Opening price  ${item.StartingPrice}" : "";
             highestBid.text = hasWinner ? $"Highest bid  ${manager.CurrentPrice}" : "Highest bid  —";
-            highestBidder.text = $"Leading bidder  {BidderIds.DisplayName(manager.HighestBidderId)}";
+            highestBidder.text = $"Leading bidder  {manager.GetBidderDisplayName(manager.HighestBidderId)}";
+            if (opponentNames)
+                opponentNames.text = string.Join("   ·   ", manager.Opponents.Select(opponent => opponent.Personality.Name));
             budget.text = $"Budget  ${manager.Economy.AvailableBudget}";
             openingButtonLabel.text = item ? $"BID ${item.StartingPrice}" : "";
             SetButton(openingButton, item && !hasWinner, 0);
@@ -105,7 +109,7 @@ namespace AuctionGame.Auction
             {
                 AuctionState.ItemReveal => "Item reveal",
                 AuctionState.Bidding => "Bidding open",
-                AuctionState.Sold => $"Sold to {BidderIds.DisplayName(manager.HighestBidderId)} for ${manager.CurrentPrice}",
+                AuctionState.Sold => $"Sold to {manager.GetBidderDisplayName(manager.HighestBidderId)} for ${manager.CurrentPrice}",
                 AuctionState.Unsold => "Unsold",
                 AuctionState.Finished => $"Auction complete · {manager.Economy.Purchases.Count} purchased",
                 _ => "Waiting to start"
@@ -116,7 +120,7 @@ namespace AuctionGame.Auction
             for (int index = bids.Count - 1; index >= Mathf.Max(0, bids.Count - 6); index--)
             {
                 BidRecord bid = bids[index];
-                lines.Append($"{BidderIds.DisplayName(bid.bidderId)}  ${bid.amount}");
+                lines.Append($"{manager.GetBidderDisplayName(bid.bidderId)}  ${bid.amount}");
                 if (!string.IsNullOrEmpty(bid.comment))
                     lines.Append($" · {bid.comment}");
                 lines.AppendLine();

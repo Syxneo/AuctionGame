@@ -27,7 +27,6 @@ namespace AuctionGame.Auction
         private readonly Random random;
         private readonly Random evaluationRandom;
         private readonly Random commentRandom;
-        private readonly AIBidderProfile profile;
         private readonly List<AIPurchase> purchases = new();
         private double bidProbability;
 
@@ -35,9 +34,9 @@ namespace AuctionGame.Auction
         public AIPersonality Personality { get; }
         public int StartingBudget { get; }
         public int AvailableBudget { get; private set; }
-        public double EvaluationAccuracy => profile.EvaluationAccuracy;
-        public double Aggressiveness => profile.Aggressiveness;
-        public IReadOnlyList<string> Interests => profile.Interests;
+        public double EvaluationAccuracy => Personality.EvaluationAccuracy;
+        public double Aggressiveness => Personality.Aggressiveness;
+        public IReadOnlyList<string> Interests => Personality.Interests;
         public int EstimatedValue { get; private set; }
         public int MaxBid { get; private set; }
         public int EffectiveMaxBid => Math.Min(MaxBid, AvailableBudget);
@@ -45,12 +44,11 @@ namespace AuctionGame.Auction
         public long TotalProfit { get; private set; }
         internal double NextDecision { get; private set; }
 
-        internal AIBidder(string id, AIPersonality personality, AIBidderProfile profile, int seed)
+        internal AIBidder(string id, AIPersonality personality, int seed)
         {
             Id = id;
             Personality = personality;
-            this.profile = profile;
-            StartingBudget = profile.StartingBudget;
+            StartingBudget = personality.StartingBudget;
             AvailableBudget = StartingBudget;
             Purchases = purchases.AsReadOnly();
             var seeds = new Random(seed);
@@ -61,12 +59,12 @@ namespace AuctionGame.Auction
 
         internal void BeginItem(AuctionItem item, ItemDatabase catalog)
         {
-            EstimatedValue = AIEvaluation.Estimate(item, catalog, EvaluationAccuracy, profile.OverestimateProbability, evaluationRandom);
+            EstimatedValue = AIEvaluation.Estimate(item, catalog, EvaluationAccuracy, Personality.OverestimateProbability, evaluationRandom);
             bool preferred = AIEvaluation.HasInterest(Interests, item.Categories);
-            double aggression = Math.Min(1, Aggressiveness + (preferred ? profile.InterestAggressivenessBonus : 0));
-            double priceFactor = 0.6 + 0.5 * aggression + (preferred ? profile.InterestPriceBonus : 0);
+            double aggression = Math.Min(1, Aggressiveness + (preferred ? Personality.InterestAggressivenessBonus : 0));
+            double priceFactor = 0.6 + 0.5 * aggression + (preferred ? Personality.InterestPriceBonus : 0);
             MaxBid = (int)Math.Min(int.MaxValue, Math.Round(EstimatedValue * priceFactor));
-            bidProbability = Math.Clamp(0.35 + 0.6 * aggression + (preferred ? profile.InterestProbabilityBonus : 0), 0, 1);
+            bidProbability = Math.Clamp(0.35 + 0.6 * aggression + (preferred ? Personality.InterestProbabilityBonus : 0), 0, 1);
             NextDecision = DecisionInterval();
         }
 
@@ -82,8 +80,9 @@ namespace AuctionGame.Auction
                 return;
             }
 
-            int[] increments = Personality == AIPersonality.Collector ? LargeFirst : SmallFirst;
-            int start = Personality == AIPersonality.Trickster ? random.Next(increments.Length) : 0;
+            AIBidIncrementOrder order = Personality.IncrementOrder;
+            int[] increments = order == AIBidIncrementOrder.LargeFirst ? LargeFirst : SmallFirst;
+            int start = order == AIBidIncrementOrder.RandomRotation ? random.Next(increments.Length) : 0;
             for (int index = 0; index < increments.Length; index++)
             {
                 long amount = (long)auction.CurrentPrice + increments[(start + index) % increments.Length];
@@ -94,7 +93,7 @@ namespace AuctionGame.Auction
 
         internal string GetBidComment()
         {
-            IReadOnlyList<string> comments = profile.BidComments;
+            IReadOnlyList<string> comments = Personality.BidComments;
             return comments.Count == 0 ? "" : comments[commentRandom.Next(comments.Count)];
         }
 
@@ -106,12 +105,8 @@ namespace AuctionGame.Auction
             TotalProfit += purchase.ItemProfit;
         }
 
-        private double DecisionInterval() => Personality switch
-        {
-            AIPersonality.Collector => Between(0.8, 2.0),
-            AIPersonality.Trickster => Between(0.5, 3.5),
-            _ => Between(1.5, 3.0)
-        };
+        private double DecisionInterval() =>
+            Between(Personality.MinimumDecisionInterval, Personality.MaximumDecisionInterval);
 
         private double Between(double min, double max) => min + (max - min) * random.NextDouble();
     }

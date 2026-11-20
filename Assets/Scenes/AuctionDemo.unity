@@ -2467,6 +2467,10 @@ MonoBehaviour:
   randomSeed: 1729
   enableAutomaticAi: 1
   itemDatabase: {fileID: 11400000, guid: f99d5473aa1049bd95a967e68983a1f3, type: 2}
+  bidders:
+  - {fileID: 11400000, guid: 5aeb5fb561c54e8782783ed7ecd02041, type: 2}
+  - {fileID: 11400000, guid: f650281fcbdc49fea7ceb83ca53e53cc, type: 2}
+  - {fileID: 11400000, guid: e62c8037a1c545dcae51338f6d468ddb, type: 2}
   items:
   - {fileID: 11400000, guid: 1eaf258d2f5d0bd41938f75208991637, type: 2}
   - {fileID: 11400000, guid: ea09d85fad0803d4184ab61e2b4538d5, type: 2}
@@ -2799,6 +2803,7 @@ MonoBehaviour:
   openingPrice: {fileID: 480826675}
   highestBid: {fileID: 1932532038}
   highestBidder: {fileID: 1316393533}
+  opponentNames: {fileID: 816953674}
   timer: {fileID: 1288269210}
   budget: {fileID: 1643211748}
   history: {fileID: 1154325412}

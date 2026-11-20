@@ -119,7 +119,7 @@ namespace AuctionGame.Auction.Editor
             Bind("status", Label(panel, font, "", 40, 286, 880, 42, 26, Accent));
 
             Label(panel, font, "Opponents", 620, 162, 300, 34, 22, Accent);
-            Label(panel, font, "Collector   ·   Trickster   ·   Analyst", 620, 200, 300, 54, 18, Color.white);
+            Bind("opponentNames", Label(panel, font, "", 620, 200, 300, 54, 18, Color.white));
             Label(panel, font, "Recent bids", 620, 345, 300, 34, 22, Accent);
             var history = Label(panel, font, "", 620, 383, 300, 176, 20, Color.white);
             history.alignment = TextAlignmentOptions.TopLeft;

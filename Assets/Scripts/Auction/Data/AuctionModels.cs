@@ -11,6 +11,14 @@ namespace AuctionGame.Auction
         public const string Trickster = "trickster";
         public const string Analyst = "analyst";
 
+        internal static string ForOpponentIndex(int index) => index switch
+        {
+            0 => Collector,
+            1 => Trickster,
+            2 => Analyst,
+            _ => $"bidder-{index + 1}"
+        };
+
         public static string DisplayName(string id) => id switch
         {
             Player => "You",

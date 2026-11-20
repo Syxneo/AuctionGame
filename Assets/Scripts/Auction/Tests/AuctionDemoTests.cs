@@ -30,6 +30,14 @@ namespace AuctionGame.Auction.Tests
             Assert.That(eventSystem, Is.Not.Null);
             Assert.That(eventSystem.currentInputModule, Is.Not.Null);
             Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
+            var managerSettings = new SerializedObject(auction);
+            var slots = managerSettings.FindProperty("bidders");
+            Assert.That(slots.arraySize, Is.EqualTo(3));
+            Assert.That(auction.Opponents.Select(opponent => opponent.Personality.Name),
+                Is.EqualTo(new[] { "Collector", "Trickster", "Analyst" }));
+            for (int index = 0; index < slots.arraySize; index++)
+                Assert.That(auction.Opponents[index].Personality,
+                    Is.SameAs(slots.GetArrayElementAtIndex(index).objectReferenceValue));
             auction.enabled = false;
 
             var opening = GameObject.Find("BID Button").GetComponent<Button>();

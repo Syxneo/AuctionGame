@@ -26,7 +26,7 @@ namespace AuctionGame.Auction.Editor
 
             foreach (AIBidder opponent in auction.Opponents)
             {
-                EditorGUILayout.LabelField(BidderIds.DisplayName(opponent.Id), "$" + opponent.AvailableBudget);
+                EditorGUILayout.LabelField(opponent.Personality.Name, "$" + opponent.AvailableBudget);
                 using (new EditorGUI.IndentLevelScope())
                 {
                     foreach (AIPurchase purchase in opponent.Purchases)

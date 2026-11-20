@@ -132,8 +132,8 @@ namespace AuctionGame.Auction.Tests
         public void FailedEvaluationWithoutAlternativesUsesSeededMultiplier(float probability, int min, int max)
         {
             ConfigureCollector(accuracy: 0);
-            var config = new SerializedObject(auction);
-            config.FindProperty("collector").FindPropertyRelative("overestimateProbability").floatValue = probability;
+            var config = GetPersonalitySettings(0);
+            config.FindProperty("overestimateProbability").floatValue = probability;
             config.ApplyModifiedPropertiesWithoutUndo();
             var current = CreateItem("current", 1000);
             var database = CreateDatabase(current, CreateItem("not-a-match", 600, ItemCategory.Art));
@@ -155,8 +155,8 @@ namespace AuctionGame.Auction.Tests
         public void InterestBonusesApplyOnceEvenWithMultipleMatches(bool multipleMatches)
         {
             ConfigureCollector(accuracy: 1);
-            var config = new SerializedObject(auction);
-            config.FindProperty("collector").FindPropertyRelative("aggressiveness").floatValue = 0.5f;
+            var config = GetPersonalitySettings(0);
+            config.FindProperty("aggressiveness").floatValue = 0.5f;
             config.ApplyModifiedPropertiesWithoutUndo();
             var current = CreateItem("current", 400);
             SetCategories(current, ItemCategory.Historical,
@@ -178,7 +178,7 @@ namespace AuctionGame.Auction.Tests
         public void AiSettlementUsesActualVariantAndCarriesBudgetUntilLevelReset(int actualValue, long profit)
         {
             ConfigureCollector(accuracy: 0, budget: 200);
-            ConfigureProfile("analyst", accuracy: 0, budget: 600);
+            ConfigureProfile(2, accuracy: 0, budget: 600);
             var first = CreateItem("first", actualValue);
             var second = CreateItem("second", 500, ItemCategory.Art);
             var comparable = CreateItem("comparable", 500);
@@ -461,6 +461,24 @@ namespace AuctionGame.Auction.Tests
         }
 
         [Test]
+        public void BidderArraySupportsAdditionalSlotsWithTheirOwnRuntimeIdentity()
+        {
+            var config = new SerializedObject(auction);
+            var bidders = config.FindProperty("bidders");
+            Object personality = bidders.GetArrayElementAtIndex(0).objectReferenceValue;
+            bidders.arraySize = 4;
+            bidders.GetArrayElementAtIndex(3).objectReferenceValue = personality;
+            config.ApplyModifiedPropertiesWithoutUndo();
+
+            Assert.That(auction.StartAuction(), Is.True);
+            Assert.That(auction.Opponents.Count, Is.EqualTo(4));
+            Assert.That(auction.Opponents.Select(opponent => opponent.Id), Is.Unique);
+            var fourth = auction.Opponents[3];
+            Assert.That(fourth.Personality, Is.SameAs(personality));
+            Assert.That(auction.GetBidderDisplayName(fourth.Id), Is.EqualTo("Collector"));
+        }
+
+        [Test]
         public void DuplicateItemIdsPreventStart()
         {
             var serialized = new SerializedObject(auction);
@@ -548,15 +566,33 @@ namespace AuctionGame.Auction.Tests
         }
 
         private void ConfigureCollector(float accuracy, int budget = 600) =>
-            ConfigureProfile("collector", accuracy, budget);
+            ConfigureProfile(0, accuracy, budget);
 
-        private void ConfigureProfile(string name, float accuracy, int budget)
+        private void ConfigureProfile(int index, float accuracy, int budget)
+        {
+            var profile = GetPersonalitySettings(index);
+            profile.FindProperty("evaluationAccuracy").floatValue = accuracy;
+            profile.FindProperty("startingBudget").intValue = budget;
+            profile.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private SerializedObject GetPersonalitySettings(int index)
         {
             var settings = new SerializedObject(auction);
-            var profile = settings.FindProperty(name);
-            profile.FindPropertyRelative("evaluationAccuracy").floatValue = accuracy;
-            profile.FindPropertyRelative("startingBudget").intValue = budget;
-            settings.ApplyModifiedPropertiesWithoutUndo();
+            var slots = settings.FindProperty("bidders");
+            Assert.That(slots.arraySize, Is.GreaterThan(index));
+            var field = slots.GetArrayElementAtIndex(index);
+            var personality = (AIPersonality)field.objectReferenceValue;
+            if (!personality || AssetDatabase.Contains(personality))
+            {
+                Assert.That(personality, Is.Not.Null);
+                personality = Object.Instantiate(personality);
+                objects.Add(personality);
+                field.objectReferenceValue = personality;
+                settings.ApplyModifiedPropertiesWithoutUndo();
+            }
+
+            return new SerializedObject(personality);
         }
 
         private AuctionItem CreateItem(string id, int value,

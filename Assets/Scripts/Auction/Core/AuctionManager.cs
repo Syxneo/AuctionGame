@@ -18,9 +18,7 @@ namespace AuctionGame.Auction
 
         [SerializeField] private AuctionItem[] items = Array.Empty<AuctionItem>();
         [SerializeField] private ItemDatabase itemDatabase;
-        [SerializeField] private AIBidderProfile collector = new(0.65f, 0.90f, "Historical", "Luxury", "Collectible");
-        [SerializeField] private AIBidderProfile trickster = AIBidderProfile.CreateTrickster();
-        [SerializeField] private AIBidderProfile analyst = new(0.90f, 0.40f, "Technology", "Mechanical", "Coins");
+        [SerializeField] private AIPersonality[] bidders;
 
         public AuctionState State { get; private set; }
         public AuctionItem CurrentItem { get; private set; }
@@ -42,7 +40,7 @@ namespace AuctionGame.Auction
         private double elapsed;
         private double bidDeadline;
         private bool processingTime;
-        private AIBidder[] opponents;
+        private AIBidder[] opponents = Array.Empty<AIBidder>();
         private IReadOnlyList<AuctionItem> lots;
         private ItemDatabase catalog;
 
@@ -70,6 +68,7 @@ namespace AuctionGame.Auction
             {
                 itemIndex = -1;
                 results.Clear();
+                opponents = Array.Empty<AIBidder>();
                 Opponents = Array.Empty<AIBidder>();
                 Economy.ResetLevel();
                 SetState(AuctionState.Idle);
@@ -97,16 +96,20 @@ namespace AuctionGame.Auction
                 snapshot.Add(item);
             }
 
+            AIPersonality[] personalities = bidders ?? LoadDefaultBidders();
+            foreach (AIPersonality personality in personalities)
+            {
+                if (!personality)
+                    return false;
+            }
+
             lots = snapshot;
             catalog = fullCatalog;
 
             var random = new System.Random(randomSeed);
-            opponents = new[]
-            {
-                new AIBidder(BidderIds.Collector, AIPersonality.Collector, collector, random.Next()),
-                new AIBidder(BidderIds.Trickster, AIPersonality.Trickster, trickster, random.Next()),
-                new AIBidder(BidderIds.Analyst, AIPersonality.Analyst, analyst, random.Next())
-            };
+            opponents = new AIBidder[personalities.Length];
+            for (int index = 0; index < personalities.Length; index++)
+                opponents[index] = new AIBidder(BidderIds.ForOpponentIndex(index), personalities[index], random.Next());
             Opponents = Array.AsReadOnly(opponents);
 
             processingTime = true;
@@ -120,6 +123,18 @@ namespace AuctionGame.Auction
                 processingTime = false;
             }
         }
+
+        private void Reset() => bidders = LoadDefaultBidders();
+
+        private static AIPersonality[] LoadDefaultBidders() => new[]
+        {
+            Resources.Load<AIPersonality>("Auction/Personalities/Bidder1"),
+            Resources.Load<AIPersonality>("Auction/Personalities/Bidder2"),
+            Resources.Load<AIPersonality>("Auction/Personalities/Bidder3")
+        };
+
+        public string GetBidderDisplayName(string bidderId) =>
+            FindOpponent(bidderId)?.Personality.Name ?? BidderIds.DisplayName(bidderId);
 
         private void Update() => Tick(Time.deltaTime);
 
