@@ -51,10 +51,20 @@ namespace AuctionGame.Auction.Tests
         }
 
         [Test]
+        public void SharedCategoriesReturnsEmptyWhenOnlyTheCurrentItemMatches()
+        {
+            AuctionItem relay = level.Database.GetItemById("relay-prototype");
+            Assert.That(relay.Categories, Is.EqualTo(new[] { ItemCategory.Technology }));
+            Assert.That(level.Database.GetItemsSharingCategories(relay), Is.Empty);
+            Assert.That(level.Database.GetItemsSharingCategories(null), Is.Empty);
+        }
+
+        [Test]
         public void LevelReturnsSixOrderedVariantsAndCluesResolveAgainstDatabase()
         {
             Assert.That(level.StartingBudget, Is.EqualTo(1000));
             Assert.That(level.ProfitTarget, Is.EqualTo(300));
+            Assert.That(level.AiStartingBudget, Is.EqualTo(600));
             Assert.That(level.CreateRun(), Is.EqualTo(level.Variants).And.Count.EqualTo(6));
             Assert.That(level.Variants.Select(item => item.ItemId), Is.Unique);
             Assert.That(level.Variants.All(item => level.Database.GetItemById(item.ItemId) == item), Is.True);
@@ -69,75 +79,77 @@ namespace AuctionGame.Auction.Tests
             }
         }
 
-        [Test]
-        public void VariantsStoreIndependentPricesValuesAndSprites()
+        [TestCase("clay-tablet", "clay-tablet-polished-gray", ItemCategory.Historical)]
+        [TestCase("ibis", "ibis-white-linen", ItemCategory.Historical)]
+        [TestCase("blue-horse", "blue-horse-black-signature", ItemCategory.Art)]
+        [TestCase("obsidian-blade", "obsidian-blade-opaque", ItemCategory.Historical)]
+        [TestCase("bronze-statue", "bronze-statue-brown-finish", ItemCategory.Art)]
+        [TestCase("glass-vase", "glass-vase-green", ItemCategory.Art)]
+        public void MvpFamilyHasTwoPricedVariantsWithDistinctSprites(
+            string clueItemId, string otherItemId, ItemCategory category)
         {
-            AuctionItem first = Object.Instantiate(level.Database.GetItemById("clay-tablet"));
-            AuctionItem second = Object.Instantiate(level.Database.GetItemById("clay-tablet-polished-gray"));
-            var texture = new Texture2D(2, 2);
-            Sprite firstSprite = Sprite.Create(texture, new Rect(0, 0, 1, 1), Vector2.zero);
-            Sprite secondSprite = Sprite.Create(texture, new Rect(1, 0, 1, 1), Vector2.zero);
-            try
-            {
-                Configure(first, 40, 230, firstSprite);
-                Configure(second, 20, 25, secondSprite);
-                Assert.That(first.ItemType, Is.SameAs(second.ItemType));
-                Assert.That(first.StartingPrice, Is.EqualTo(40));
-                Assert.That(second.StartingPrice, Is.EqualTo(20));
-                Assert.That(first.TrueValue, Is.EqualTo(230));
-                Assert.That(second.TrueValue, Is.EqualTo(25));
-                Assert.That(first.Sprite, Is.SameAs(firstSprite));
-                Assert.That(second.Sprite, Is.SameAs(secondSprite));
-            }
-            finally
-            {
-                Object.DestroyImmediate(first);
-                Object.DestroyImmediate(second);
-                Object.DestroyImmediate(firstSprite);
-                Object.DestroyImmediate(secondSprite);
-                Object.DestroyImmediate(texture);
-            }
+            AuctionItem clueItem = level.Database.GetItemById(clueItemId);
+            AuctionItem otherItem = level.Database.GetItemById(otherItemId);
+            Assert.That(clueItem.ItemType.TypeId, Is.EqualTo(clueItemId));
+            Assert.That(level.Database.GetVariantsByType(clueItem.ItemType),
+                Is.EquivalentTo(new[] { clueItem, otherItem }));
+            Assert.That(level.Clues.Count(clue => clue.ItemId == clueItemId), Is.EqualTo(1));
+            Assert.That(clueItem.Categories, Is.EqualTo(new[] { category, ItemCategory.Collectible }));
+            Assert.That(otherItem.Categories, Is.EqualTo(clueItem.Categories));
+            Assert.That(clueItem.StartingPrice, Is.Positive);
+            Assert.That(otherItem.StartingPrice, Is.Positive);
+            Assert.That(clueItem.TrueValue, Is.GreaterThan(clueItem.StartingPrice));
+            Assert.That(otherItem.TrueValue, Is.InRange(0, otherItem.StartingPrice - 1));
+            Assert.That(clueItem.Sprite, Is.Not.Null);
+            Assert.That(otherItem.Sprite, Is.Not.Null);
+            Assert.That(otherItem.Sprite, Is.Not.SameAs(clueItem.Sprite));
         }
 
         [Test]
-        public void AuctionAcceptsConfiguredVariantAndReportUsesItsValue()
+        public void AuctionRunsMvpAssetsAndThreeFavorablePurchasesReachTarget()
         {
-            AuctionItem variant = Object.Instantiate(level.CreateRun()[0]);
-            var host = new GameObject("MVP variant auction test");
+            var run = level.CreateRun();
+            var host = new GameObject("MVP auction test");
             try
             {
-                Configure(variant, 40, 230, null);
                 var auction = host.AddComponent<AuctionManager>();
                 var config = new SerializedObject(auction);
                 config.FindProperty("enableAutomaticAi").boolValue = false;
                 var items = config.FindProperty("items");
-                items.arraySize = 1;
-                items.GetArrayElementAtIndex(0).objectReferenceValue = variant;
+                items.arraySize = run.Count;
+                for (int index = 0; index < run.Count; index++)
+                    items.GetArrayElementAtIndex(index).objectReferenceValue = run[index];
                 config.ApplyModifiedPropertiesWithoutUndo();
 
+                var wallet = new SerializedObject(auction.Economy);
+                wallet.FindProperty("startingBudget").intValue = level.StartingBudget;
+                wallet.ApplyModifiedPropertiesWithoutUndo();
+
                 Assert.That(auction.StartAuction(), Is.True);
-                Assert.That(auction.CurrentItem, Is.SameAs(variant));
-                auction.Tick(AuctionManager.RevealDuration);
-                Assert.That(auction.TryPlaceBid(BidderIds.Player, 40), Is.True);
-                auction.Tick(AuctionManager.InitialBiddingTime);
-                Assert.That(auction.Results.Single().itemId, Is.EqualTo(variant.ItemId));
-                Assert.That(auction.Economy.Purchases.Single().item, Is.SameAs(variant));
-                Assert.That(auction.Economy.CalculateProfit(), Is.EqualTo(190));
+                var favorable = run.Where(item => item.TrueValue > item.StartingPrice).ToArray();
+                Assert.That(favorable.Length, Is.EqualTo(3));
+                Assert.That(run.Sum(item => item.TrueValue - item.StartingPrice), Is.LessThan(level.ProfitTarget));
+                foreach (AuctionItem item in run)
+                {
+                    Assert.That(auction.CurrentItem, Is.SameAs(item));
+                    auction.Tick(AuctionManager.RevealDuration);
+                    if (favorable.Contains(item))
+                        Assert.That(auction.TryPlaceBid(BidderIds.Player, item.StartingPrice), Is.True);
+                    auction.Tick(AuctionManager.InitialBiddingTime);
+                    auction.Tick(2f);
+                }
+
+                Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
+                Assert.That(auction.Results.Select(result => result.itemId), Is.EqualTo(run.Select(item => item.ItemId)));
+                Assert.That(auction.Economy.Purchases.Select(purchase => purchase.item), Is.EqualTo(favorable));
+                Assert.That(auction.Economy.CalculateProfit(),
+                    Is.EqualTo(favorable.Sum(item => item.TrueValue - item.StartingPrice)));
+                Assert.That(auction.Economy.HasReachedTarget(level.ProfitTarget), Is.True);
             }
             finally
             {
                 Object.DestroyImmediate(host);
-                Object.DestroyImmediate(variant);
             }
-        }
-
-        private static void Configure(AuctionItem item, int price, int value, Sprite sprite)
-        {
-            var data = new SerializedObject(item);
-            data.FindProperty("startingPrice").intValue = price;
-            data.FindProperty("trueValue").intValue = value;
-            data.FindProperty("sprite").objectReferenceValue = sprite;
-            data.ApplyModifiedPropertiesWithoutUndo();
         }
     }
 }

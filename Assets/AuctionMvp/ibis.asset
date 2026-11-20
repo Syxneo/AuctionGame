@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: ibis
   itemName: "Mumifikovaný ibis v nádobe"
-  startingPrice: 0
-  trueValue: -1
+  startingPrice: 155
+  trueValue: 345
   category: 0
-  sprite: {fileID: 0}
+  sprite: {fileID: 21300000, guid: 0f54fcfb3b9d4f84aed353842a9588af, type: 3}
   itemType: {fileID: 11400000, guid: cba99dcb9e9647c494af798fffd2e94e, type: 2}

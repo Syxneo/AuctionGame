@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.MvpAuctionLevel
   startingBudget: 1000
   profitTarget: 300
+  aiStartingBudget: 600
   itemDatabase: {fileID: 11400000, guid: f99d5473aa1049bd95a967e68983a1f3, type: 2}
   variants:
   - {fileID: 11400000, guid: e016942191ad412698308a7f2eaee23c, type: 2}

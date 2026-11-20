@@ -28,6 +28,7 @@ namespace AuctionGame.Auction
     {
         [SerializeField, Min(0)] private int startingBudget = 1000;
         [SerializeField, Min(0)] private int profitTarget = 300;
+        [SerializeField, Min(0)] private int aiStartingBudget = 600;
         [SerializeField] private ItemDatabase itemDatabase;
         [SerializeField, FormerlySerializedAs("definitions")]
         private AuctionItem[] variants = Array.Empty<AuctionItem>();
@@ -35,6 +36,7 @@ namespace AuctionGame.Auction
 
         public int StartingBudget => startingBudget;
         public int ProfitTarget => profitTarget;
+        public int AiStartingBudget => aiStartingBudget;
         public ItemDatabase Database => itemDatabase;
         public IReadOnlyList<AuctionItem> Variants => Array.AsReadOnly(variants);
         public IReadOnlyList<NewspaperClue> Clues => Array.AsReadOnly(clues);
