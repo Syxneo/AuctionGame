@@ -15,12 +15,7 @@ MonoBehaviour:
   itemId: clay-tablet
   itemName: "Hlinená tabuľka s klinovým písmom"
   startingPrice: 0
-  trueValue: 0
+  trueValue: -1
   category: 0
   sprite: {fileID: 0}
-  itemRole: 0
-  genuineTrueValue: -1
-  fakeTrueValue: -1
-  genuineSprite: {fileID: 0}
-  fakeSprite: {fileID: 0}
-  newspaperClueKey: news_clay_tablet
+  itemType: {fileID: 11400000, guid: b99d4a104df8475eb73f3485aa703aa9, type: 2}

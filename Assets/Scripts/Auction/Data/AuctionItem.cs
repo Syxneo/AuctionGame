@@ -2,25 +2,23 @@
 
 namespace AuctionGame.Auction
 {
-    public enum ItemCategory { Historical, Rare, Art, Technology, Misc }
-    public enum ItemRole { Critical, Fluff }
-    public enum ItemAuthenticity { Genuine, Fake }
+    public enum ItemCategory
+    {
+        Historical = 0, Rare = 1, Art = 2, Technology = 3, Misc = 4,
+        Luxury = 5, Mechanical = 6, Military = 7, Jewelry = 8,
+        Gaming = 9, Collectible = 10, Coins = 11
+    }
 
     [CreateAssetMenu(menuName = "Auction/Item")]
     public sealed class AuctionItem : ScriptableObject
     {
         [SerializeField] private string itemId;
         [SerializeField] private string itemName;
-        [SerializeField, Min(1)] private int startingPrice = 1;
-        [SerializeField, Min(0)] private int trueValue;
+        [SerializeField, Min(0)] private int startingPrice = 1;
+        [SerializeField, Min(-1)] private int trueValue;
         [SerializeField] private ItemCategory category;
         [SerializeField] private Sprite sprite;
-        [SerializeField] private ItemRole itemRole;
-        [SerializeField, Min(-1)] private int genuineTrueValue = -1;
-        [SerializeField, Min(-1)] private int fakeTrueValue = -1;
-        [SerializeField] private Sprite genuineSprite;
-        [SerializeField] private Sprite fakeSprite;
-        [SerializeField] private string newspaperClueKey;
+        [SerializeField] private AuctionItemType itemType;
 
         public string ItemId => itemId;
         public string ItemName => itemName;
@@ -28,12 +26,8 @@ namespace AuctionGame.Auction
         public int TrueValue => trueValue;
         public ItemCategory Category => category;
         public Sprite Sprite => sprite;
-        public ItemRole Role => itemRole;
-        public int GenuineTrueValue => genuineTrueValue;
-        public int FakeTrueValue => fakeTrueValue;
-        public Sprite GenuineSprite => genuineSprite;
-        public Sprite FakeSprite => fakeSprite;
-        public string NewspaperClueKey => newspaperClueKey;
-        public bool HasVariantPrices => StartingPrice > 0 && GenuineTrueValue >= 0 && FakeTrueValue >= 0;
+        public AuctionItemType ItemType => itemType;
+        public System.Collections.Generic.IReadOnlyList<ItemCategory> Categories =>
+            itemType ? itemType.Categories : new[] { category };
     }
 }

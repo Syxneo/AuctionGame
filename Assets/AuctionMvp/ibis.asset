@@ -15,12 +15,7 @@ MonoBehaviour:
   itemId: ibis
   itemName: "Mumifikovaný ibis v nádobe"
   startingPrice: 0
-  trueValue: 0
+  trueValue: -1
   category: 0
   sprite: {fileID: 0}
-  itemRole: 0
-  genuineTrueValue: -1
-  fakeTrueValue: -1
-  genuineSprite: {fileID: 0}
-  fakeSprite: {fileID: 0}
-  newspaperClueKey: news_ibis
+  itemType: {fileID: 11400000, guid: cba99dcb9e9647c494af798fffd2e94e, type: 2}

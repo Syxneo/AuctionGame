@@ -15,12 +15,7 @@ MonoBehaviour:
   itemId: obsidian-blade
   itemName: "Obsidiánová čepeľ z Tokaja"
   startingPrice: 0
-  trueValue: 0
+  trueValue: -1
   category: 0
   sprite: {fileID: 0}
-  itemRole: 1
-  genuineTrueValue: -1
-  fakeTrueValue: -1
-  genuineSprite: {fileID: 0}
-  fakeSprite: {fileID: 0}
-  newspaperClueKey: news_obsidian_blade
+  itemType: {fileID: 11400000, guid: a6801d99f41b4767ab7bb75e2a468475, type: 2}

@@ -14,15 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.MvpAuctionLevel
   startingBudget: 1000
   profitTarget: 300
-  useFixedSeed: 0
-  fixedSeed: 0
-  definitions:
+  itemDatabase: {fileID: 11400000, guid: f99d5473aa1049bd95a967e68983a1f3, type: 2}
+  variants:
   - {fileID: 11400000, guid: e016942191ad412698308a7f2eaee23c, type: 2}
-  - {fileID: 11400000, guid: e7acdbe270f04e4099bfaed8442c71a1, type: 2}
+  - {fileID: 11400000, guid: 9e7e4398b5ea4e1eba50e367a344cbc7, type: 2}
   - {fileID: 11400000, guid: f59efd680daf4bb6804a2b6f9889fac7, type: 2}
-  - {fileID: 11400000, guid: 08aa69f600ed42368db4e4bab5bee514, type: 2}
+  - {fileID: 11400000, guid: ce35966138c94830b0cc468c8c2fd233, type: 2}
   - {fileID: 11400000, guid: 4b99c82f72ba447b931ee598a10f6f02, type: 2}
-  - {fileID: 11400000, guid: 0fa46342ea344f52b3c38571974e60e2, type: 2}
+  - {fileID: 11400000, guid: 5213dbfffd0b4d40b94b5658df22dfc3, type: 2}
   clues:
   - clueKey: news_clay_tablet
     itemId: clay-tablet

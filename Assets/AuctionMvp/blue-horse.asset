@@ -15,12 +15,7 @@ MonoBehaviour:
   itemId: blue-horse
   itemName: "Olejomaľba Modrý koník s neznámym podpisom"
   startingPrice: 0
-  trueValue: 0
+  trueValue: -1
   category: 2
   sprite: {fileID: 0}
-  itemRole: 0
-  genuineTrueValue: -1
-  fakeTrueValue: -1
-  genuineSprite: {fileID: 0}
-  fakeSprite: {fileID: 0}
-  newspaperClueKey: news_blue_horse
+  itemType: {fileID: 11400000, guid: 44c02609c0f84fa68c1e8ab853ec46cd, type: 2}

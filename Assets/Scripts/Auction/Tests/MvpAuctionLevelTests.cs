@@ -2,6 +2,7 @@ using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace AuctionGame.Auction.Tests
 {
@@ -14,89 +15,129 @@ namespace AuctionGame.Auction.Tests
         {
             level = AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>("Assets/AuctionMvp/MvpAuctionLevel.asset");
             Assert.That(level, Is.Not.Null);
+            Assert.That(level.Database, Is.Not.Null);
         }
 
         [Test]
-        public void CatalogHasUniqueDefinitionsAndOneCluePerItem()
+        public void DatabaseContainsEveryItemAssetAndUsesUniqueIds()
+        {
+            var assets = AssetDatabase.FindAssets("t:AuctionItem", new[] { "Assets" })
+                .Select(AssetDatabase.GUIDToAssetPath).Select(AssetDatabase.LoadAssetAtPath<AuctionItem>);
+            Assert.That(level.Database.Items, Is.EquivalentTo(assets));
+            Assert.That(level.Database.Items.Select(item => item.ItemId), Is.Unique);
+            Assert.That(level.Database.Items.All(item => item.ItemType && item.ItemType.Categories.Count > 0), Is.True);
+            Assert.That(level.Database.Items.Select(item => item.ItemType).Distinct().Select(type => type.TypeId), Is.Unique);
+            Assert.That(level.Database.GetItemById("unknown"), Is.Null);
+            foreach (AuctionItem item in level.Database.Items)
+                Assert.That(level.Database.GetItemById(item.ItemId), Is.SameAs(item));
+        }
+
+        [Test]
+        public void SharedCategoriesFindOtherTypesAndOffLevelVariants()
+        {
+            AuctionItem item = level.Database.GetItemById("clay-tablet");
+            AuctionItem alternate = level.Database.GetItemById("clay-tablet-polished-gray");
+            Assert.That(item.Categories, Is.EqualTo(new[] { ItemCategory.Historical, ItemCategory.Collectible }));
+            Assert.That(alternate.Categories, Is.EqualTo(item.Categories));
+            Assert.That(level.Database.GetVariantsByType(item.ItemType), Is.EquivalentTo(new[] { item, alternate }));
+
+            var candidates = level.Database.GetItemsSharingCategories(item);
+            Assert.That(level.Variants, Has.No.Member(alternate));
+            Assert.That(candidates, Has.Member(alternate));
+            Assert.That(candidates.Any(candidate => candidate.ItemType != item.ItemType), Is.True);
+            Assert.That(candidates, Has.No.Member(item));
+            Assert.That(candidates, Has.No.Member(level.Database.GetItemById("relay-prototype")));
+            Assert.That(candidates.All(candidate => candidate.Categories.Intersect(item.Categories).Any()), Is.True);
+        }
+
+        [Test]
+        public void LevelReturnsSixOrderedVariantsAndCluesResolveAgainstDatabase()
         {
             Assert.That(level.StartingBudget, Is.EqualTo(1000));
             Assert.That(level.ProfitTarget, Is.EqualTo(300));
-            Assert.That(level.Definitions.Select(item => item.ItemId).Distinct().Count(), Is.EqualTo(6));
-            Assert.That(level.Clues.Select(clue => clue.ClueKey).Distinct().Count(), Is.EqualTo(6));
+            Assert.That(level.CreateRun(), Is.EqualTo(level.Variants).And.Count.EqualTo(6));
+            Assert.That(level.Variants.Select(item => item.ItemId), Is.Unique);
+            Assert.That(level.Variants.All(item => level.Database.GetItemById(item.ItemId) == item), Is.True);
+            Assert.That(level.Clues.Select(clue => clue.ClueKey), Is.Unique);
+            Assert.That(level.Clues.Select(clue => clue.ItemId).Distinct().Count(), Is.EqualTo(6));
             Assert.That(level.Clues.Count(clue => clue.Importance == NewspaperImportance.MainArticle), Is.EqualTo(3));
-            foreach (AuctionItem item in level.Definitions)
+            foreach (NewspaperClue clue in level.Clues)
             {
-                NewspaperClue clue = level.Clues.Single(entry => entry.ItemId == item.ItemId);
-                Assert.That(clue.ClueKey, Is.EqualTo(item.NewspaperClueKey));
+                Assert.That(level.Database.GetItemById(clue.ItemId), Is.Not.Null);
                 Assert.That(clue.Headline, Is.Not.Empty);
                 Assert.That(clue.Body, Is.Not.Empty);
             }
         }
 
         [Test]
-        public void SeededRunsKeepOneFakePerRoleAndCanVary()
+        public void VariantsStoreIndependentPricesValuesAndSprites()
         {
-            var first = level.CreateRun(1729);
-            var authenticities = first.Select(item => item.Authenticity).ToArray();
-            var repeat = level.CreateRun(1729);
-            Assert.That(repeat.Select(item => item.Authenticity), Is.EqualTo(authenticities));
-            Assert.That(Enumerable.Range(0, 32).Any(seed =>
-                !level.CreateRun(seed).Select(item => item.Authenticity).SequenceEqual(authenticities)), Is.True);
-            Assert.That(first.Select(item => item.Authenticity), Is.EqualTo(authenticities));
-            Assert.That(first.Count, Is.EqualTo(6));
-            foreach (ItemRole role in new[] { ItemRole.Critical, ItemRole.Fluff })
+            AuctionItem first = Object.Instantiate(level.Database.GetItemById("clay-tablet"));
+            AuctionItem second = Object.Instantiate(level.Database.GetItemById("clay-tablet-polished-gray"));
+            var texture = new Texture2D(2, 2);
+            Sprite firstSprite = Sprite.Create(texture, new Rect(0, 0, 1, 1), Vector2.zero);
+            Sprite secondSprite = Sprite.Create(texture, new Rect(1, 0, 1, 1), Vector2.zero);
+            try
             {
-                var group = first.Where(item => item.Definition.Role == role).ToArray();
-                Assert.That(group.Count(item => item.Authenticity == ItemAuthenticity.Fake), Is.EqualTo(1));
-                Assert.That(group.Count(item => item.Authenticity == ItemAuthenticity.Genuine), Is.EqualTo(2));
+                Configure(first, 40, 230, firstSprite);
+                Configure(second, 20, 25, secondSprite);
+                Assert.That(first.ItemType, Is.SameAs(second.ItemType));
+                Assert.That(first.StartingPrice, Is.EqualTo(40));
+                Assert.That(second.StartingPrice, Is.EqualTo(20));
+                Assert.That(first.TrueValue, Is.EqualTo(230));
+                Assert.That(second.TrueValue, Is.EqualTo(25));
+                Assert.That(first.Sprite, Is.SameAs(firstSprite));
+                Assert.That(second.Sprite, Is.SameAs(secondSprite));
+            }
+            finally
+            {
+                Object.DestroyImmediate(first);
+                Object.DestroyImmediate(second);
+                Object.DestroyImmediate(firstSprite);
+                Object.DestroyImmediate(secondSprite);
+                Object.DestroyImmediate(texture);
             }
         }
 
         [Test]
-        public void VariantResolvesSpriteAndValueWhileAiAndClueIdentityStayTheSame()
+        public void AuctionAcceptsConfiguredVariantAndReportUsesItsValue()
         {
-            AuctionItem definition = Object.Instantiate(level.Definitions[0]);
-            var texture = new Texture2D(2, 2);
-            var genuine = Sprite.Create(texture, new Rect(0, 0, 1, 1), Vector2.zero);
-            var fake = Sprite.Create(texture, new Rect(1, 0, 1, 1), Vector2.zero);
-            MvpAuctionLevel copy = Object.Instantiate(level);
+            AuctionItem variant = Object.Instantiate(level.CreateRun()[0]);
+            var host = new GameObject("MVP variant auction test");
             try
             {
-                var itemData = new SerializedObject(definition);
-                itemData.FindProperty("startingPrice").intValue = 40;
-                itemData.FindProperty("genuineTrueValue").intValue = 230;
-                itemData.FindProperty("fakeTrueValue").intValue = 90;
-                itemData.FindProperty("genuineSprite").objectReferenceValue = genuine;
-                itemData.FindProperty("fakeSprite").objectReferenceValue = fake;
-                itemData.ApplyModifiedPropertiesWithoutUndo();
-                var levelData = new SerializedObject(copy);
-                levelData.FindProperty("definitions").GetArrayElementAtIndex(0).objectReferenceValue = definition;
-                levelData.ApplyModifiedPropertiesWithoutUndo();
-                var runs = Enumerable.Range(0, 32).Select(seed => copy.CreateRun(seed)[0]).ToArray();
-                var original = runs.First(item => item.Authenticity == ItemAuthenticity.Genuine);
-                var imitation = runs.First(item => item.Authenticity == ItemAuthenticity.Fake);
-                Assert.That(original.DisplaySprite, Is.SameAs(genuine));
-                Assert.That(imitation.DisplaySprite, Is.SameAs(fake));
-                Assert.That(original.ActualTrueValue, Is.EqualTo(230));
-                Assert.That(imitation.ActualTrueValue, Is.EqualTo(90));
-                Assert.That(original.StartingPrice, Is.EqualTo(40));
-                Assert.That(imitation.StartingPrice, Is.EqualTo(40));
-                Assert.That(original.AiReferenceValue, Is.EqualTo(imitation.AiReferenceValue));
-                Assert.That(original.ItemId, Is.EqualTo(imitation.ItemId));
-                Assert.That(original.Definition.NewspaperClueKey, Is.EqualTo(imitation.Definition.NewspaperClueKey));
-                itemData.FindProperty("genuineSprite").objectReferenceValue = null;
-                itemData.FindProperty("fakeSprite").objectReferenceValue = null;
-                itemData.ApplyModifiedPropertiesWithoutUndo();
-                Assert.That(copy.CreateRun(1729)[0].DisplaySprite, Is.Null);
+                Configure(variant, 40, 230, null);
+                var auction = host.AddComponent<AuctionManager>();
+                var config = new SerializedObject(auction);
+                config.FindProperty("enableAutomaticAi").boolValue = false;
+                var items = config.FindProperty("items");
+                items.arraySize = 1;
+                items.GetArrayElementAtIndex(0).objectReferenceValue = variant;
+                config.ApplyModifiedPropertiesWithoutUndo();
+
+                Assert.That(auction.StartAuction(), Is.True);
+                Assert.That(auction.CurrentItem, Is.SameAs(variant));
+                auction.Tick(AuctionManager.RevealDuration);
+                Assert.That(auction.TryPlaceBid(BidderIds.Player, 40), Is.True);
+                auction.Tick(AuctionManager.InitialBiddingTime);
+                Assert.That(auction.Results.Single().itemId, Is.EqualTo(variant.ItemId));
+                Assert.That(auction.Economy.Purchases.Single().item, Is.SameAs(variant));
+                Assert.That(auction.Economy.CalculateProfit(), Is.EqualTo(190));
             }
             finally
             {
-                Object.DestroyImmediate(copy);
-                Object.DestroyImmediate(definition);
-                Object.DestroyImmediate(genuine);
-                Object.DestroyImmediate(fake);
-                Object.DestroyImmediate(texture);
+                Object.DestroyImmediate(host);
+                Object.DestroyImmediate(variant);
             }
+        }
+
+        private static void Configure(AuctionItem item, int price, int value, Sprite sprite)
+        {
+            var data = new SerializedObject(item);
+            data.FindProperty("startingPrice").intValue = price;
+            data.FindProperty("trueValue").intValue = value;
+            data.FindProperty("sprite").objectReferenceValue = sprite;
+            data.ApplyModifiedPropertiesWithoutUndo();
         }
     }
 }

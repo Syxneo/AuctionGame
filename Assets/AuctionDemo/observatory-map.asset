@@ -18,3 +18,4 @@ MonoBehaviour:
   trueValue: 280
   category: 0
   sprite: {fileID: 0}
+  itemType: {fileID: 11400000, guid: eef835d3506c4e85b7e6d06ab7d04807, type: 2}
