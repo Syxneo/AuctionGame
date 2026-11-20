@@ -23,6 +23,7 @@ namespace AuctionGame.Auction.Tests
         {
             var assets = AssetDatabase.FindAssets("t:AuctionItem", new[] { "Assets" })
                 .Select(AssetDatabase.GUIDToAssetPath).Select(AssetDatabase.LoadAssetAtPath<AuctionItem>);
+            Assert.That(level.Database.Items, Has.Count.EqualTo(18));
             Assert.That(level.Database.Items, Is.EquivalentTo(assets));
             Assert.That(level.Database.Items.Select(item => item.ItemId), Is.Unique);
             Assert.That(level.Database.Items.All(item => item.ItemType && item.ItemType.Categories.Count > 0), Is.True);
@@ -100,49 +101,49 @@ namespace AuctionGame.Auction.Tests
         }
 
         [Test]
-        public void AuctionStartsWithSixConfiguredVariantsInLevelOrder()
+        public void AuctionStartsWithProductionVariantsAndFullCatalogInLevelOrder()
         {
-            var configuredLevel = Object.Instantiate(level);
+            var run = level.CreateRun();
+            Assert.That(run, Has.Count.EqualTo(6));
+            var mvpVariants = run.SelectMany(item => level.Database.GetVariantsByType(item.ItemType))
+                .Distinct().ToArray();
+            Assert.That(mvpVariants, Has.Length.EqualTo(12));
+            foreach (AuctionItem variant in mvpVariants)
+            {
+                Assert.That(variant.StartingPrice, Is.Positive, variant.ItemId);
+                Assert.That(variant.TrueValue, Is.GreaterThanOrEqualTo(0), variant.ItemId);
+            }
+
             var host = new GameObject("MVP auction run test");
-            var variants = level.Variants.Select(variant => Object.Instantiate(variant)).ToArray();
             try
             {
-                var data = new SerializedObject(configuredLevel);
-                var slots = data.FindProperty("variants");
-                for (int index = 0; index < variants.Length; index++)
-                {
-                    Configure(variants[index], 40, 230, null);
-                    slots.GetArrayElementAtIndex(index).objectReferenceValue = variants[index];
-                }
-                data.ApplyModifiedPropertiesWithoutUndo();
-
                 var auction = host.AddComponent<AuctionManager>();
-                Assert.That(auction.StartAuction(configuredLevel.CreateRun(), configuredLevel.Database), Is.True);
-                Assert.That(auction.CurrentItem, Is.SameAs(variants[0]));
+                Assert.That(auction.StartAuction(run, level.Database), Is.True);
+                Assert.That(auction.CurrentItem, Is.SameAs(run[0]));
+                auction.Tick(AuctionManager.RevealDuration);
+                Assert.That(auction.State, Is.EqualTo(AuctionState.Bidding));
+                Assert.That(auction.Opponents, Has.Count.EqualTo(3));
                 auction.Tick(1000);
                 Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
-                Assert.That(auction.Results.Select(result => result.itemId), Is.EqualTo(variants.Select(item => item.ItemId)));
+                Assert.That(auction.Results.Select(result => result.itemId), Is.EqualTo(run.Select(item => item.ItemId)));
             }
             finally
             {
                 Object.DestroyImmediate(host);
-                Object.DestroyImmediate(configuredLevel);
-                foreach (AuctionItem variant in variants)
-                    Object.DestroyImmediate(variant);
             }
         }
 
         [Test]
-        public void AuctionAcceptsConfiguredVariantAndReportUsesItsValue()
+        public void AuctionAcceptsProductionVariantAndReportUsesItsValue()
         {
-            AuctionItem variant = Object.Instantiate(level.CreateRun()[0]);
+            AuctionItem variant = level.CreateRun()[0];
             var host = new GameObject("MVP variant auction test");
             try
             {
-                Configure(variant, 40, 230, null);
                 var auction = host.AddComponent<AuctionManager>();
                 var config = new SerializedObject(auction);
                 config.FindProperty("enableAutomaticAi").boolValue = false;
+                config.FindProperty("itemDatabase").objectReferenceValue = level.Database;
                 var items = config.FindProperty("items");
                 items.arraySize = 1;
                 items.GetArrayElementAtIndex(0).objectReferenceValue = variant;
@@ -151,16 +152,15 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(auction.StartAuction(), Is.True);
                 Assert.That(auction.CurrentItem, Is.SameAs(variant));
                 auction.Tick(AuctionManager.RevealDuration);
-                Assert.That(auction.TryPlaceBid(BidderIds.Player, 40), Is.True);
+                Assert.That(auction.TryPlaceBid(BidderIds.Player, variant.StartingPrice), Is.True);
                 auction.Tick(AuctionManager.InitialBiddingTime);
                 Assert.That(auction.Results.Single().itemId, Is.EqualTo(variant.ItemId));
                 Assert.That(auction.Economy.Purchases.Single().item, Is.SameAs(variant));
-                Assert.That(auction.Economy.CalculateProfit(), Is.EqualTo(190));
+                Assert.That(auction.Economy.CalculateProfit(), Is.EqualTo(variant.TrueValue - variant.StartingPrice));
             }
             finally
             {
                 Object.DestroyImmediate(host);
-                Object.DestroyImmediate(variant);
             }
         }
 
