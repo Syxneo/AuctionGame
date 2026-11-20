@@ -34,6 +34,7 @@ namespace AuctionGame.Auction
 
             BuildUi();
             auction.OnAuctionPhaseFinished += Finish;
+            auction.OnStateChanged += ShowNewspaperOnRestart;
             if (auction.State != AuctionState.Idle)
                 ShowAuction();
         }
@@ -41,7 +42,10 @@ namespace AuctionGame.Auction
         private void OnDestroy()
         {
             if (auction)
+            {
                 auction.OnAuctionPhaseFinished -= Finish;
+                auction.OnStateChanged -= ShowNewspaperOnRestart;
+            }
             if (canvasRoot)
                 Destroy(canvasRoot);
         }
@@ -160,6 +164,12 @@ namespace AuctionGame.Auction
         {
             newspaper.Close();
             auctionNewspaper.gameObject.SetActive(false);
+        }
+
+        private void ShowNewspaperOnRestart(AuctionState state)
+        {
+            if (state == AuctionState.ItemReveal && !briefing.activeSelf && !auctionNewspaper.gameObject.activeSelf)
+                ShowAuction();
         }
 
         private string FormatBrief(string budget, string target)

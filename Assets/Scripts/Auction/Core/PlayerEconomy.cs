@@ -7,11 +7,12 @@ namespace AuctionGame.Auction
     public sealed class PlayerEconomy : MonoBehaviour
     {
         [SerializeField, Min(0)] private int startingBudget = 600;
+        [SerializeField] private MvpAuctionLevel startingBudgetLevel;
         private readonly List<PurchasedItem> purchases = new();
         private readonly HashSet<string> purchasedIds = new(StringComparer.Ordinal);
         private int spent;
 
-        public int AvailableBudget => startingBudget - spent;
+        public int AvailableBudget => (startingBudgetLevel ? startingBudgetLevel.StartingBudget : startingBudget) - spent;
         public IReadOnlyList<PurchasedItem> Purchases => purchases.AsReadOnly();
 
         public bool CanAfford(int amount) => amount > 0 && amount <= AvailableBudget;

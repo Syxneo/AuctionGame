@@ -2,6 +2,8 @@
 
 ## Project audit
 
+This audit describes the project before scene integration. `AuctionDemo` now uses Preparation and the existing SALE Report.
+
 - `SampleScene.unity` is the template scene and the only enabled scene in Build Settings.
 - `AuctionDemo.unity` is the playable auction demo. Its scene-local `AuctionBootstrap` starts the six demo lots automatically. Its Canvas, `AuctionUI`, and Input System EventSystem can support the new overlay.
 - `MvpAuctionLevel`, `AuctionItem`, and `ItemDatabase` live in `Assets/Scripts/Auction/Data`. The production assets are under `Assets/AuctionMvp`. The level defines the ordered run, the full catalog reference, the budget, the profit target, and the approved Slovak newspaper copy.
@@ -23,14 +25,13 @@ Each clue points to a catalog item ID. Both variants of that item type share the
 | Short reports | `news_bronze_statue` | `bronze-statue` |
 | Short reports | `news_glass_vase` | `glass-vase` |
 
-## Inspector setup
+## Inspector setup in AuctionDemo
 
-1. Duplicate `Assets/Scenes/AuctionDemo.unity` into your own test or integration scene. Alternatively, use the destination auction scene once its owner is ready to integrate. Keep its working auction Canvas and EventSystem.
-2. Select `AuctionSystem`. Disable its **Auction Bootstrap** component so the scene begins with the existing manager idle.
-3. On `AuctionSystem > Player Economy`, set **Starting Budget** to the value on `Assets/AuctionMvp/MvpAuctionLevel.asset`, currently **1000**. Recheck the Inspector value if the level budget changes. Preparation checks the balance before starting and displays an error if the two differ.
-4. Create a root GameObject named **Preparation** and add **Preparation Phase**. Assign the production **Mvp Auction Level** asset and drag the scene's **Auction Manager** into **Auction**. Add or reuse a **Canvas Group** on the auction controls and assign it to **Auction Controls**. The component creates its overlay Canvas at runtime. Keep **Sorting Order** above the auction Canvas.
-5. Customize **Sale Brief** in the Inspector. Use `{0}` for the formatted budget and `{1}` for the formatted target. The default renders the requested English brief.
-6. Press Play. Open and close the newspaper in Preparation, then start the auction. Use **Newspaper** in the lower-right corner during the run. Scroll through the edition using the mouse wheel or drag. **Close Newspaper** stays visible while scrolling.
+1. Open `Assets/Scenes/AuctionDemo.unity`. Its scene-local EventSystem serves the auction, Preparation, and Report controls.
+2. On **AuctionSystem**, **Auction Bootstrap** is disabled. **Preparation Phase** references the existing **Auction Manager** and `Assets/AuctionMvp/MvpAuctionLevel.asset`.
+3. **Player Economy > Starting Budget Level** references the same level asset. Preparation shows the level's **1000** budget and **300** profit target. The **Sale Brief** uses `{0}` for the formatted budget and `{1}` for the formatted target.
+4. **Preparation Phase > Auction Controls** references the **Canvas Group** on **AuctionPanel**. Preparation builds its briefing and newspaper UI at runtime on an overlay Canvas with sorting order **100**. The view reads all six articles from the level asset.
+5. Press Play. Open and close the newspaper in Preparation, then start the auction. Use **Newspaper** in the lower-right corner during the run. Scroll through the edition using the mouse wheel or drag. **Close Newspaper** stays visible while scrolling.
 
 The existing manager and AI continue updating underneath the full-screen newspaper. The overlay blocks pointer raycasts to the auction Canvas and moves keyboard or gamepad focus to **Close Newspaper**. At auction completion the component closes the overlay and hides the opener.
 
@@ -38,6 +39,6 @@ To use an existing auction button, wire its **On Click** to `PreparationPhase.Op
 
 ## Validation and handoff
 
-Run the Edit Mode test suite in Unity Test Runner. The new `PreparationPhaseTests` fixture checks the article keys, sections, and catalog mappings. Its Play Mode portion loads the existing demo and configures Preparation on the temporary scene instance. It checks the exact player-facing article copy across lots, different level amounts, one startup, modal raycast blocking, focus restoration, timer continuity, and live AI bidding and lot transitions while the overlay is open.
+Run the Edit Mode suite in Unity Test Runner. Its scene tests enter Play Mode and load the checked-in `AuctionDemo` wiring. They cover the approved article copy, a single start, modal raycast blocking, timer continuity, AI bidding, lot transitions, and opening the newspaper in the last three seconds. They also exercise Game Over, the existing Retry into the same six-lot run with reset budgets, and Success with itemized profit.
 
-The final scene needs the Inspector wiring above. To make that scene the application's entry point, enable it in Build Settings and set the build scene order when the team integrates its scene flow.
+Build Settings still open the template scene. Open `AuctionDemo` directly to play the integrated flow.

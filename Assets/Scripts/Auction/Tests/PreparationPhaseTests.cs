@@ -40,54 +40,34 @@ namespace AuctionGame.Auction.Tests
         public IEnumerator PreparationAndAuctionShareOneModalNewspaper()
         {
             yield return new EnterPlayMode();
-            SceneManager.sceneLoaded += DisableDemoBootstrap;
-            try
-            {
-                EditorSceneManager.LoadSceneInPlayMode("Assets/Scenes/AuctionDemo.unity",
-                    new LoadSceneParameters(LoadSceneMode.Single));
-                yield return null;
-            }
-            finally
-            {
-                SceneManager.sceneLoaded -= DisableDemoBootstrap;
-            }
-
-            var auction = Object.FindFirstObjectByType<AuctionManager>();
-            Assert.That(auction, Is.Not.Null);
-            var source = AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>("Assets/AuctionMvp/MvpAuctionLevel.asset");
-            var level = Object.Instantiate(source);
-            SetInt(level, "startingBudget", 1240);
-            SetInt(level, "profitTarget", 375);
-            SetInt(auction.Economy, "startingBudget", level.StartingBudget);
-
-            var setup = new GameObject("Preparation test");
-            var auctionCanvas = GameObject.Find("Canvas");
-            var auctionControls = auctionCanvas.AddComponent<CanvasGroup>();
-            var preparation = setup.AddComponent<PreparationPhase>();
-            var config = new SerializedObject(preparation);
-            config.FindProperty("auction").objectReferenceValue = auction;
-            config.FindProperty("level").objectReferenceValue = level;
-            config.FindProperty("auctionControls").objectReferenceValue = auctionControls;
-            config.ApplyModifiedPropertiesWithoutUndo();
-            var starts = new List<AuctionItem>();
-            auction.OnItemChanged += starts.Add;
+            EditorSceneManager.LoadSceneInPlayMode("Assets/Scenes/AuctionDemo.unity",
+                new LoadSceneParameters(LoadSceneMode.Single));
             yield return null;
 
+            var auction = Object.FindFirstObjectByType<AuctionManager>();
+            var preparation = Object.FindFirstObjectByType<PreparationPhase>();
+            var level = AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>("Assets/AuctionMvp/MvpAuctionLevel.asset");
+            Assert.That(auction, Is.Not.Null);
+            Assert.That(preparation, Is.Not.Null);
+            Assert.That(Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
             Assert.That(auction.State, Is.EqualTo(AuctionState.Idle));
-            Assert.That(GameObject.Find("Starting budget").GetComponent<TMP_Text>().text, Does.Contain("$1,240"));
-            Assert.That(GameObject.Find("Profit target").GetComponent<TMP_Text>().text, Does.Contain("$375"));
-            Assert.That(GameObject.Find("Brief").GetComponent<TMP_Text>().text, Is.EqualTo(
-                "Good evening, agent. You have $1,240. I expect at least $375 profit. Choose carefully."));
+            var starts = new List<AuctionItem>();
+            auction.OnItemChanged += starts.Add;
 
-            var newspaper = setup.GetComponentInChildren<NewspaperView>(true);
+            Assert.That(GameObject.Find("Starting budget").GetComponent<TMP_Text>().text, Does.Contain("$1,000"));
+            Assert.That(GameObject.Find("Profit target").GetComponent<TMP_Text>().text, Does.Contain("$300"));
+            Assert.That(GameObject.Find("Brief").GetComponent<TMP_Text>().text, Is.EqualTo(
+                "Good evening, agent. You have $1,000. I expect at least $300 profit. Choose carefully."));
+
+            var newspaper = preparation.GetComponentInChildren<NewspaperView>(true);
             Click("Open Newspaper");
             Assert.That(newspaper.IsOpen, Is.True);
             var scroll = newspaper.GetComponentInChildren<ScrollRect>();
             var articles = scroll.content.GetComponentsInChildren<TMP_Text>().Select(label => label.text).ToArray();
             var expected = new[] { "Main articles" }
-                .Concat(ArticleText(source, NewspaperImportance.MainArticle))
+                .Concat(ArticleText(level, NewspaperImportance.MainArticle))
                 .Append("Short reports")
-                .Concat(ArticleText(source, NewspaperImportance.ShortReport));
+                .Concat(ArticleText(level, NewspaperImportance.ShortReport));
             CollectionAssert.AreEqual(expected, articles);
             CollectionAssert.AreEqual(new[] { "Newspaper", "Close Newspaper" }.Concat(articles),
                 newspaper.GetComponentsInChildren<TMP_Text>().Select(label => label.text));
@@ -146,27 +126,30 @@ namespace AuctionGame.Auction.Tests
             CollectionAssert.AreEqual(articles, scroll.content.GetComponentsInChildren<TMP_Text>().Select(label => label.text));
             preparation.CloseNewspaper();
 
-            Object.Destroy(level);
+            for (int frame = 0; frame < 16 && auction.State != AuctionState.Bidding; frame++)
+                auction.Tick(0.25f);
+            while (auction.State == AuctionState.Bidding && auction.RemainingTime > AuctionManager.AntiSnipingTime)
+                auction.Tick(0.25f);
+
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Bidding));
+            Assert.That(auction.RemainingTime, Is.InRange(0.01f, AuctionManager.AntiSnipingTime));
+            var lateLot = auction.CurrentItem;
+            int settled = auction.Results.Count;
+            Click("Auction Newspaper");
+            Assert.That(newspaper.IsOpen, Is.True);
+            yield return null;
+            Assert.That(auction.CurrentItem, Is.SameAs(lateLot));
+            auction.Tick(AuctionManager.MaximumBiddingDuration);
+            Assert.That(auction.Results.Count, Is.GreaterThan(settled));
+            Assert.That(newspaper.IsOpen, Is.True);
+            Click("Close Newspaper");
             yield return new ExitPlayMode();
         }
 
         private static void Click(string name) => GameObject.Find(name).GetComponent<Button>().onClick.Invoke();
 
-        private static void DisableDemoBootstrap(Scene scene, LoadSceneMode mode)
-        {
-            if (scene.name == "AuctionDemo")
-                Object.FindFirstObjectByType<AuctionBootstrap>().enabled = false;
-        }
-
         private static IEnumerable<string> ArticleText(MvpAuctionLevel level, NewspaperImportance importance) =>
             level.Clues.Where(clue => clue.Importance == importance)
                 .SelectMany(clue => new[] { clue.Headline, clue.Body });
-
-        private static void SetInt(Object target, string property, int value)
-        {
-            var data = new SerializedObject(target);
-            data.FindProperty(property).intValue = value;
-            data.ApplyModifiedPropertiesWithoutUndo();
-        }
     }
 }

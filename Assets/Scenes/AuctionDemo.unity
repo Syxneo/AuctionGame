@@ -2430,6 +2430,7 @@ GameObject:
   - component: {fileID: 1471185880}
   - component: {fileID: 1471185881}
   - component: {fileID: 1471185884}
+  - component: {fileID: 1471185885}
   m_Layer: 0
   m_Name: AuctionSystem
   m_TagString: Untagged
@@ -2437,6 +2438,23 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!114 &1471185885
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1471185879}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9156a6f4e6ab466c8c3c9b7f85693782, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.PreparationPhase
+  level: {fileID: 11400000, guid: a9287539f8cc417e9bdda2d5b9e4f547, type: 2}
+  auction: {fileID: 1471185880}
+  auctionControls: {fileID: 1547383902}
+  saleBrief: 'Good evening, agent. You have {0}. I expect at least {1} profit. Choose carefully.'
+  sortingOrder: 100
 --- !u!114 &1471185884
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2485,7 +2503,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1471185879}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4379b69cfcff5ba48bcaca626ed85cca, type: 3}
   m_Name: 
@@ -2503,6 +2521,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.PlayerEconomy
   startingBudget: 600
+  startingBudgetLevel: {fileID: 11400000, guid: a9287539f8cc417e9bdda2d5b9e4f547, type: 2}
 --- !u!4 &1471185883
 Transform:
   m_ObjectHideFlags: 0
@@ -2740,6 +2759,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1547383900}
   - component: {fileID: 1547383901}
+  - component: {fileID: 1547383902}
   m_Layer: 0
   m_Name: AuctionPanel
   m_TagString: Untagged
@@ -2784,6 +2804,18 @@ RectTransform:
   m_AnchoredPosition: {x: -480, y: 300}
   m_SizeDelta: {x: 960, y: 600}
   m_Pivot: {x: 0, y: 1}
+--- !u!225 &1547383902
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1547383899}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!114 &1547383901
 MonoBehaviour:
   m_ObjectHideFlags: 0

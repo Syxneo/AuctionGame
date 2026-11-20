@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Linq;
 using NUnit.Framework;
 using TMPro;
@@ -29,36 +29,36 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction, Is.Not.Null);
             Assert.That(eventSystem, Is.Not.Null);
             Assert.That(eventSystem.currentInputModule, Is.Not.Null);
+            var level = AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>("Assets/AuctionMvp/MvpAuctionLevel.asset");
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Idle));
+            var preparation = Object.FindFirstObjectByType<PreparationPhase>();
+            Assert.That(preparation, Is.Not.Null);
+            var newspaper = preparation.GetComponentInChildren<NewspaperView>(true);
+            Click("Open Newspaper");
+            Assert.That(newspaper.IsOpen, Is.True);
+            Click("Close Newspaper");
+            Click("Start Auction");
             Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
-            var managerSettings = new SerializedObject(auction);
-            var slots = managerSettings.FindProperty("bidders");
-            Assert.That(slots.arraySize, Is.EqualTo(3));
-            Assert.That(auction.Opponents.Select(opponent => opponent.Personality.Name),
-                Is.EqualTo(new[] { "Collector", "Trickster", "Analyst" }));
-            for (int index = 0; index < slots.arraySize; index++)
-                Assert.That(auction.Opponents[index].Personality,
-                    Is.SameAs(slots.GetArrayElementAtIndex(index).objectReferenceValue));
-            auction.enabled = false;
 
-            var opening = GameObject.Find("BID Button").GetComponent<Button>();
-            Assert.That(opening.interactable, Is.False);
-            auction.Tick(2);
-            Assert.That(opening.interactable, Is.True);
-            ExecuteEvents.Execute(opening.gameObject, new PointerEventData(eventSystem),
-                ExecuteEvents.pointerClickHandler);
-            Assert.That(auction.HighestBidderId, Is.EqualTo(BidderIds.Player));
-            Assert.That(auction.CurrentPrice, Is.EqualTo(90));
-            Assert.That(opening.gameObject.activeSelf, Is.False);
-            foreach (string increment in new[] { "+$10", "+$25", "+$50" })
-                Assert.That(GameObject.Find(increment + " Button").GetComponent<Button>().interactable, Is.False);
+            float timeScale = Time.timeScale;
+            try
+            {
+                Time.timeScale = 20;
+                float deadline = Time.realtimeSinceStartup + 30;
+                while (auction.State != AuctionState.Finished && Time.realtimeSinceStartup < deadline)
+                    yield return null;
+            }
+            finally
+            {
+                Time.timeScale = timeScale;
+            }
 
-            auction.Tick(1000);
             Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
-            Assert.That(auction.Results.Count, Is.EqualTo(6));
-            Assert.That(auction.Results.Select(result => result.itemId).Distinct().Count(), Is.EqualTo(6));
-            Assert.That(auction.Results.Single(result => result.itemId == "tin-crown").sold, Is.False);
-            Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(600));
+            CollectionAssert.AreEqual(level.CreateRun().Select(item => item.ItemId),
+                auction.Results.Select(result => result.itemId));
+            Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(level.StartingBudget));
             Assert.That(auction.Economy.CalculateProfit(), Is.Zero);
+            Assert.That(GameObject.Find("Auction Newspaper"), Is.Null);
 
             var reportUI = auction.GetComponent<AuctionReportUI>();
             var report = reportUI.Report;
@@ -74,12 +74,19 @@ namespace AuctionGame.Auction.Tests
             Assert.That(Object.FindObjectsByType<RectTransform>(FindObjectsSortMode.None)
                 .Count(rect => rect.name == "SALE Report"), Is.EqualTo(1));
 
-            GameObject.Find("Retry Button").GetComponent<Button>().onClick.Invoke();
+            Click("Retry Button");
             Assert.That(reportUI.Report, Is.Null);
             Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
             Assert.That(GameObject.Find("AuctionPanel"), Is.Not.Null);
             Assert.That(auction.Opponents.All(opponent => opponent.AvailableBudget == 600), Is.True);
-            BuyProfitableDemoLots(auction);
+            Assert.That(auction.CurrentItem, Is.SameAs(level.CreateRun()[0]));
+            Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(level.StartingBudget));
+            Assert.That(auction.Economy.Purchases, Is.Empty);
+            Assert.That(auction.Results, Is.Empty);
+            Click("Auction Newspaper");
+            Assert.That(newspaper.IsOpen, Is.True);
+            Click("Close Newspaper");
+            BuyProfitableMvpLots(auction);
 
             auction.Tick(1000);
             yield return null;
@@ -88,10 +95,10 @@ namespace AuctionGame.Auction.Tests
             Assert.That(successfulReport, Is.Not.Null.And.Not.SameAs(report));
             Assert.That(successfulReport.Succeeded, Is.True);
             Assert.That(successfulReport.Purchases.Count, Is.EqualTo(2));
-            Assert.That(successfulReport.TotalProfit, Is.EqualTo(330));
+            Assert.That(successfulReport.TotalProfit, Is.EqualTo(365));
             var labels = GameObject.Find("SALE Report").GetComponentsInChildren<TMP_Text>().Select(label => label.text);
-            Assert.That(labels, Does.Contain("SUCCESS").And.Contain("Royal Wax Seal").And.Contain("GOOD BUY")
-                .And.Contain("$250").And.Contain("Total profit  $330")
+            Assert.That(labels, Does.Contain("SUCCESS").And.Contain(successfulReport.Purchases[0].ItemName).And.Contain("GOOD BUY")
+                .And.Contain("$150").And.Contain("Total profit  $365")
                 .And.Contain("Výborne. Dosiahol si požadovaný zisk. Zdá sa, že máš na obchod dobrý nos."));
             Assert.That(GameObject.Find("Retry Button"), Is.Null);
 
@@ -103,14 +110,16 @@ namespace AuctionGame.Auction.Tests
             yield return new ExitPlayMode();
         }
 
-        private static void BuyProfitableDemoLots(AuctionManager auction)
+        private static void Click(string name) => GameObject.Find(name).GetComponent<Button>().onClick.Invoke();
+
+        private static void BuyProfitableMvpLots(AuctionManager auction)
         {
             var config = new SerializedObject(auction);
             config.FindProperty("enableAutomaticAi").boolValue = false;
             config.ApplyModifiedPropertiesWithoutUndo();
             auction.OnStateChanged += state =>
             {
-                if (state == AuctionState.Bidding && auction.CurrentItem.ItemId is "royal-seal" or "observatory-map")
+                if (state == AuctionState.Bidding && auction.CurrentItem.ItemId is "clay-tablet" or "blue-horse")
                     Assert.That(auction.TryPlaceBid(BidderIds.Player, auction.CurrentItem.StartingPrice), Is.True);
             };
         }
