@@ -18,40 +18,40 @@ MonoBehaviour:
   intimidationResistance: 40
   categoryProfiles:
   - category: 0
-    interest: 45
+    interest: 10
     accuracy: 35
   - category: 1
-    interest: 45
+    interest: 10
     accuracy: 35
   - category: 2
     interest: 75
     accuracy: 35
   - category: 3
-    interest: 45
+    interest: 10
     accuracy: 35
   - category: 4
-    interest: 45
+    interest: 10
     accuracy: 35
   - category: 5
     interest: 75
     accuracy: 35
   - category: 6
-    interest: 45
+    interest: 10
     accuracy: 35
   - category: 7
-    interest: 45
+    interest: 10
     accuracy: 35
   - category: 8
     interest: 75
     accuracy: 35
   - category: 9
-    interest: 45
+    interest: 10
     accuracy: 35
   - category: 10
-    interest: 45
+    interest: 10
     accuracy: 35
   - category: 11
-    interest: 45
+    interest: 10
     accuracy: 35
   bidComments:
   - That’s my last bid. Probably.

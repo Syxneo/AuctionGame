@@ -18,37 +18,37 @@ MonoBehaviour:
   intimidationResistance: 55
   categoryProfiles:
   - category: 0
-    interest: 45
+    interest: 10
     accuracy: 90
   - category: 1
-    interest: 45
+    interest: 10
     accuracy: 90
   - category: 2
-    interest: 45
+    interest: 10
     accuracy: 90
   - category: 3
     interest: 70
     accuracy: 90
   - category: 4
-    interest: 45
+    interest: 10
     accuracy: 90
   - category: 5
-    interest: 45
+    interest: 10
     accuracy: 90
   - category: 6
     interest: 70
     accuracy: 90
   - category: 7
-    interest: 45
+    interest: 10
     accuracy: 90
   - category: 8
-    interest: 45
+    interest: 10
     accuracy: 90
   - category: 9
-    interest: 45
+    interest: 10
     accuracy: 90
   - category: 10
-    interest: 45
+    interest: 10
     accuracy: 90
   - category: 11
     interest: 70
