@@ -100,6 +100,39 @@ namespace AuctionGame.Auction.Tests
         }
 
         [Test]
+        public void AuctionStartsWithSixConfiguredVariantsInLevelOrder()
+        {
+            var configuredLevel = Object.Instantiate(level);
+            var host = new GameObject("MVP auction run test");
+            var variants = level.Variants.Select(variant => Object.Instantiate(variant)).ToArray();
+            try
+            {
+                var data = new SerializedObject(configuredLevel);
+                var slots = data.FindProperty("variants");
+                for (int index = 0; index < variants.Length; index++)
+                {
+                    Configure(variants[index], 40, 230, null);
+                    slots.GetArrayElementAtIndex(index).objectReferenceValue = variants[index];
+                }
+                data.ApplyModifiedPropertiesWithoutUndo();
+
+                var auction = host.AddComponent<AuctionManager>();
+                Assert.That(auction.StartAuction(configuredLevel.CreateRun(), configuredLevel.Database), Is.True);
+                Assert.That(auction.CurrentItem, Is.SameAs(variants[0]));
+                auction.Tick(1000);
+                Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
+                Assert.That(auction.Results.Select(result => result.itemId), Is.EqualTo(variants.Select(item => item.ItemId)));
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                Object.DestroyImmediate(configuredLevel);
+                foreach (AuctionItem variant in variants)
+                    Object.DestroyImmediate(variant);
+            }
+        }
+
+        [Test]
         public void AuctionAcceptsConfiguredVariantAndReportUsesItsValue()
         {
             AuctionItem variant = Object.Instantiate(level.CreateRun()[0]);

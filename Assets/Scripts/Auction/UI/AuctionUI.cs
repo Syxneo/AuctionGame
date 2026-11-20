@@ -86,7 +86,7 @@ namespace AuctionGame.Auction
         {
             AuctionItem item = manager.CurrentItem;
             bool hasWinner = manager.HighestBidderId.Length > 0;
-            itemImage.sprite = manager.CurrentItemVariant is { } variant ? variant.DisplaySprite : item ? item.Sprite : null;
+            itemImage.sprite = item ? item.Sprite : null;
             itemImage.color = itemImage.sprite ? Color.white : Placeholder;
             category.gameObject.SetActive(!itemImage.sprite);
             category.text = item ? item.Category.ToString() : "";

@@ -46,6 +46,8 @@ namespace AuctionGame.Auction.Editor
                 typeof(AuctionBootstrap));
             var manager = system.GetComponent<AuctionManager>();
             var managerData = new SerializedObject(manager);
+            managerData.FindProperty("itemDatabase").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<ItemDatabase>("Assets/AuctionMvp/ItemDatabase.asset");
             var items = managerData.FindProperty("items");
             var samples = new (string id, string name, int price, int value, ItemCategory category)[]
             {

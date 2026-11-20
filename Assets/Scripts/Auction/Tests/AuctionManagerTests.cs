@@ -105,12 +105,17 @@ namespace AuctionGame.Auction.Tests
         public void EvaluationUsesActualVariantOrMatchingVariantOutsideTheRun(float accuracy, int expected)
         {
             ConfigureCollector(accuracy);
-            AuctionItem current = CreateItem("current", 999, genuine: 300, fake: 40);
+            AuctionItem current = CreateItem("current", 40, category: ItemCategory.Art);
             AuctionItem sameId = CreateItem("current", 800);
-            AuctionItem match = CreateItem("match", 999, genuine: 400, fake: 400);
+            AuctionItem match = CreateItem("match", 400, category: ItemCategory.Coins);
             AuctionItem unrelated = CreateItem("unrelated", 700, category: ItemCategory.Art);
-            var variant = CreateVariant(current, ItemAuthenticity.Fake);
-            Assert.That(auction.StartAuction(new[] { variant }, new[] { sameId, match, unrelated }), Is.True);
+            SetCategories(current, ItemCategory.Art, ItemCategory.Historical);
+            SetCategories(sameId, ItemCategory.Historical);
+            SetCategories(match, ItemCategory.Coins, ItemCategory.Historical);
+            SetCategories(unrelated, ItemCategory.Technology);
+            var unpriced = CreateItem("unpriced", -1);
+            var database = CreateDatabase(sameId, match, unrelated, unpriced);
+            Assert.That(auction.StartAuction(new[] { current }, database), Is.True);
             auction.Tick(2);
 
             AIBidder collector = auction.Opponents[0];
@@ -122,16 +127,50 @@ namespace AuctionGame.Auction.Tests
             Assert.That(collector.MaxBid, Is.EqualTo(max));
         }
 
-        [TestCase(ItemCategory.Historical, 100)]
-        [TestCase(ItemCategory.Misc, 25)]
-        public void FailedEvaluationWithoutAlternativesUsesCategoryBenchmark(ItemCategory category, int expected)
+        [TestCase(1f, 2000, 2500)]
+        [TestCase(0f, 300, 500)]
+        public void FailedEvaluationWithoutAlternativesUsesSeededMultiplier(float probability, int min, int max)
         {
             ConfigureCollector(accuracy: 0);
-            var current = CreateItem("current", 999, genuine: 1000, fake: 40, category: category);
-            var variant = CreateVariant(current, ItemAuthenticity.Fake);
-            Assert.That(auction.StartAuction(new[] { variant }, new[] { current }), Is.True);
+            var config = new SerializedObject(auction);
+            config.FindProperty("collector").FindPropertyRelative("overestimateProbability").floatValue = probability;
+            config.ApplyModifiedPropertiesWithoutUndo();
+            var current = CreateItem("current", 1000);
+            var database = CreateDatabase(current, CreateItem("not-a-match", 600, ItemCategory.Art));
+            var run = new[] { current };
+
+            Assert.That(auction.StartAuction(run, database), Is.True);
             auction.Tick(2);
-            Assert.That(auction.Opponents[0].EstimatedValue, Is.EqualTo(expected));
+            int estimate = auction.Opponents[0].EstimatedValue;
+            Assert.That(estimate, Is.InRange(min, max));
+            auction.Tick(100);
+            Assert.That(auction.ResetLevel(), Is.True);
+            Assert.That(auction.StartAuction(run, database), Is.True);
+            auction.Tick(2);
+            Assert.That(auction.Opponents[0].EstimatedValue, Is.EqualTo(estimate));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void InterestBonusesApplyOnceEvenWithMultipleMatches(bool multipleMatches)
+        {
+            ConfigureCollector(accuracy: 1);
+            var config = new SerializedObject(auction);
+            config.FindProperty("collector").FindPropertyRelative("aggressiveness").floatValue = 0.5f;
+            config.ApplyModifiedPropertiesWithoutUndo();
+            var current = CreateItem("current", 400);
+            SetCategories(current, ItemCategory.Historical,
+                multipleMatches ? ItemCategory.Luxury : ItemCategory.Technology);
+            Assert.That(auction.StartAuction(new[] { current }, CreateDatabase(current)), Is.True);
+            auction.Tick(2);
+
+            var collector = auction.Opponents[0];
+            Assert.That(collector.EstimatedValue, Is.EqualTo(400));
+            Assert.That(collector.MaxBid, Is.EqualTo(420));
+            var probability = typeof(AIBidder).GetField("bidProbability", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That((double)probability.GetValue(collector), Is.EqualTo(0.81).Within(0.0001));
+            auction.Tick(5);
+            Assert.That(collector.MaxBid, Is.EqualTo(420));
         }
 
         [TestCase(40, -70)]
@@ -140,13 +179,12 @@ namespace AuctionGame.Auction.Tests
         {
             ConfigureCollector(accuracy: 0, budget: 200);
             ConfigureProfile("analyst", accuracy: 0, budget: 600);
-            var first = CreateItem("first", 999, genuine: 999, fake: actualValue);
-            var second = CreateItem("second", 999, genuine: 500, fake: 500, category: ItemCategory.Art);
+            var first = CreateItem("first", actualValue);
+            var second = CreateItem("second", 500, ItemCategory.Art);
             var comparable = CreateItem("comparable", 500);
             var comparableArt = CreateItem("comparable-art", 500, category: ItemCategory.Art);
-            var variant = CreateVariant(first, ItemAuthenticity.Fake);
-            var run = new[] { variant, CreateVariant(second, ItemAuthenticity.Genuine) };
-            var catalog = new[] { comparable, comparableArt, second };
+            var run = new[] { first, second };
+            var catalog = CreateDatabase(first, second, comparable, comparableArt);
             Assert.That(auction.StartAuction(run, catalog), Is.True);
             auction.Tick(2);
 
@@ -163,7 +201,7 @@ namespace AuctionGame.Auction.Tests
             AIPurchase purchase = collector.Purchases.Single();
             Assert.That(purchase.ItemId, Is.EqualTo("first"));
             Assert.That(purchase.Item, Is.SameAs(first));
-            Assert.That(purchase.Variant, Is.SameAs(variant));
+            Assert.That(purchase.Variant, Is.SameAs(first));
             Assert.That(purchase.PurchasePrice, Is.EqualTo(110));
             Assert.That(purchase.ItemProfit, Is.EqualTo(profit));
             Assert.That(collector.TotalProfit, Is.EqualTo(profit));
@@ -402,9 +440,8 @@ namespace AuctionGame.Auction.Tests
             items.arraySize = count;
             for (int index = 0; index < count; index++)
                 items.GetArrayElementAtIndex(index).objectReferenceValue = CreateItem($"item-{index}", value + index * 50);
-            var catalog = config.FindProperty("evaluationCatalog");
-            catalog.arraySize = 1;
-            catalog.GetArrayElementAtIndex(0).objectReferenceValue = CreateItem("comparable-test-item", value);
+            config.FindProperty("itemDatabase").objectReferenceValue =
+                CreateDatabase(CreateItem("comparable-test-item", value));
             config.ApplyModifiedPropertiesWithoutUndo();
 
             var wallet = new SerializedObject(manager.Economy);
@@ -413,9 +450,34 @@ namespace AuctionGame.Auction.Tests
             return manager;
         }
 
-        private static AuctionItemInstance CreateVariant(AuctionItem definition, ItemAuthenticity authenticity) =>
-            (AuctionItemInstance)Activator.CreateInstance(typeof(AuctionItemInstance),
-                BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] { definition, authenticity }, null);
+        private ItemDatabase CreateDatabase(params AuctionItem[] items)
+        {
+            var database = ScriptableObject.CreateInstance<ItemDatabase>();
+            objects.Add(database);
+            var data = new SerializedObject(database);
+            var catalog = data.FindProperty("items");
+            catalog.arraySize = items.Length;
+            for (int index = 0; index < items.Length; index++)
+                catalog.GetArrayElementAtIndex(index).objectReferenceValue = items[index];
+            data.ApplyModifiedPropertiesWithoutUndo();
+            return database;
+        }
+
+        private void SetCategories(AuctionItem item, params ItemCategory[] categories)
+        {
+            var type = ScriptableObject.CreateInstance<AuctionItemType>();
+            objects.Add(type);
+            var typeData = new SerializedObject(type);
+            var tags = typeData.FindProperty("categories");
+            tags.arraySize = categories.Length;
+            for (int index = 0; index < categories.Length; index++)
+                tags.GetArrayElementAtIndex(index).enumValueIndex = (int)categories[index];
+            typeData.ApplyModifiedPropertiesWithoutUndo();
+
+            var itemData = new SerializedObject(item);
+            itemData.FindProperty("itemType").objectReferenceValue = type;
+            itemData.ApplyModifiedPropertiesWithoutUndo();
+        }
 
         private void ConfigureCollector(float accuracy, int budget = 600) =>
             ConfigureProfile("collector", accuracy, budget);
@@ -429,7 +491,7 @@ namespace AuctionGame.Auction.Tests
             settings.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private AuctionItem CreateItem(string id, int value, int genuine = -1, int fake = -1,
+        private AuctionItem CreateItem(string id, int value,
             ItemCategory category = ItemCategory.Historical)
         {
             var item = ScriptableObject.CreateInstance<AuctionItem>();
@@ -439,8 +501,6 @@ namespace AuctionGame.Auction.Tests
             data.FindProperty("itemName").stringValue = id;
             data.FindProperty("startingPrice").intValue = 100;
             data.FindProperty("trueValue").intValue = value;
-            data.FindProperty("genuineTrueValue").intValue = genuine;
-            data.FindProperty("fakeTrueValue").intValue = fake;
             data.FindProperty("category").enumValueIndex = (int)category;
             data.ApplyModifiedPropertiesWithoutUndo();
             return item;

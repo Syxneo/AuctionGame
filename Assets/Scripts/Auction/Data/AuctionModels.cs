@@ -45,13 +45,12 @@ namespace AuctionGame.Auction
     {
         public readonly AuctionItem item;
         public readonly int purchasePrice;
-        public AuctionItemInstance Variant { get; }
+        public AuctionItem Variant => item;
 
-        internal PurchasedItem(AuctionItem item, int purchasePrice, AuctionItemInstance variant)
+        internal PurchasedItem(AuctionItem item, int purchasePrice)
         {
             this.item = item;
             this.purchasePrice = purchasePrice;
-            Variant = variant;
         }
     }
 

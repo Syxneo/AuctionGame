@@ -11,6 +11,7 @@ namespace AuctionGame.Auction
     {
         [SerializeField, Min(0)] private int startingBudget = 600;
         [SerializeField, Range(0, 1)] private float evaluationAccuracy;
+        [SerializeField, Range(0, 1)] private float overestimateProbability = 0.50f;
         [SerializeField, Range(0, 1)] private float aggressiveness;
         [SerializeField] private string[] interests;
         [SerializeField, Range(0, 1)] private float interestAggressivenessBonus = 0.10f;
@@ -20,6 +21,7 @@ namespace AuctionGame.Auction
 
         public int StartingBudget => Math.Max(0, startingBudget);
         public double EvaluationAccuracy => Mathf.Clamp01(evaluationAccuracy);
+        public double OverestimateProbability => Mathf.Clamp01(overestimateProbability);
         public double Aggressiveness => Mathf.Clamp01(aggressiveness);
         public IReadOnlyList<string> Interests => Array.AsReadOnly(interests);
         public double InterestAggressivenessBonus => interestAggressivenessBonus;

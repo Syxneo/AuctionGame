@@ -3,45 +3,16 @@ using System.Collections.Generic;
 
 namespace AuctionGame.Auction
 {
-    // Adapter from the current item API to the evaluator's variant and category inputs.
-    internal sealed class AIEvaluationItem
-    {
-        public AuctionItem Definition { get; }
-        public AuctionItemInstance Variant { get; }
-        public string Id => Definition.ItemId;
-        public int TrueValue => Variant?.ActualTrueValue ?? Definition.TrueValue;
-        public IReadOnlyList<string> Categories { get; }
-
-        public AIEvaluationItem(AuctionItem definition, AuctionItemInstance variant = null)
-        {
-            Definition = definition;
-            Variant = variant;
-            Categories = new[] { definition.Category.ToString() };
-        }
-
-        public static void AddDefinitionVariants(List<AIEvaluationItem> catalog, AuctionItem definition)
-        {
-            if (definition.HasVariantPrices)
-            {
-                catalog.Add(new AIEvaluationItem(definition, new AuctionItemInstance(definition, ItemAuthenticity.Genuine)));
-                catalog.Add(new AIEvaluationItem(definition, new AuctionItemInstance(definition, ItemAuthenticity.Fake)));
-            }
-            else
-            {
-                catalog.Add(new AIEvaluationItem(definition));
-            }
-        }
-    }
-
     internal static class AIEvaluation
     {
-        public static bool SharesCategory(IReadOnlyList<string> first, IReadOnlyList<string> second)
+        public static bool HasInterest(IReadOnlyList<string> interests, IReadOnlyList<ItemCategory> categories)
         {
-            foreach (string category in first)
+            foreach (ItemCategory category in categories)
             {
-                foreach (string other in second)
+                string name = category.ToString();
+                foreach (string interest in interests)
                 {
-                    if (string.Equals(category, other, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(name, interest, StringComparison.OrdinalIgnoreCase))
                         return true;
                 }
             }
@@ -49,44 +20,31 @@ namespace AuctionGame.Auction
             return false;
         }
 
-        public static int Estimate(AIEvaluationItem current, IReadOnlyList<AIEvaluationItem> catalog,
-            double accuracy, Random random)
+        public static int Estimate(AuctionItem current, ItemDatabase database, double accuracy,
+            double overestimateProbability, Random random)
         {
             if (random.NextDouble() < accuracy)
                 return current.TrueValue;
 
-            var candidates = new List<AIEvaluationItem>();
-            foreach (AIEvaluationItem candidate in catalog)
+            if (database)
             {
-                if (candidate.Id != current.Id && SharesCategory(current.Categories, candidate.Categories))
-                    candidates.Add(candidate);
-            }
-
-            return candidates.Count > 0
-                ? candidates[random.Next(candidates.Count)].TrueValue
-                : CategoryFallback(current.Categories);
-        }
-
-        // With no comparable variant, average the fixed category benchmarks.
-        // These benchmarks are independent of the current item's actual value.
-        private static int CategoryFallback(IReadOnlyList<string> categories)
-        {
-            if (categories.Count == 0)
-                return 25;
-
-            long total = 0;
-            foreach (string category in categories)
-            {
-                total += category switch
+                var candidates = new List<AuctionItem>();
+                foreach (AuctionItem candidate in database.GetItemsSharingCategories(current))
                 {
-                    "Historical" or "Art" or "Technology" or "Jewelry" => 100,
-                    "Rare" or "Luxury" or "Collectible" => 150,
-                    "Mechanical" or "Coins" => 75,
-                    _ => 25
-                };
+                    // Negative values mark variants whose prices are still being authored.
+                    if (candidate.TrueValue >= 0)
+                        candidates.Add(candidate);
+                }
+
+                if (candidates.Count > 0)
+                    return candidates[random.Next(candidates.Count)].TrueValue;
             }
 
-            return (int)(total / categories.Count);
+            bool overestimate = random.NextDouble() < overestimateProbability;
+            double roll = random.NextDouble();
+            double multiplier = overestimate ? 2.0 + 0.5 * roll : 0.3 + 0.2 * roll;
+            double rounded = Math.Round(current.TrueValue * multiplier, MidpointRounding.AwayFromZero);
+            return (int)Math.Min(int.MaxValue, rounded);
         }
     }
 }

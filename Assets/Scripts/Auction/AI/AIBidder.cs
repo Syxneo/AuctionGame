@@ -6,16 +6,15 @@ namespace AuctionGame.Auction
     public sealed class AIPurchase
     {
         public AuctionItem Item { get; }
-        public AuctionItemInstance Variant { get; }
+        public AuctionItem Variant => Item;
         public string ItemId { get; }
         public int PurchasePrice { get; }
         public long ItemProfit { get; }
 
-        internal AIPurchase(AIEvaluationItem item, int price)
+        internal AIPurchase(AuctionItem item, int price)
         {
-            Item = item.Definition;
-            Variant = item.Variant;
-            ItemId = item.Id;
+            Item = item;
+            ItemId = item.ItemId;
             PurchasePrice = price;
             ItemProfit = (long)item.TrueValue - price;
         }
@@ -60,14 +59,14 @@ namespace AuctionGame.Auction
             commentRandom = new Random(seeds.Next());
         }
 
-        internal void BeginItem(AIEvaluationItem item, IReadOnlyList<AIEvaluationItem> catalog)
+        internal void BeginItem(AuctionItem item, ItemDatabase catalog)
         {
-            EstimatedValue = AIEvaluation.Estimate(item, catalog, EvaluationAccuracy, evaluationRandom);
-            bool preferred = AIEvaluation.SharesCategory(Interests, item.Categories);
+            EstimatedValue = AIEvaluation.Estimate(item, catalog, EvaluationAccuracy, profile.OverestimateProbability, evaluationRandom);
+            bool preferred = AIEvaluation.HasInterest(Interests, item.Categories);
             double aggression = Math.Min(1, Aggressiveness + (preferred ? profile.InterestAggressivenessBonus : 0));
             double priceFactor = 0.6 + 0.5 * aggression + (preferred ? profile.InterestPriceBonus : 0);
             MaxBid = (int)Math.Min(int.MaxValue, Math.Round(EstimatedValue * priceFactor));
-            bidProbability = Math.Min(1, 0.35 + 0.6 * aggression + (preferred ? profile.InterestProbabilityBonus : 0));
+            bidProbability = Math.Clamp(0.35 + 0.6 * aggression + (preferred ? profile.InterestProbabilityBonus : 0), 0, 1);
             NextDecision = DecisionInterval();
         }
 
@@ -99,7 +98,7 @@ namespace AuctionGame.Auction
             return comments.Count == 0 ? "" : comments[commentRandom.Next(comments.Count)];
         }
 
-        internal void RecordWin(AIEvaluationItem item, int price)
+        internal void RecordWin(AuctionItem item, int price)
         {
             var purchase = new AIPurchase(item, price);
             purchases.Add(purchase);
