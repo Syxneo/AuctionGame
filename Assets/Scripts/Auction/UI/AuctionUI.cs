@@ -86,7 +86,7 @@ namespace AuctionGame.Auction
         {
             AuctionItem item = manager.CurrentItem;
             bool hasWinner = manager.HighestBidderId.Length > 0;
-            itemImage.sprite = item ? item.Sprite : null;
+            itemImage.sprite = manager.CurrentItemVariant is { } variant ? variant.DisplaySprite : item ? item.Sprite : null;
             itemImage.color = itemImage.sprite ? Color.white : Placeholder;
             category.gameObject.SetActive(!itemImage.sprite);
             category.text = item ? item.Category.ToString() : "";
@@ -116,7 +116,10 @@ namespace AuctionGame.Auction
             for (int index = bids.Count - 1; index >= Mathf.Max(0, bids.Count - 6); index--)
             {
                 BidRecord bid = bids[index];
-                lines.AppendLine($"{BidderIds.DisplayName(bid.bidderId)}  ${bid.amount}");
+                lines.Append($"{BidderIds.DisplayName(bid.bidderId)}  ${bid.amount}");
+                if (!string.IsNullOrEmpty(bid.comment))
+                    lines.Append($" · {bid.comment}");
+                lines.AppendLine();
             }
             history.text = lines.Length == 0 ? "No bids yet" : lines.ToString().TrimEnd();
             UpdateClock();

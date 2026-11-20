@@ -16,15 +16,25 @@ namespace AuctionGame.Auction
 
         public bool CanAfford(int amount) => amount > 0 && amount <= AvailableBudget;
 
-        public bool RecordPurchase(AuctionItem item, int purchasePrice)
+        public bool RecordPurchase(AuctionItem item, int purchasePrice) =>
+            RecordPurchase(item, null, purchasePrice);
+
+        internal bool RecordPurchase(AuctionItem item, AuctionItemInstance variant, int purchasePrice)
         {
             if (!item || string.IsNullOrWhiteSpace(item.ItemId) ||
                 !CanAfford(purchasePrice) || !purchasedIds.Add(item.ItemId))
                 return false;
 
             spent += purchasePrice;
-            purchases.Add(new PurchasedItem(item, purchasePrice));
+            purchases.Add(new PurchasedItem(item, purchasePrice, variant));
             return true;
+        }
+
+        internal void ResetLevel()
+        {
+            spent = 0;
+            purchases.Clear();
+            purchasedIds.Clear();
         }
 
         public int CalculateProfit() => (int)Math.Min(int.MaxValue, TotalProfit());
@@ -35,7 +45,7 @@ namespace AuctionGame.Auction
         {
             long profit = 0;
             foreach (PurchasedItem purchase in purchases)
-                profit += (long)purchase.item.TrueValue - purchase.purchasePrice;
+                profit += (long)(purchase.Variant?.ActualTrueValue ?? purchase.item.TrueValue) - purchase.purchasePrice;
             return profit;
         }
     }

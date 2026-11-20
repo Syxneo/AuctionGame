@@ -28,13 +28,15 @@ namespace AuctionGame.Auction
         public readonly string bidderId;
         public readonly int amount;
         public readonly double biddingElapsed;
+        public readonly string comment;
 
-        internal BidRecord(string itemId, string bidderId, int amount, double biddingElapsed)
+        internal BidRecord(string itemId, string bidderId, int amount, double biddingElapsed, string comment)
         {
             this.itemId = itemId;
             this.bidderId = bidderId;
             this.amount = amount;
             this.biddingElapsed = biddingElapsed;
+            this.comment = comment;
         }
     }
 
@@ -43,11 +45,13 @@ namespace AuctionGame.Auction
     {
         public readonly AuctionItem item;
         public readonly int purchasePrice;
+        public AuctionItemInstance Variant { get; }
 
-        internal PurchasedItem(AuctionItem item, int purchasePrice)
+        internal PurchasedItem(AuctionItem item, int purchasePrice, AuctionItemInstance variant)
         {
             this.item = item;
             this.purchasePrice = purchasePrice;
+            Variant = variant;
         }
     }
 

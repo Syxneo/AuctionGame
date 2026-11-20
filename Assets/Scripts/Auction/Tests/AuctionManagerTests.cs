@@ -93,10 +93,92 @@ namespace AuctionGame.Auction.Tests
         public void BidAboveAiMaximumIsRejected()
         {
             auction = CreateAuction(value: 1);
+            ConfigureCollector(accuracy: 1);
             BeginBidding();
             Assert.That(auction.TryGetMaxBid(BidderIds.Collector, out int max), Is.True);
             Assert.That(max, Is.LessThan(100));
             Assert.That(auction.TryPlaceBid(BidderIds.Collector, 100), Is.False);
+        }
+
+        [TestCase(1f, 40)]
+        [TestCase(0f, 400)]
+        public void EvaluationUsesActualVariantOrMatchingVariantOutsideTheRun(float accuracy, int expected)
+        {
+            ConfigureCollector(accuracy);
+            AuctionItem current = CreateItem("current", 999, genuine: 300, fake: 40);
+            AuctionItem sameId = CreateItem("current", 800);
+            AuctionItem match = CreateItem("match", 999, genuine: 400, fake: 400);
+            AuctionItem unrelated = CreateItem("unrelated", 700, category: ItemCategory.Art);
+            var variant = CreateVariant(current, ItemAuthenticity.Fake);
+            Assert.That(auction.StartAuction(new[] { variant }, new[] { sameId, match, unrelated }), Is.True);
+            auction.Tick(2);
+
+            AIBidder collector = auction.Opponents[0];
+            Assert.That(collector.EstimatedValue, Is.EqualTo(expected));
+            int max = collector.MaxBid;
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 100), Is.True);
+            auction.Tick(5);
+            Assert.That(collector.EstimatedValue, Is.EqualTo(expected));
+            Assert.That(collector.MaxBid, Is.EqualTo(max));
+        }
+
+        [TestCase(ItemCategory.Historical, 100)]
+        [TestCase(ItemCategory.Misc, 25)]
+        public void FailedEvaluationWithoutAlternativesUsesCategoryBenchmark(ItemCategory category, int expected)
+        {
+            ConfigureCollector(accuracy: 0);
+            var current = CreateItem("current", 999, genuine: 1000, fake: 40, category: category);
+            var variant = CreateVariant(current, ItemAuthenticity.Fake);
+            Assert.That(auction.StartAuction(new[] { variant }, new[] { current }), Is.True);
+            auction.Tick(2);
+            Assert.That(auction.Opponents[0].EstimatedValue, Is.EqualTo(expected));
+        }
+
+        [TestCase(40, -70)]
+        [TestCase(300, 190)]
+        public void AiSettlementUsesActualVariantAndCarriesBudgetUntilLevelReset(int actualValue, long profit)
+        {
+            ConfigureCollector(accuracy: 0, budget: 200);
+            ConfigureProfile("analyst", accuracy: 0, budget: 600);
+            var first = CreateItem("first", 999, genuine: 999, fake: actualValue);
+            var second = CreateItem("second", 999, genuine: 500, fake: 500, category: ItemCategory.Art);
+            var comparable = CreateItem("comparable", 500);
+            var comparableArt = CreateItem("comparable-art", 500, category: ItemCategory.Art);
+            var variant = CreateVariant(first, ItemAuthenticity.Fake);
+            var run = new[] { variant, CreateVariant(second, ItemAuthenticity.Genuine) };
+            var catalog = new[] { comparable, comparableArt, second };
+            Assert.That(auction.StartAuction(run, catalog), Is.True);
+            auction.Tick(2);
+
+            AIBidder collector = auction.Opponents[0];
+            AIBidder analyst = auction.Opponents[2];
+            Assert.That(auction.TryPlaceBid(BidderIds.Analyst, 100), Is.True);
+            Assert.That(auction.TryPlaceBid(BidderIds.Collector, 110), Is.True);
+            Assert.That(collector.AvailableBudget, Is.EqualTo(200));
+            auction.OnAuctionEnded += _ => auction.Tick(1000);
+            auction.Tick(15);
+            Assert.That(collector.AvailableBudget, Is.EqualTo(90));
+            Assert.That(analyst.AvailableBudget, Is.EqualTo(600));
+            Assert.That(analyst.Purchases, Is.Empty);
+            AIPurchase purchase = collector.Purchases.Single();
+            Assert.That(purchase.ItemId, Is.EqualTo("first"));
+            Assert.That(purchase.Item, Is.SameAs(first));
+            Assert.That(purchase.Variant, Is.SameAs(variant));
+            Assert.That(purchase.PurchasePrice, Is.EqualTo(110));
+            Assert.That(purchase.ItemProfit, Is.EqualTo(profit));
+            Assert.That(collector.TotalProfit, Is.EqualTo(profit));
+
+            auction.Tick(4);
+            Assert.That(collector.MaxBid, Is.GreaterThan(100));
+            Assert.That(auction.TryPlaceBid(BidderIds.Collector, 100), Is.False);
+            auction.Tick(17);
+            Assert.That(collector.Purchases.Count, Is.EqualTo(1));
+            Assert.That(collector.AvailableBudget, Is.EqualTo(90));
+            Assert.That(auction.ResetLevel(), Is.True);
+            Assert.That(auction.StartAuction(run, catalog), Is.True);
+            Assert.That(auction.Opponents[0].AvailableBudget, Is.EqualTo(200));
+            Assert.That(auction.Opponents[0].Purchases, Is.Empty);
+            Assert.That(auction.Opponents[0].TotalProfit, Is.Zero);
         }
 
         [Test]
@@ -223,6 +305,15 @@ namespace AuctionGame.Auction.Tests
             Assert.That(large.bids.Count, Is.GreaterThan(6));
             Assert.That(large.bids, Is.EqualTo(small.bids));
             Assert.That(large.results, Is.EqualTo(small.results));
+            Assert.That(large.estimates, Is.EqualTo(small.estimates));
+        }
+
+        [Test]
+        public void TricksterCommentIsPublishedWithTheAcceptedBid()
+        {
+            BeginBidding();
+            Assert.That(auction.TryPlaceBid(BidderIds.Trickster, 100), Is.True);
+            Assert.That(auction.BidHistory.Single().comment, Is.Not.Empty);
         }
 
         [TestCase(14.75, true)]
@@ -237,7 +328,7 @@ namespace AuctionGame.Auction.Tests
             for (int index = 0; index < opponents.Length; index++)
             {
                 object opponent = opponents.GetValue(index);
-                opponent.GetType().GetProperty("NextDecision").SetValue(opponent, index == 0 ? decisionTime : 30d);
+                opponent.GetType().GetProperty("NextDecision", privateInstance).SetValue(opponent, index == 0 ? decisionTime : 30d);
                 opponent.GetType().GetField("bidProbability", privateInstance).SetValue(opponent, 1d);
             }
 
@@ -281,17 +372,23 @@ namespace AuctionGame.Auction.Tests
             auction.Tick(2);
         }
 
-        private (List<(string, string, int, double)> bids, string[] results) RunAiAuction(float step)
+        private (List<(string, string, int, double)> bids, string[] results, List<int> estimates) RunAiAuction(float step)
         {
             var manager = CreateAuction(count: 6, automaticAi: true);
             var bids = new List<(string, string, int, double)>();
+            var estimates = new List<int>();
             manager.OnBidPlaced += bid => bids.Add((bid.itemId, bid.bidderId, bid.amount, bid.biddingElapsed));
+            manager.OnStateChanged += state =>
+            {
+                if (state == AuctionState.Bidding)
+                    estimates.AddRange(manager.Opponents.Select(opponent => opponent.EstimatedValue));
+            };
             manager.StartAuction();
             for (int iteration = 0; iteration * step <= 1000 && manager.State != AuctionState.Finished; iteration++)
                 manager.Tick(step);
 
             Assert.That(manager.State, Is.EqualTo(AuctionState.Finished));
-            return (bids, manager.Results.Select(result => $"{result.itemId}/{result.winnerId}/{result.finalPrice}").ToArray());
+            return (bids, manager.Results.Select(result => $"{result.itemId}/{result.winnerId}/{result.finalPrice}").ToArray(), estimates);
         }
 
         private AuctionManager CreateAuction(int count = 1, int budget = 600, int value = 1000, bool automaticAi = false)
@@ -304,7 +401,10 @@ namespace AuctionGame.Auction.Tests
             var items = config.FindProperty("items");
             items.arraySize = count;
             for (int index = 0; index < count; index++)
-                items.GetArrayElementAtIndex(index).objectReferenceValue = CreateItem($"item-{index}", value);
+                items.GetArrayElementAtIndex(index).objectReferenceValue = CreateItem($"item-{index}", value + index * 50);
+            var catalog = config.FindProperty("evaluationCatalog");
+            catalog.arraySize = 1;
+            catalog.GetArrayElementAtIndex(0).objectReferenceValue = CreateItem("comparable-test-item", value);
             config.ApplyModifiedPropertiesWithoutUndo();
 
             var wallet = new SerializedObject(manager.Economy);
@@ -313,7 +413,24 @@ namespace AuctionGame.Auction.Tests
             return manager;
         }
 
-        private AuctionItem CreateItem(string id, int value)
+        private static AuctionItemInstance CreateVariant(AuctionItem definition, ItemAuthenticity authenticity) =>
+            (AuctionItemInstance)Activator.CreateInstance(typeof(AuctionItemInstance),
+                BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] { definition, authenticity }, null);
+
+        private void ConfigureCollector(float accuracy, int budget = 600) =>
+            ConfigureProfile("collector", accuracy, budget);
+
+        private void ConfigureProfile(string name, float accuracy, int budget)
+        {
+            var settings = new SerializedObject(auction);
+            var profile = settings.FindProperty(name);
+            profile.FindPropertyRelative("evaluationAccuracy").floatValue = accuracy;
+            profile.FindPropertyRelative("startingBudget").intValue = budget;
+            settings.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private AuctionItem CreateItem(string id, int value, int genuine = -1, int fake = -1,
+            ItemCategory category = ItemCategory.Historical)
         {
             var item = ScriptableObject.CreateInstance<AuctionItem>();
             objects.Add(item);
@@ -322,6 +439,9 @@ namespace AuctionGame.Auction.Tests
             data.FindProperty("itemName").stringValue = id;
             data.FindProperty("startingPrice").intValue = 100;
             data.FindProperty("trueValue").intValue = value;
+            data.FindProperty("genuineTrueValue").intValue = genuine;
+            data.FindProperty("fakeTrueValue").intValue = fake;
+            data.FindProperty("category").enumValueIndex = (int)category;
             data.ApplyModifiedPropertiesWithoutUndo();
             return item;
         }
