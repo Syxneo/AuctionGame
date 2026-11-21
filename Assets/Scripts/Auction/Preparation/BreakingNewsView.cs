@@ -13,9 +13,12 @@ namespace AuctionGame.Auction
         private RectTransform reader;
         private Image illustration;
         private TMP_Text missingImage;
-        private TMP_Text body;
+        private BidderSpeechBubble articleBubble;
+        private BidderSpeechBubble introBubble;
+        private string presenterDialogue;
+        private float entranceStarted;
+        private const float EntranceDuration = .32f;
         private NewspaperView.Appearance appearance;
-        private GameObject lowerPaper;
         private GameObject introPromptBacking;
         private IReadOnlyList<NewsCard> cards;
         private Action completed;
@@ -25,7 +28,8 @@ namespace AuctionGame.Auction
 
         internal NewsCard CurrentCard => completed != null && index >= 0 ? cards[index] : null;
 
-        internal void Initialize(NewspaperView.Appearance appearance)
+        internal void Initialize(NewspaperView.Appearance appearance, BidderSpeechBubble speechBubble,
+            string openingDialogue)
         {
             var background = PreparationUi.Fill("Background", transform);
             if (appearance.paperSprite || !appearance.paperTexture)
@@ -37,8 +41,6 @@ namespace AuctionGame.Auction
                 paper.uvRect = appearance.paperTextureUv;
                 paper.raycastTarget = false;
             }
-            lowerPaper = Art(Box("Lower parchment", background, 0, 0, 1, .31f), null,
-                new Color(.34f, .19f, .09f, .56f), false).gameObject;
             safe = PreparationUi.Fill("News Safe Area", transform);
 
             var tap = PreparationUi.Button(PreparationUi.Fill("Continue News", transform), "");
@@ -57,13 +59,13 @@ namespace AuctionGame.Auction
             header.textWrappingMode = TextWrappingModes.NoWrap;
             header.lineSpacing = -12;
 
-            reader = Box("Reporter", safe, .025f, 0, .975f, .58f);
+            reader = Box("Reporter", safe, .025f, 0, .975f, .54f);
             if (appearance.reporterSprite)
                 Art(reader, appearance.reporterSprite, Color.white);
             else
                 Label(reader, "[Moderátor]", 32, appearance.articleFont);
 
-            var broadcastArea = Box("Broadcast Area", safe, .005f, .24f, .995f, .82f);
+            var broadcastArea = Box("Broadcast Area", safe, .005f, .32f, .995f, .76f);
             broadcast = PreparationUi.Fill("BroadcastContent", broadcastArea);
             var television = PreparationUi.Fill("RetroTVFrame", broadcast);
             var fitter = broadcast.gameObject.AddComponent<AspectRatioFitter>();
@@ -80,12 +82,16 @@ namespace AuctionGame.Auction
             missingImage = Label(PreparationUi.Fill("Illustration placeholder", screen),
                 "", 24, appearance.articleFont);
             missingImage.color = appearance.televisionSprite ? PreparationUi.Ink : Color.white;
+            if (appearance.reporterSprite)
+                Art(Box("Article Presenter", broadcastArea, .78f, .02f, 1, .52f),
+                    appearance.reporterSprite, Color.white);
             this.appearance = appearance;
 
-            body = Label(Box("NewsBodyText", safe, .07f, .075f, .93f, .25f),
-                "", 36, appearance.articleFont);
-            body.alignment = TextAlignmentOptions.TopLeft;
-            body.color = new Color(1f, .80f, .75f);
+            presenterDialogue = openingDialogue;
+            introBubble = BidderSpeechBubble.CreateDialogue(speechBubble,
+                Box("Presenter Speech", safe, .06f, .55f, .94f, .755f), "Presenter Dialogue", 34);
+            articleBubble = BidderSpeechBubble.CreateDialogue(speechBubble,
+                Box("Article Speech", safe, .06f, .075f, .94f, .32f), "NewsBodyText", 36);
             introPromptBacking = Art(Box("Intro prompt backing", safe, .32f, .021f, .68f, .059f), null,
                 new Color(.24f, .15f, .07f, .87f)).gameObject;
             Label(Box("TapToContinue", safe, .08f, .015f, .92f, .065f),
@@ -101,11 +107,13 @@ namespace AuctionGame.Auction
             index = -1;
             lastAdvanceFrame = Time.frameCount;
             reader.gameObject.SetActive(true);
-            broadcast.gameObject.SetActive(false);
-            body.gameObject.SetActive(false);
-            lowerPaper.SetActive(false);
+            broadcast.parent.gameObject.SetActive(false);
+            articleBubble.Hide();
+            introBubble.Hide();
+            entranceStarted = Time.unscaledTime;
             introPromptBacking.SetActive(true);
             gameObject.SetActive(true);
+            Canvas.ForceUpdateCanvases();
             Update();
         }
 
@@ -114,7 +122,8 @@ namespace AuctionGame.Auction
             completed = null;
             inputReady = null;
             cards = null;
-            body.text = "";
+            articleBubble.Hide();
+            introBubble.Hide();
             illustration.sprite = null;
             gameObject.SetActive(false);
         }
@@ -135,11 +144,11 @@ namespace AuctionGame.Auction
 
             NewsCard card = cards[index];
             reader.gameObject.SetActive(false);
+            broadcast.parent.gameObject.SetActive(true);
             broadcast.gameObject.SetActive(true);
-            body.gameObject.SetActive(true);
-            lowerPaper.SetActive(true);
+            introBubble.Hide();
             introPromptBacking.SetActive(false);
-            body.text = card.Body;
+            articleBubble.SetDialogue(card.Body);
             Sprite placeholder = card.Type switch
             {
                 NewsType.Item => appearance.itemPlaceholder,
@@ -165,6 +174,16 @@ namespace AuctionGame.Auction
             Rect area = Screen.safeArea;
             safe.anchorMin = new Vector2(area.xMin / Screen.width, area.yMin / Screen.height);
             safe.anchorMax = new Vector2(area.xMax / Screen.width, area.yMax / Screen.height);
+            if (completed == null || index >= 0)
+                return;
+
+            // Convert the physical screen edge to safe-area coordinates for the entrance only.
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(safe, Vector2.zero, null, out Vector2 edge);
+            float offset = edge.y - safe.rect.yMin - reader.rect.height - 2;
+            float progress = Mathf.Clamp01((Time.unscaledTime - entranceStarted) / EntranceDuration);
+            reader.anchoredPosition = Vector2.up * (offset * (1 - Mathf.SmoothStep(0, 1, progress)));
+            if (progress >= 1 && !introBubble.gameObject.activeSelf && !string.IsNullOrWhiteSpace(presenterDialogue))
+                introBubble.SetDialogue(presenterDialogue);
         }
 
         private static RectTransform Box(string name, Transform parent, float left, float bottom,

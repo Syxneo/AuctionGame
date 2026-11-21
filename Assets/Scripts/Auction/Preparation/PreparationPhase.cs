@@ -25,6 +25,9 @@ namespace AuctionGame.Auction
             "Dobrý večer, agent. Máte {0}. Očakávam aspoň {1} zisku. Vyberajte opatrne.";
         [SerializeField] private int sortingOrder = 100;
         [SerializeField] private NewspaperView.Appearance newsAppearance = new();
+        [SerializeField] private AudioClip newsIntroJingle;
+        [SerializeField, TextArea(2, 5)] private string newsPresenterDialogue =
+            "Vitajte pri dnešných správach! Trh je stabilný, ceny sú absurdné a zdravý rozum opäť klesol na historické minimum!";
 
         [SerializeField] private BroadcastEdition broadcastEdition = new();
 
@@ -221,7 +224,7 @@ namespace AuctionGame.Auction
                 ready.offsetMin = ready.offsetMax = Vector2.zero;
                 startAuction.GetComponentInChildren<TMP_Text>().fontSize = 32;
                 broadcast = PreparationUi.Fill("Breaking News", root).gameObject.AddComponent<BreakingNewsView>();
-                broadcast.Initialize(newsAppearance);
+                broadcast.Initialize(newsAppearance, intro.SpeechBubble, newsPresenterDialogue);
             }
             else
             {
@@ -279,7 +282,10 @@ namespace AuctionGame.Auction
             stage = Stage.News;
             briefing.SetActive(false);
             if (broadcast)
+            {
                 broadcast.Present(selectedNews, () => intro.CurrentStage == GameIntroFlow.Stage.Completed, ShowReady);
+                intro.PlayNewsJingle(newsIntroJingle);
+            }
             else
                 newspaper.Present(DailyPlan?.NewspaperEntries ?? level.GetNewspaperEntries(), level.Database,
                     DailyPlan?.Seed, ShowReady);

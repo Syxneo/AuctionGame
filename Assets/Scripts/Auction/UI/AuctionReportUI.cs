@@ -120,22 +120,24 @@ namespace AuctionGame.Auction
                 outline.type = Image.Type.Sliced;
             }
 
-            PortraitColumns(Anchor("Report Columns", paper, .02f, .88f, .97f, .94f),
+            PortraitLabel(Anchor("Report Title", paper, .05f, .92f, .95f, 1),
+                "SALE REPORT", 32, PreparationUi.Ink).fontStyle = FontStyles.Bold;
+            PortraitColumns(Anchor("Report Columns", paper, .02f, .85f, .94f, .92f),
                 "Item", "Your bid", "Worth", "Profit", PreparationUi.Ink, 23);
-            var viewport = Anchor("Purchases", paper, .02f, .18f, .97f, .88f);
+            var viewport = Anchor("Purchases", paper, .02f, .19f, .94f, .85f);
             if (Report.Purchases.Count == 0)
                 PortraitLabel(PreparationUi.Fill("Empty State", viewport), "No items purchased.", 31, PreparationUi.Ink);
             else
-                DrawPortraitItems(viewport);
+                DrawPortraitItems(viewport, paper);
 
-            PortraitTotal(paper, "Goal", Money(Report.TargetProfit), .45f, .69f, PreparationUi.Ink);
+            PortraitTotal(paper, "Profit target", Money(Report.TargetProfit), .45f, .69f, PreparationUi.Ink);
             PortraitTotal(paper, "Your profit", SignedMoney(Report.TotalProfit), .71f, .97f,
                 PortraitProfitColor(Report.TotalProfit));
             PortraitLabel(Anchor("Result", paper, .05f, .01f, .95f, .085f),
-                Report.Succeeded ? "SUCCESS" : "Target Missed", 34,
+                Report.Succeeded ? "SUCCESS" : "GAME OVER", 34,
                 Report.Succeeded ? PortraitProfitColor(1) : PortraitProfitColor(-1)).fontStyle = FontStyles.Bold;
 
-            var logoRect = Anchor("Auction Frenzy Logo", view, .29f, .745f, .71f, .94f);
+            var logoRect = Anchor("Auction Frenzy Logo", view, .29f, .79f, .71f, .94f);
             if (endPresentation.ReportLogo)
             {
                 var logoImage = AddImage(logoRect, Color.white);
@@ -161,7 +163,7 @@ namespace AuctionGame.Auction
                 action.onClick.AddListener(Retry);
         }
 
-        private void DrawPortraitItems(RectTransform viewport)
+        private void DrawPortraitItems(RectTransform viewport, RectTransform paper)
         {
             const float height = 96;
             viewport.gameObject.AddComponent<RectMask2D>();
@@ -176,6 +178,18 @@ namespace AuctionGame.Auction
             content.pivot = Vector2.up;
             content.sizeDelta = new Vector2(0, Report.Purchases.Count * height);
             scroll.content = content;
+
+            var track = Anchor("Purchase Scrollbar", paper, .955f, .19f, .98f, .85f);
+            AddImage(track, new Color(.83f, .79f, .72f), true);
+            var scrollbar = track.gameObject.AddComponent<Scrollbar>();
+            var slidingArea = PreparationUi.Rect("Sliding Area", track, Vector2.zero, Vector2.one,
+                new Vector2(3, 3), new Vector2(-3, -3));
+            scrollbar.handleRect = PreparationUi.Fill("Handle", slidingArea);
+            scrollbar.targetGraphic = AddImage(scrollbar.handleRect, new Color(.46f, .28f, .18f), true);
+            scrollbar.direction = Scrollbar.Direction.BottomToTop;
+            scroll.verticalScrollbar = scrollbar;
+            scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+
             for (int index = 0; index < Report.Purchases.Count; index++)
             {
                 ReportPurchase purchase = Report.Purchases[index];
@@ -192,6 +206,10 @@ namespace AuctionGame.Auction
                     image.preserveAspect = true;
                 }
             }
+
+            Canvas.ForceUpdateCanvases();
+            scroll.StopMovement();
+            scroll.verticalNormalizedPosition = 1;
         }
 
         private static void PortraitColumns(RectTransform row, string item, string bid, string worth, string profit,

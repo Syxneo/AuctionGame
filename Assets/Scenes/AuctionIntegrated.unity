@@ -4474,7 +4474,7 @@ MonoBehaviour:
   pickedUpPhone: {fileID: 21300000, guid: a6aae24f0402ef44f8092b1d24b668fb, type: 3}
   ringtone: {fileID: 8300000, guid: 2076219121260b448a26ff5e63b9640e, type: 3}
   pickupClick: {fileID: 8300000, guid: 63daf9ca86e853e45a449e395a7af790, type: 3}
-  endFrame: {fileID: 0}
+  speechBubble: {fileID: 5826550855767299657, guid: f564888266e09c345b2fd1999d6ce698, type: 3}
   successEnding:
   - Well, well, well... You actually made a profit.
   - I must admit, I didn't expect that from you.

@@ -245,6 +245,10 @@ namespace AuctionGame.Auction.Tests
             AuctionItemPresentationTests.StartWaitingCinematic(auction);
             var stage = Object.FindFirstObjectByType<SceneIntroOutro>();
             AuctionItemPresentationTests.AdvanceMotion(stage, 1.41f);
+            var ribbon = GameObject.Find("Result Ribbon").GetComponent<Image>();
+            var stamp = ribbon.transform.Find("SOLD Sticker").GetComponent<Image>();
+            Assert.That(stamp.enabled, Is.EqualTo(result.sold));
+            Assert.That(ribbon.color.r > ribbon.color.b, Is.EqualTo(result.sold));
             Click("Continue Result");
             AuctionItemPresentationTests.AdvanceMotion(stage, 3f);
             auction.Tick(0.01f);

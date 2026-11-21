@@ -26,6 +26,7 @@ namespace AuctionGame.Auction
         private RectTransform itemBackdrop;
         private Image itemImage;
         private Image ribbon;
+        private Image stamp;
         private TMP_Text outcome;
         private TMP_Text winner;
         private TMP_Text price;
@@ -121,14 +122,13 @@ namespace AuctionGame.Auction
             itemImage.sprite = auction.CurrentItem.Sprite;
             itemImage.enabled = itemImage.sprite != null;
             bool showStamp = result.sold && soldStamp;
-            ribbon.sprite = showStamp ? soldStamp : null;
-            ribbon.preserveAspect = showStamp;
-            ribbon.color = showStamp ? Color.white : result.sold ? SoldRed : UnsoldBlue;
-            outcome.color = showStamp ? Color.clear : Ivory;
+            ribbon.color = result.sold ? SoldRed : UnsoldBlue;
+            stamp.enabled = showStamp;
+            outcome.enabled = !showStamp;
             itemBackdrop.anchorMin = new Vector2(0.026f, result.sold ? 0.235f : 0.025f);
             itemImage.rectTransform.anchorMin = new Vector2(0.09f, result.sold ? 0.26f : 0.13f);
-            ribbon.rectTransform.anchorMin = new Vector2(0.055f, result.sold ? 0.32f : 0.19f);
-            ribbon.rectTransform.anchorMax = new Vector2(0.945f, result.sold ? 0.48f : 0.35f);
+            ribbon.rectTransform.anchorMin = new Vector2(0.055f, result.sold ? 0.36f : 0.19f);
+            ribbon.rectTransform.anchorMax = new Vector2(0.945f, result.sold ? 0.52f : 0.35f);
             outcome.text = result.sold ? "PREDANÉ" : "NEPREDANÉ";
             winner.text = result.sold ? auction.GetBidderDisplayName(result.winnerId) : "";
             price.text = result.sold ? $"${result.finalPrice}" : "";
@@ -257,6 +257,10 @@ namespace AuctionGame.Auction
             outcome = Label("Result Outcome", banner, new Vector2(0.08f, 0.1f), new Vector2(0.92f, 0.9f), 92, Ivory);
             outcome.fontStyle = FontStyles.Bold;
             outcome.characterSpacing = 10f;
+            stamp = Fill(Box("SOLD Sticker", banner, new Vector2(-.04f, -.21f),
+                new Vector2(1.04f, 1.33f)), Color.white);
+            stamp.sprite = soldStamp;
+            stamp.preserveAspect = true;
 
             winner = Label("Result Winner", card, new Vector2(0.05f, 0.127f), new Vector2(0.95f, 0.225f), 49, Ivory);
             price = Label("Result Price", card, new Vector2(0.05f, 0.025f), new Vector2(0.95f, 0.132f), 71, Gold);

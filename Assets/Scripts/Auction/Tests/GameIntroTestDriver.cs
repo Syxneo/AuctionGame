@@ -52,6 +52,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.IncomingCall));
 
             AssertSprite("Incoming Telephone");
+            Assert.That(GameObject.Find("Incoming Telephone").GetComponent<TelephonePresentation>(), Is.Not.Null);
             var source = intro.GetComponent<AudioSource>();
             Assert.That(source.clip, Is.Not.Null);
             Assert.That(source.loop, Is.True);
@@ -63,9 +64,12 @@ namespace AuctionGame.Auction.Tests
             Assert.That(phone.activeInHierarchy, Is.False);
             Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.SaleConversation));
             var messages = GameObject.Find("Messages").transform;
-            Assert.That(messages.childCount, Is.Zero);
-            for (int count = 1; count <= 3; count++)
+            Assert.That(messages.childCount, Is.EqualTo(1));
+            Click("Advance Conversation");
+            Assert.That(messages.childCount, Is.EqualTo(1), "Pickup and advance in the same frame count as one tap.");
+            for (int count = 2; count <= 3; count++)
             {
+                yield return null;
                 Click("Advance Conversation");
                 Assert.That(messages.childCount, Is.EqualTo(count));
             }
@@ -77,6 +81,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(finalMessage, Does.Contain("$" + preparation.ProfitTarget.ToString("N0", culture)));
             Assert.That(intro.GetComponents<AudioSource>(), Has.Length.EqualTo(1));
 
+            yield return null;
             Click("Advance Conversation");
             Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.TransitionToNews));
             float deadline = Time.realtimeSinceStartup + 5;
@@ -137,6 +142,7 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(image.gameObject, Is.Not.SameAs(GameObject.Find("RetroTVFrame")));
                 var label = GameObject.Find("NewsBodyText").GetComponent<TMP_Text>();
                 Assert.That(label.text, Is.EqualTo(card.Body));
+                Assert.That(label.GetComponentInParent<BidderSpeechBubble>(), Is.Not.Null);
                 Canvas.ForceUpdateCanvases();
                 label.ForceMeshUpdate();
                 Assert.That(label.isTextOverflowing, Is.False, card.Id);
@@ -241,6 +247,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(report.Report, Is.Null);
             Assert.That(GameObject.Find("SALE Report"), Is.Null);
             AssertSprite("SALE Telephone");
+            Assert.That(GameObject.Find("SALE Telephone").GetComponent<TelephonePresentation>(), Is.Not.Null);
             Assert.That(intro.GetComponent<AudioSource>().loop, Is.True);
             Assert.That(GameObject.Find("AuctionPanel"), Is.Null);
             Click("Pick Up SALE Call");
@@ -335,6 +342,8 @@ namespace AuctionGame.Auction.Tests
             var scroll = GameObject.Find("Purchases").GetComponent<ScrollRect>();
             Assert.That(scroll.vertical && !scroll.horizontal, Is.True);
             Assert.That(scroll.content.childCount, Is.EqualTo(report.Purchases.Count));
+            if (scroll.content.rect.height > scroll.viewport.rect.height)
+                Assert.That(scroll.verticalNormalizedPosition, Is.EqualTo(1).Within(.001f));
             for (int index = 0; index < report.Purchases.Count; index++)
             {
                 var purchase = report.Purchases[index];

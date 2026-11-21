@@ -18,6 +18,73 @@ namespace AuctionGame.Auction
         internal bool NeedsFrame => !background || !background.sprite;
         internal bool NeedsPointer => !pointer || !pointer.sprite;
         private float pointerWidth;
+        private RectTransform dialogueRegion;
+        private LayoutElement dialogueRow;
+        private Vector2 lastDialogueSize;
+        private const float DialoguePadding = 24;
+
+        internal static BidderSpeechBubble CreateDialogue(BidderSpeechBubble prefab, RectTransform region,
+            string labelName, int fontSize, LayoutElement row = null)
+        {
+            var bubble = prefab ? Instantiate(prefab, region) :
+                PreparationUi.Fill("Speech Bubble", region).gameObject.AddComponent<BidderSpeechBubble>();
+            bubble.Initialize(TMP_Settings.defaultFontAsset, null, null);
+            if (bubble.NeedsFrame)
+            {
+                bubble.background.type = Image.Type.Simple;
+                bubble.background.color = PreparationUi.Paper;
+            }
+            bubble.HidePointer();
+            bubble.dialogueRegion = region;
+            bubble.dialogueRow = row;
+            bubble.Rect.anchorMin = bubble.Rect.anchorMax = bubble.Rect.pivot = new Vector2(.5f, 1);
+            bubble.Rect.anchoredPosition = Vector2.zero;
+            bubble.label.name = labelName;
+            bubble.label.fontSize = fontSize;
+            bubble.label.fontSizeMax = fontSize;
+            bubble.label.fontSizeMin = 22;
+            bubble.label.textWrappingMode = TextWrappingModes.Normal;
+            bubble.label.overflowMode = TextOverflowModes.Overflow;
+            bubble.label.alignment = TextAlignmentOptions.MidlineLeft;
+            bubble.label.lineSpacing = 7;
+            bubble.label.rectTransform.anchorMin = Vector2.zero;
+            bubble.label.rectTransform.anchorMax = Vector2.one;
+            bubble.label.rectTransform.offsetMin = Vector2.one * DialoguePadding;
+            bubble.label.rectTransform.offsetMax = -Vector2.one * DialoguePadding;
+            return bubble;
+        }
+
+        internal TMP_Text SetDialogue(string text)
+        {
+            label.text = text;
+            gameObject.SetActive(true);
+            FitDialogue();
+            return label;
+        }
+
+        private void LateUpdate()
+        {
+            if (dialogueRegion && lastDialogueSize != dialogueRegion.rect.size)
+                FitDialogue();
+        }
+
+        private void FitDialogue()
+        {
+            lastDialogueSize = dialogueRegion.rect.size;
+            float width = Mathf.Max(1, lastDialogueSize.x);
+            label.enableAutoSizing = false;
+            label.fontSize = label.fontSizeMax;
+            float height = label.GetPreferredValues(label.text, Mathf.Max(1, width - 2 * DialoguePadding),
+                Mathf.Infinity).y + 2 * DialoguePadding;
+            if (dialogueRow)
+                dialogueRow.preferredHeight = height;
+            else if (height > lastDialogueSize.y && lastDialogueSize.y > 0)
+            {
+                height = lastDialogueSize.y;
+                label.enableAutoSizing = true;
+            }
+            Rect.sizeDelta = new Vector2(width, height);
+        }
 
         internal void Initialize(TMP_FontAsset font, Sprite frame, Sprite arrow)
         {

@@ -41,7 +41,9 @@ namespace AuctionGame.Auction
         [SerializeField] private Sprite pickedUpPhone;
         [SerializeField] private AudioClip ringtone;
         [SerializeField] private AudioClip pickupClick;
-        [SerializeField] private Sprite endFrame;
+        [SerializeField] private BidderSpeechBubble speechBubble;
+        [SerializeField, Range(0, 10)] private float phoneRockDegrees = 6;
+        [SerializeField, Min(.1f)] private float phoneRockPeriod = .34f;
         [SerializeField, TextArea] private string[] successEnding =
         {
             "Well, well, well... You actually made a profit.",
@@ -80,13 +82,20 @@ namespace AuctionGame.Auction
         private Vector2Int lastScreen;
         private string[] ending;
         private Action<RectTransform> showEndReport;
+        private BidderSpeechBubble endBubble;
         private TMP_Text endMessage;
-        private int lastEndTap;
+        private int lastCallTap;
         private bool fadingEndLine;
 
         internal Sprite ReportLogo => logo;
         internal Sprite ReportButton => playButton;
-        internal Sprite EndFrame => endFrame;
+        internal BidderSpeechBubble SpeechBubble => speechBubble;
+
+        internal void PlayNewsJingle(AudioClip clip)
+        {
+            if (clip && audioSource)
+                audioSource.PlayOneShot(clip);
+        }
 
         internal void ShowEndCall(bool succeeded, Action<RectTransform> openReport)
         {
@@ -99,17 +108,12 @@ namespace AuctionGame.Auction
             ending = succeeded ? successEnding : failureEnding;
             showEndReport = openReport;
             next = 0;
-            lastEndTap = -1;
+            lastCallTap = -1;
             fadingEndLine = false;
             Open(Stage.EndIncomingCall);
-            DrawEndPhone(false);
-            EndTap("Pick Up SALE Call", AnswerEndCall);
-            if (ringtone)
-            {
-                audioSource.clip = ringtone;
-                audioSource.loop = true;
-                audioSource.Play();
-            }
+            DrawPhone("SALE Telephone", false, "Tap to pick up");
+            CallTap("Pick Up SALE Call", AnswerEndCall);
+            StartRinging();
         }
 
         private void AnswerEndCall()
@@ -117,52 +121,57 @@ namespace AuctionGame.Auction
             if (CurrentStage != Stage.EndIncomingCall)
                 return;
 
-            lastEndTap = Time.frameCount;
+            StopRinging();
+            Open(Stage.EndConversation);
+            DrawPhone("SALE Telephone", true, "Tap to continue");
+            endBubble = BidderSpeechBubble.CreateDialogue(speechBubble,
+                Box("SALE Dialogue", safe, .06f, .51f, .94f, .82f), "SALE Line", 36);
+            CallTap("Advance SALE Call", AdvanceEndCall);
+            ShowNextEndLine();
+        }
+
+        private void DrawPhone(string name, bool answered, string prompt)
+        {
+            var slot = Box("Telephone Position", safe, .11f, .10f, .89f, .44f);
+            var artwork = PreparationUi.Fill(name, slot);
+            Art(name, artwork, answered && pickedUpPhone ? pickedUpPhone : incomingPhone, "[Telefón]");
+            artwork.gameObject.AddComponent<TelephonePresentation>().Present(answered, phoneRockDegrees, phoneRockPeriod);
+            Caption(Box("SALE Call Prompt", safe, .05f, .02f, .95f, .075f), prompt, 26);
+        }
+
+        private void StartRinging()
+        {
+            if (!ringtone)
+                return;
+            audioSource.clip = ringtone;
+            audioSource.loop = true;
+            audioSource.Play();
+        }
+
+        private void StopRinging()
+        {
+            lastCallTap = Time.frameCount;
             audioSource.Stop();
             audioSource.loop = false;
             if (pickupClick)
                 audioSource.PlayOneShot(pickupClick);
-            Open(Stage.EndConversation);
-            DrawEndPhone(true);
-            var bubble = Box("SALE Dialogue", safe, .06f, .54f, .94f, .76f);
-            var frame = PreparationUi.Surface(bubble, new Color(.78f, .78f, .76f));
-            frame.sprite = endFrame;
-            if (endFrame)
-                frame.type = Image.Type.Sliced;
-            var speaker = PreparationUi.Label(Box("SALE Speaker", bubble, .08f, .69f, .92f, .94f),
-                "Sa-Le", 34, PreparationUi.Ink, FontStyles.Bold);
-            speaker.alignment = TextAlignmentOptions.MidlineLeft;
-            endMessage = PreparationUi.Label(Box("SALE Line", bubble, .08f, .07f, .92f, .69f),
-                "", 30, PreparationUi.Ink);
-            endMessage.enableAutoSizing = true;
-            endMessage.fontSizeMin = 23;
-            endMessage.fontSizeMax = 32;
-            EndTap("Advance SALE Call", AdvanceEndCall);
-            ShowNextEndLine();
         }
 
-        private void DrawEndPhone(bool answered)
-        {
-            Art("SALE Telephone", Box("SALE Telephone", safe, .10f, .10f, .90f, .48f),
-                answered ? pickedUpPhone : incomingPhone, "[Telephone]");
-            Caption(Box("SALE Call Prompt", safe, .05f, .02f, .95f, .075f),
-                answered ? "Tap to continue" : "Tap to pick up", 26);
-        }
-
-        private void EndTap(string name, UnityEngine.Events.UnityAction action)
+        private void CallTap(string name, UnityEngine.Events.UnityAction action)
         {
             var hitArea = PreparationUi.Fill(name, view);
             var button = hitArea.gameObject.AddComponent<Button>();
             button.targetGraphic = PreparationUi.Surface(hitArea, Color.clear);
+            button.targetGraphic.canvasRenderer.cullTransparentMesh = false;
             button.transition = Selectable.Transition.None;
             button.onClick.AddListener(action);
         }
 
         private void AdvanceEndCall()
         {
-            if (CurrentStage != Stage.EndConversation || fadingEndLine || lastEndTap == Time.frameCount)
+            if (CurrentStage != Stage.EndConversation || fadingEndLine || lastCallTap == Time.frameCount)
                 return;
-            lastEndTap = Time.frameCount;
+            lastCallTap = Time.frameCount;
             if (ending != null && next < ending.Length && endLineFade > 0)
             {
                 fadingEndLine = true;
@@ -186,7 +195,7 @@ namespace AuctionGame.Auction
         {
             if (ending != null && next < ending.Length)
             {
-                endMessage.text = ending[next++];
+                endMessage = endBubble.SetDialogue(ending[next++]);
                 return;
             }
             CurrentStage = Stage.EndTransition;
@@ -217,8 +226,8 @@ namespace AuctionGame.Auction
             canvas.gameObject.SetActive(true);
             Open(Stage.StartScreen);
             if (owner.CampaignDayCount > 0)
-                Caption(Box("Campaign Day", safe, .08f, .12f, .92f, .18f),
-                    $"DAY {owner.CurrentDay} / {owner.CampaignDayCount}", 28);
+                Caption(Box("Campaign Day", safe, .08f, .105f, .92f, .185f),
+                    $"DAY {owner.CurrentDay} / {owner.CampaignDayCount}", 48);
             Art("Auction Frenzy Logo", Box("Logo", safe, .07f, .40f, .93f, .84f), logo,
                 "DRAŽOBNÁ HORÚČKA\n[zástupca loga]");
             var play = AddButton("HRAŤ!", Box("PLAY", safe, .06f, .19f, .94f, .41f), Play);
@@ -302,27 +311,16 @@ namespace AuctionGame.Auction
             if (CurrentStage != Stage.StartScreen)
                 return;
             Open(Stage.IncomingCall);
-            Art("Incoming Telephone", Box("Incoming Telephone", safe, .11f, .08f, .89f, .47f),
-                incomingPhone, "[zástupca rotačného telefónu]");
-            var pickUp = AddButton("Klepni a zdvihni", Box("Pick Up Phone", safe, .07f, .02f, .93f, .48f), PickUp);
-            pickUp.targetGraphic.color = Color.clear;
-            pickUp.transition = Selectable.Transition.None;
-            if (ringtone)
-            {
-                audioSource.clip = ringtone;
-                audioSource.loop = true;
-                audioSource.Play();
-            }
+            DrawPhone("Incoming Telephone", false, "Klepni a zdvihni");
+            CallTap("Pick Up Phone", PickUp);
+            StartRinging();
         }
 
         private void PickUp()
         {
             if (CurrentStage != Stage.IncomingCall)
                 return;
-            audioSource.Stop();
-            audioSource.loop = false;
-            if (pickupClick)
-                audioSource.PlayOneShot(pickupClick);
+            StopRinging();
             Open(Stage.SaleConversation);
             next = 0;
             var custom = preparation.SaleDialogue?.Where(line => !string.IsNullOrWhiteSpace(line)).ToArray();
@@ -334,18 +332,16 @@ namespace AuctionGame.Auction
                     message.text.Contains("{budget}") && message.text.Contains("{profit}")))
                 messages = messages.Append(new Message(Speaker.Sale, messages.Length,
                     "Máš {budget}. Dosiahni aspoň {profit} zisku.")).ToArray();
-            var advance = AddButton("", PreparationUi.Fill("Advance Conversation", view), Advance);
-            advance.targetGraphic.color = Color.clear;
-            advance.transform.SetAsFirstSibling();
+            CallTap("Advance Conversation", Advance);
+            view.Find("Advance Conversation").SetAsFirstSibling();
             view.GetComponent<Image>().raycastTarget = false;
-
-            Art("Picked Up Telephone", Box("Picked Up Telephone", safe, .11f, .08f, .89f, .47f), pickedUpPhone,
-                "[zástupca zdvihnutého telefónu]");
-            Caption(Box("Continue Prompt", safe, .05f, .02f, .95f, .075f), "Klepni pre pokračovanie", 26);
+            DrawPhone("Picked Up Telephone", true, "Klepni pre pokračovanie");
             var viewport = Box("Conversation", safe, .05f, .48f, .95f, .96f);
-            var tap = AddButton("", PreparationUi.Fill("Tap Conversation", viewport), Advance);
+            var tap = PreparationUi.Button(PreparationUi.Fill("Tap Conversation", viewport), "", false);
             tap.targetGraphic.color = Color.clear;
+            tap.targetGraphic.canvasRenderer.cullTransparentMesh = false;
             tap.transition = Selectable.Transition.None;
+            tap.onClick.AddListener(Advance);
             viewport.gameObject.AddComponent<RectMask2D>();
             scroll = viewport.gameObject.AddComponent<ScrollRect>();
             scroll.viewport = viewport;
@@ -361,13 +357,19 @@ namespace AuctionGame.Auction
             content.gameObject.AddComponent<ContentSizeFitter>().verticalFit =
                 ContentSizeFitter.FitMode.PreferredSize;
             scroll.content = content;
-
+            ShowNextMessage();
         }
 
         private void Advance()
         {
-            if (CurrentStage != Stage.SaleConversation)
+            if (CurrentStage != Stage.SaleConversation || lastCallTap == Time.frameCount)
                 return;
+            lastCallTap = Time.frameCount;
+            ShowNextMessage();
+        }
+
+        private void ShowNextMessage()
+        {
             if (next >= messages.Length)
             {
                 CurrentStage = Stage.TransitionToNews;
@@ -378,16 +380,11 @@ namespace AuctionGame.Auction
             Message message = messages[next++];
             bool player = message.speaker == Speaker.Player;
             var row = PreparationUi.Fill(player ? "Ja" : "Sa-Le", scroll.content);
-            var bubble = Box("Bubble", row, player ? .16f : 0, 0, player ? 1 : .84f, 1);
-            var surface = PreparationUi.Surface(bubble, new Color(.83f, .82f, .80f));
-            surface.raycastTarget = false;
-            var label = PreparationUi.Label(PreparationUi.Rect("Message", bubble, Vector2.zero, Vector2.one,
-                new Vector2(18, 12), new Vector2(-18, -12)),
-                (player ? "Ja" : "Sa-Le") + "\n" + Format(message.text), 27, PreparationUi.Ink);
+            var region = Box("Bubble Region", row, player ? .10f : 0, 0, player ? 1 : .90f, 1);
+            var rowLayout = row.gameObject.AddComponent<LayoutElement>();
             Canvas.ForceUpdateCanvases();
-            row.gameObject.AddComponent<LayoutElement>().preferredHeight =
-                label.GetPreferredValues(label.text, Mathf.Max(1, scroll.viewport.rect.width * .84f - 36),
-                    Mathf.Infinity).y + 24;
+            var bubble = BidderSpeechBubble.CreateDialogue(speechBubble, region, "Message", 36, rowLayout);
+            bubble.SetDialogue((player ? "Ja" : "Sa-Le") + "\n" + Format(message.text));
             LayoutRebuilder.ForceRebuildLayoutImmediate(scroll.content);
             Canvas.ForceUpdateCanvases();
             scroll.StopMovement();
@@ -446,11 +443,6 @@ namespace AuctionGame.Auction
             var button = PreparationUi.Button(rect, caption);
             var label = rect.GetComponentInChildren<TMP_Text>();
             label.fontSize = 38;
-            if (caption == "Klepni a zdvihni")
-            {
-                label.alignment = TextAlignmentOptions.Bottom;
-                label.color = PreparationUi.Ink;
-            }
             button.onClick.AddListener(action);
             return button;
         }
