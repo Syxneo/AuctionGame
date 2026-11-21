@@ -105,6 +105,7 @@ namespace AuctionGame.Auction.Tests
             OpenLot(auction);
             Assert.That(CloseLot(auction).sold, Is.False);
 
+            yield return GameIntroTestDriver.OpenFinalReport(false);
             var report = auction.GetComponent<AuctionReportUI>().Report;
             Assert.That(report.TargetProfit, Is.EqualTo(50));
             Assert.That(report.Succeeded, Is.False);
@@ -128,6 +129,7 @@ namespace AuctionGame.Auction.Tests
                 OpenLot(auction);
                 CloseLot(auction);
             }
+            yield return GameIntroTestDriver.OpenFinalReport(true);
             Assert.That(auction.GetComponent<AuctionReportUI>().Report.Succeeded, Is.True);
             Click("Continue Button");
             Assert.That(GameObject.Find("Level Completion"), Is.Not.Null);

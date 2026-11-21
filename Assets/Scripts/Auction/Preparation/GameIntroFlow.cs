@@ -12,7 +12,11 @@ namespace AuctionGame.Auction
     [DisallowMultipleComponent]
     public sealed class GameIntroFlow : MonoBehaviour
     {
-        public enum Stage { StartScreen, IncomingCall, SaleConversation, TransitionToNews, Completed }
+        public enum Stage
+        {
+            StartScreen, IncomingCall, SaleConversation, TransitionToNews, Completed,
+            EndIncomingCall, EndConversation, EndTransition, EndReport
+        }
         private enum Speaker { Sale, Player }
 
         [Serializable]
@@ -37,8 +41,22 @@ namespace AuctionGame.Auction
         [SerializeField] private Sprite pickedUpPhone;
         [SerializeField] private AudioClip ringtone;
         [SerializeField] private AudioClip pickupClick;
+        [SerializeField] private Sprite endFrame;
+        [SerializeField, TextArea] private string[] successEnding =
+        {
+            "Well, well, well... You actually made a profit.",
+            "I must admit, I didn't expect that from you.",
+            "Let's see what you've managed to get your hands on."
+        };
+        [SerializeField, TextArea] private string[] failureEnding =
+        {
+            "You did terrible. I expected nothing, and somehow you delivered less.",
+            "Let's see how much money you've thrown away.",
+            "Remember, darling... Everything is for sale."
+        };
         [SerializeField, Min(0)] private float fadeOut = .25f;
         [SerializeField, Min(0)] private float fadeIn = .25f;
+        [SerializeField, Min(0)] private float endLineFade = .10f;
         [SerializeField] private Message[] dialogue =
         {
             new(Speaker.Sale, 0, "Ahoj, videl si už dnešné NOVINKY? Údajne tam budú super veci na nákup..."),
@@ -60,11 +78,138 @@ namespace AuctionGame.Auction
         private int next;
         private Rect lastSafeArea;
         private Vector2Int lastScreen;
+        private string[] ending;
+        private Action<RectTransform> showEndReport;
+        private TMP_Text endMessage;
+        private int lastEndTap;
+        private bool fadingEndLine;
+
+        internal Sprite ReportLogo => logo;
+        internal Sprite ReportButton => playButton;
+        internal Sprite EndFrame => endFrame;
+
+        internal void ShowEndCall(bool succeeded, Action<RectTransform> openReport)
+        {
+            if (!canvas)
+                Build(101);
+            StopAllCoroutines();
+            audioSource.Stop();
+            fade.gameObject.SetActive(false);
+            canvas.gameObject.SetActive(true);
+            ending = succeeded ? successEnding : failureEnding;
+            showEndReport = openReport;
+            next = 0;
+            lastEndTap = -1;
+            fadingEndLine = false;
+            Open(Stage.EndIncomingCall);
+            DrawEndPhone(false);
+            EndTap("Pick Up SALE Call", AnswerEndCall);
+            if (ringtone)
+            {
+                audioSource.clip = ringtone;
+                audioSource.loop = true;
+                audioSource.Play();
+            }
+        }
+
+        private void AnswerEndCall()
+        {
+            if (CurrentStage != Stage.EndIncomingCall)
+                return;
+
+            lastEndTap = Time.frameCount;
+            audioSource.Stop();
+            audioSource.loop = false;
+            if (pickupClick)
+                audioSource.PlayOneShot(pickupClick);
+            Open(Stage.EndConversation);
+            DrawEndPhone(true);
+            var bubble = Box("SALE Dialogue", safe, .06f, .54f, .94f, .76f);
+            var frame = PreparationUi.Surface(bubble, new Color(.78f, .78f, .76f));
+            frame.sprite = endFrame;
+            if (endFrame)
+                frame.type = Image.Type.Sliced;
+            var speaker = PreparationUi.Label(Box("SALE Speaker", bubble, .08f, .69f, .92f, .94f),
+                "Sa-Le", 34, PreparationUi.Ink, FontStyles.Bold);
+            speaker.alignment = TextAlignmentOptions.MidlineLeft;
+            endMessage = PreparationUi.Label(Box("SALE Line", bubble, .08f, .07f, .92f, .69f),
+                "", 30, PreparationUi.Ink);
+            endMessage.enableAutoSizing = true;
+            endMessage.fontSizeMin = 23;
+            endMessage.fontSizeMax = 32;
+            EndTap("Advance SALE Call", AdvanceEndCall);
+            ShowNextEndLine();
+        }
+
+        private void DrawEndPhone(bool answered)
+        {
+            Art("SALE Telephone", Box("SALE Telephone", safe, .10f, .10f, .90f, .48f),
+                answered ? pickedUpPhone : incomingPhone, "[Telephone]");
+            Caption(Box("SALE Call Prompt", safe, .05f, .02f, .95f, .075f),
+                answered ? "Tap to continue" : "Tap to pick up", 26);
+        }
+
+        private void EndTap(string name, UnityEngine.Events.UnityAction action)
+        {
+            var hitArea = PreparationUi.Fill(name, view);
+            var button = hitArea.gameObject.AddComponent<Button>();
+            button.targetGraphic = PreparationUi.Surface(hitArea, Color.clear);
+            button.transition = Selectable.Transition.None;
+            button.onClick.AddListener(action);
+        }
+
+        private void AdvanceEndCall()
+        {
+            if (CurrentStage != Stage.EndConversation || fadingEndLine || lastEndTap == Time.frameCount)
+                return;
+            lastEndTap = Time.frameCount;
+            if (ending != null && next < ending.Length && endLineFade > 0)
+            {
+                fadingEndLine = true;
+                StartCoroutine(FadeToNextEndLine());
+                return;
+            }
+            ShowNextEndLine();
+        }
+
+        private IEnumerator FadeToNextEndLine()
+        {
+            endMessage.CrossFadeAlpha(0, endLineFade, true);
+            yield return new WaitForSecondsRealtime(endLineFade);
+            ShowNextEndLine();
+            endMessage.CrossFadeAlpha(1, endLineFade, true);
+            yield return new WaitForSecondsRealtime(endLineFade);
+            fadingEndLine = false;
+        }
+
+        private void ShowNextEndLine()
+        {
+            if (ending != null && next < ending.Length)
+            {
+                endMessage.text = ending[next++];
+                return;
+            }
+            CurrentStage = Stage.EndTransition;
+            StartCoroutine(TransitionToReport());
+        }
+
+        private IEnumerator TransitionToReport()
+        {
+            fade.gameObject.SetActive(true);
+            yield return Fade(0, 1, fadeOut);
+            Open(Stage.EndReport);
+            var openReport = showEndReport;
+            showEndReport = null;
+            openReport?.Invoke(safe);
+            yield return Fade(1, 0, fadeIn);
+            fade.gameObject.SetActive(false);
+        }
 
         internal void ShowStart(PreparationPhase owner, MvpAuctionLevel currentLevel, int order)
         {
             preparation = owner;
             level = currentLevel;
+            showEndReport = null;
             StopAllCoroutines();
             if (!canvas)
                 Build(order);
@@ -116,7 +261,9 @@ namespace AuctionGame.Auction
 
             view = PreparationUi.Fill(stage.ToString(), canvas.transform);
             fade.transform.SetAsLastSibling();
-            PreparationUi.Surface(view, parchment ? Color.white : PreparationUi.Paper).sprite = parchment;
+            bool endingStage = stage is Stage.EndIncomingCall or Stage.EndConversation or Stage.EndReport;
+            Color fallback = endingStage ? new Color(.89f, .84f, .53f) : PreparationUi.Paper;
+            PreparationUi.Surface(view, parchment ? Color.white : fallback).sprite = parchment;
             safe = PreparationUi.Fill("Intro Safe Area", view);
             lastScreen = default;
             Update();

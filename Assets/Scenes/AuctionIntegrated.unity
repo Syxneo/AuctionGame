@@ -4399,6 +4399,10 @@ MonoBehaviour:
   auctionPanel: {fileID: 1547383900}
   level: {fileID: 11400000, guid: a9287539f8cc417e9bdda2d5b9e4f547, type: 2}
   preparation: {fileID: 1471185885}
+  endPresentation: {fileID: 1471185899}
+  reportParchment: {fileID: 21300000, guid: aeda47e2bca04a5c8757e3f00ae69bd5, type: 3}
+  reportOutline: {fileID: 21300000, guid: 357f927e455849bdaae6ef818a9d48bc, type: 3}
+  reportButton: {fileID: 21300000, guid: ebc896a428aa4f41999af8b4216599db, type: 3}
   successDialogue: "V\xFDborne. Dosiahol si po\u017Eadovan\xFD zisk. Zd\xE1 sa, \u017Ee
     m\xE1\u0161 na obchod dobr\xFD nos."
   failureDialogue: "Nesplnil si po\u017Eadovan\xFD zisk. V tomto biznise sa za chyby
@@ -4512,6 +4516,7 @@ MonoBehaviour:
   pickedUpPhone: {fileID: 21300000, guid: a6aae24f0402ef44f8092b1d24b668fb, type: 3}
   ringtone: {fileID: 8300000, guid: 2076219121260b448a26ff5e63b9640e, type: 3}
   pickupClick: {fileID: 8300000, guid: 63daf9ca86e853e45a449e395a7af790, type: 3}
+  endFrame: {fileID: 21300000, guid: edb036ea6fb74bdeb6722609ec0e7591, type: 3}
 --- !u!114 &1471185886
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -299,6 +299,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
             Assert.That(auction.Results.Select(result => result.itemId), Is.EqualTo(plan.Lots.Select(item => item.ItemId)));
             var report = auction.GetComponent<AuctionReportUI>();
+            yield return GameIntroTestDriver.OpenFinalReport(false);
             Assert.That(report.Report.Succeeded, Is.False);
             Click("Retry Button");
             Assert.That(preparation.SelectedNews, Is.SameAs(edition));
@@ -327,6 +328,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction.Results.Select(result => result.finalPrice), Is.All.EqualTo(10));
             Assert.That(auction.Economy.Purchases.Select(purchase => purchase.Variant), Is.EqualTo(plan.Lots));
             Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(1000 - 10 * plan.Lots.Count));
+            yield return GameIntroTestDriver.OpenFinalReport(true);
             Assert.That(report.Report.Purchases, Has.Count.EqualTo(plan.Lots.Count));
             Assert.That(report.Report.TotalProfit, Is.EqualTo(plan.TotalTrueValue - 10 * plan.Lots.Count));
             Assert.That(report.Report.TargetProfit, Is.EqualTo(50));

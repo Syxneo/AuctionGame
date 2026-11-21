@@ -181,6 +181,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(visual.enabled, Is.False);
             Assert.That(visual.sprite, Is.Null);
             Assert.That(auction.Results, Has.Count.EqualTo(6));
+            yield return GameIntroTestDriver.OpenFinalReport();
             Assert.That(auction.GetComponent<AuctionReportUI>().Report, Is.Not.Null);
             Assert.That(Object.FindObjectsByType<Camera>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
             Assert.That(Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None), Has.Length.EqualTo(1));

@@ -10,6 +10,10 @@ namespace AuctionGame.Auction
         [SerializeField] private RectTransform auctionPanel;
         [SerializeField] private MvpAuctionLevel level;
         [SerializeField] private PreparationPhase preparation;
+        [SerializeField] private GameIntroFlow endPresentation;
+        [SerializeField] private Sprite reportParchment;
+        [SerializeField] private Sprite reportOutline;
+        [SerializeField] private Sprite reportButton;
         [SerializeField, TextArea] private string successDialogue =
             "Výborne. Dosiahol si požadovaný zisk. Zdá sa, že máš na obchod dobrý nos.";
         [SerializeField, TextArea] private string failureDialogue =
@@ -23,6 +27,8 @@ namespace AuctionGame.Auction
         private static readonly Color Gain = new(0.54f, 0.90f, 0.69f);
         private static readonly Color Loss = new(1f, 0.59f, 0.59f);
         private RectTransform view;
+        private RectTransform endReportParent;
+        private bool awaitingCall;
 
         public AuctionReport Report { get; private set; }
 
@@ -46,12 +52,26 @@ namespace AuctionGame.Auction
 
         private void OpenReport()
         {
-            if (Report != null)
+            if (Report != null || awaitingCall)
                 return;
 
-            Report = new AuctionReport(auction.Economy.Purchases, level.ProfitTarget);
+            var snapshot = new AuctionReport(auction.Economy.Purchases, level.ProfitTarget);
             auctionPanel.gameObject.SetActive(false);
             RemoveView();
+            if (endPresentation && endPresentation.isActiveAndEnabled)
+            {
+                awaitingCall = true;
+                endPresentation.ShowEndCall(snapshot.Succeeded, parent =>
+                {
+                    awaitingCall = false;
+                    Report = snapshot;
+                    endReportParent = parent;
+                    CreatePortraitReport();
+                });
+                return;
+            }
+
+            Report = snapshot;
             CreateView("SALE Report");
             Label(view, "PREDAJ", 28, 18, 110, 32, 24, Accent);
             Label(view, "Správa z dražby", 28, 50, 510, 50, 36, Color.white);
@@ -74,6 +94,142 @@ namespace AuctionGame.Auction
             else
                 DrawButton("Retry Button", "Zopakovať").onClick.AddListener(Retry);
         }
+
+        private void CreatePortraitReport()
+        {
+            view = PreparationUi.Fill("SALE Report", endReportParent);
+            // Let the parchment extend past the safe area while keeping the controls inside it.
+            var backdrop = AddImage(PreparationUi.Fill("Report Parchment", endReportParent.parent), Color.white);
+            backdrop.transform.SetAsFirstSibling();
+            backdrop.sprite = reportParchment;
+            backdrop.enabled = reportParchment;
+            var frame = Anchor("Report Frame", view, .04f, .21f, .96f, .78f);
+            AddImage(frame, reportOutline ? new Color(.95f, .95f, .95f) : PreparationUi.Ink);
+            var paper = PreparationUi.Rect("Report Paper", frame, Vector2.zero, Vector2.one,
+                new Vector2(12, 12), new Vector2(-12, -12));
+            AddImage(paper, new Color(.95f, .95f, .95f));
+            if (reportOutline)
+            {
+                var outline = AddImage(PreparationUi.Fill("Ink Outline", frame), Color.white);
+                outline.sprite = reportOutline;
+                outline.type = Image.Type.Sliced;
+            }
+
+            PortraitColumns(Anchor("Report Columns", paper, .02f, .88f, .97f, .94f),
+                "Item", "Your bid", "Worth", "Profit", PreparationUi.Ink, 23);
+            var viewport = Anchor("Purchases", paper, .02f, .18f, .97f, .88f);
+            if (Report.Purchases.Count == 0)
+                PortraitLabel(PreparationUi.Fill("Empty State", viewport), "No items purchased.", 31, PreparationUi.Ink);
+            else
+                DrawPortraitItems(viewport);
+
+            PortraitTotal(paper, "Goal", Money(Report.TargetProfit), .45f, .69f, PreparationUi.Ink);
+            PortraitTotal(paper, "Your profit", SignedMoney(Report.TotalProfit), .71f, .97f,
+                PortraitProfitColor(Report.TotalProfit));
+            PortraitLabel(Anchor("Result", paper, .05f, .01f, .95f, .085f),
+                Report.Succeeded ? "SUCCESS" : "Target Missed", 34,
+                Report.Succeeded ? PortraitProfitColor(1) : PortraitProfitColor(-1)).fontStyle = FontStyles.Bold;
+
+            var logoRect = Anchor("Auction Frenzy Logo", view, .29f, .745f, .71f, .94f);
+            if (endPresentation.ReportLogo)
+            {
+                var logoImage = AddImage(logoRect, Color.white);
+                logoImage.sprite = endPresentation.ReportLogo;
+                logoImage.preserveAspect = true;
+            }
+            else
+                PortraitLabel(logoRect, "AUCTION FRENZY", 46, PreparationUi.Ink);
+
+            var actionRect = Anchor(Report.Succeeded ? "Continue Button" : "Retry Button", view, .075f, .035f, .925f, .165f);
+            var action = PreparationUi.Button(actionRect, Report.Succeeded ? "CONTINUE" : "TRY AGAIN");
+            var background = (Image)action.targetGraphic;
+            background.sprite = reportButton ? reportButton : endPresentation.ReportButton;
+            background.color = background.sprite ? Color.white : Accent;
+            background.preserveAspect = !reportButton && background.sprite;
+            var text = action.GetComponentInChildren<TMP_Text>();
+            text.fontSize = 82;
+            text.fontStyle = FontStyles.Bold;
+            text.color = PreparationUi.Ink;
+            if (Report.Succeeded)
+                action.onClick.AddListener(Continue);
+            else
+                action.onClick.AddListener(Retry);
+        }
+
+        private void DrawPortraitItems(RectTransform viewport)
+        {
+            const float height = 96;
+            viewport.gameObject.AddComponent<RectMask2D>();
+            AddImage(viewport, Color.clear, true);
+            var scroll = viewport.gameObject.AddComponent<ScrollRect>();
+            scroll.viewport = viewport;
+            scroll.horizontal = false;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 40;
+            var content = PreparationUi.Rect("Items", viewport, Vector2.up, Vector2.one,
+                Vector2.zero, Vector2.zero);
+            content.pivot = Vector2.up;
+            content.sizeDelta = new Vector2(0, Report.Purchases.Count * height);
+            scroll.content = content;
+            for (int index = 0; index < Report.Purchases.Count; index++)
+            {
+                ReportPurchase purchase = Report.Purchases[index];
+                var row = PreparationUi.Rect($"Purchase {index + 1}", content, Vector2.up, Vector2.one,
+                    new Vector2(0, -(index + 1) * height + 4), new Vector2(0, -index * height - 4));
+                AddImage(Anchor("Item Tile", row, 0, .06f, .19f, .94f), Color.white);
+                string itemLabel = purchase.Sprite ? "" : "—";
+                PortraitColumns(row, itemLabel, Money(purchase.PurchasePrice), Money(purchase.TrueValue),
+                    SignedMoney(purchase.Profit), PortraitProfitColor(purchase.Profit), 38);
+                if (purchase.Sprite)
+                {
+                    var image = AddImage(Anchor("Item sprite", row, .01f, .10f, .18f, .90f), Color.white);
+                    image.sprite = purchase.Sprite;
+                    image.preserveAspect = true;
+                }
+            }
+        }
+
+        private static void PortraitColumns(RectTransform row, string item, string bid, string worth, string profit,
+            Color profitColor, int size)
+        {
+            var itemText = PortraitLabel(Anchor("Item", row, 0, 0, .19f, 1), item, size, PreparationUi.Ink);
+            if (item == "Item")
+                itemText.alignment = TextAlignmentOptions.MidlineLeft;
+            PortraitLabel(Anchor("Your Bid", row, .23f, 0, .49f, 1), bid, size, PreparationUi.Ink).alignment =
+                TextAlignmentOptions.MidlineRight;
+            PortraitLabel(Anchor("Worth", row, .50f, 0, .72f, 1), worth, size, PreparationUi.Ink).alignment =
+                TextAlignmentOptions.MidlineRight;
+            PortraitLabel(Anchor("Profit", row, .73f, 0, 1, 1), profit, size, profitColor).alignment =
+                TextAlignmentOptions.MidlineRight;
+        }
+
+        private static void PortraitTotal(RectTransform paper, string caption, string value, float left, float right,
+            Color color)
+        {
+            PortraitLabel(Anchor(caption, paper, left, .145f, right, .18f), caption, 24, PreparationUi.Ink)
+                .alignment = TextAlignmentOptions.MidlineRight;
+            PortraitLabel(Anchor(caption + " Value", paper, left, .085f, right, .145f), value, 34, color)
+                .alignment = TextAlignmentOptions.MidlineRight;
+        }
+
+        private static TMP_Text PortraitLabel(RectTransform rect, string value, int size, Color color)
+        {
+            var text = PreparationUi.Label(rect, value, size, color);
+            text.alignment = TextAlignmentOptions.Center;
+            text.enableAutoSizing = true;
+            text.fontSizeMin = 17;
+            text.fontSizeMax = size;
+            return text;
+        }
+
+        private static RectTransform Anchor(string name, Transform parent, float left, float bottom, float right, float top) =>
+            PreparationUi.Rect(name, parent, new Vector2(left, bottom), new Vector2(right, top),
+                Vector2.zero, Vector2.zero);
+
+        private static Color PortraitProfitColor(long value) => value > 0 ? new Color(.01f, .43f, .21f) :
+            value < 0 ? new Color(.75f, .04f, .08f) : PreparationUi.Ink;
+
+        private static string SignedMoney(long value) => value > 0 ? $"+{Money(value)}" : Money(value);
 
         private void DrawPurchases()
         {
@@ -155,12 +311,20 @@ namespace AuctionGame.Auction
                 return;
 
             RemoveView();
+            endReportParent = null;
             auctionPanel.gameObject.SetActive(true);
         }
 
         private void Continue()
         {
             RemoveView();
+            if (endReportParent)
+            {
+                view = PreparationUi.Fill("Level Completion", endReportParent);
+                PortraitLabel(Anchor("Completion", view, .08f, .45f, .92f, .72f),
+                    $"Level complete\nFinal profit {Money(Report.TotalProfit)}", 44, PortraitProfitColor(1));
+                return;
+            }
             CreateView("Level Completion");
             Label(view, "PREDAJ", 28, 18, 110, 42, 24, Accent);
             Label(view, "Úroveň dokončená", 28, 70, 840, 60, 40, Gain);
