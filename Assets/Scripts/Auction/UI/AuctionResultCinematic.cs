@@ -115,7 +115,7 @@ namespace AuctionGame.Auction
             if (sale)
             {
                 sale.ClearBubble();
-                saleComment.text = string.IsNullOrEmpty(sale.ResultLine) ? "" : "SALE • " + sale.ResultLine;
+                saleComment.text = sale.ResultLine ?? "";
             }
             AuctionResult result = activeResult;
             itemImage.sprite = auction.CurrentItem.Sprite;

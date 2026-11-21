@@ -168,7 +168,7 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(GameObject.Find("Result Outcome").GetComponent<TMP_Text>().text,
                     Is.EqualTo(sold ? "PREDANÉ" : "NEPREDANÉ"));
                 Assert.That(GameObject.Find("SALE Commentary").GetComponent<TMP_Text>().text,
-                    Is.EqualTo("SALE • " + sale.ResultLine));
+                    Is.EqualTo(sale.ResultLine));
                 if (sold)
                 {
                     Assert.That(GameObject.Find("Result Winner").GetComponent<TMP_Text>().text,

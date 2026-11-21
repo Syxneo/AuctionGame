@@ -128,7 +128,7 @@ namespace AuctionGame.Auction
                 return;
 
             bubble.Hide();
-            bubble.SetText("SALE • " + line, 180, 260, 12, 5);
+            bubble.SetText(line, 180, 260, 12, 5);
             started = Time.unscaledTimeAsDouble;
             ends = started + (required ? 2.8 : 1.5);
             mandatory = required;
