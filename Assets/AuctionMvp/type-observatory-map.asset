@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: type-observatory-map
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItemType
   typeId: observatory-map
-  displayName: "Observatory Map"
+  displayName: "Mapa observatória"
   categories:
   - 0

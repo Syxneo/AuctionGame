@@ -87,7 +87,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction.HighestBidderId, Is.Empty);
             Assert.That(auction.BidHistory, Is.Empty);
             Assert.That(GameObject.Find("AuctionPanel").GetComponentsInChildren<TMP_Text>().Select(label => label.text),
-                Does.Contain("Current bid  $0").And.Contain("No bids yet"));
+                Does.Contain("Aktuálna ponuka  $0").And.Contain("Zatiaľ žiadne ponuky"));
             var openButtons = new[] { "+$10 Button", "+$25 Button", "+$50 Button" };
             foreach (string button in openButtons)
                 Assert.That(GameObject.Find(button).GetComponent<Button>().interactable, Is.True);
@@ -105,8 +105,8 @@ namespace AuctionGame.Auction.Tests
             Assert.That(successfulReport.Purchases.Count, Is.EqualTo(3));
             Assert.That(successfulReport.TotalProfit, Is.EqualTo(780));
             var labels = GameObject.Find("SALE Report").GetComponentsInChildren<TMP_Text>().Select(label => label.text);
-            Assert.That(labels, Does.Contain("SUCCESS").And.Contain(successfulReport.Purchases[0].ItemName).And.Contain("GOOD BUY")
-                .And.Contain("$10").And.Contain("Total profit  $780")
+            Assert.That(labels, Does.Contain("ÚSPECH").And.Contain(successfulReport.Purchases[0].ItemName).And.Contain("DOBRÝ NÁKUP")
+                .And.Contain("$10").And.Contain("Celkový zisk  $780")
                 .And.Contain("Výborne. Dosiahol si požadovaný zisk. Zdá sa, že máš na obchod dobrý nos."));
             Assert.That(GameObject.Find("Retry Button"), Is.Null);
 

@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: type-moon-glass
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItemType
   typeId: moon-glass
-  displayName: "Moon Glass"
+  displayName: "Mesačné sklo"
   categories:
   - 1

@@ -53,9 +53,9 @@ namespace AuctionGame.Auction
             auctionPanel.gameObject.SetActive(false);
             RemoveView();
             CreateView("SALE Report");
-            Label(view, "SALE", 28, 18, 110, 32, 24, Accent);
-            Label(view, "Auction Report", 28, 50, 510, 50, 36, Color.white);
-            Label(view, Report.Succeeded ? "SUCCESS" : "GAME OVER", 640, 49, 228, 50, 30,
+            Label(view, "PREDAJ", 28, 18, 110, 32, 24, Accent);
+            Label(view, "Správa z dražby", 28, 50, 510, 50, 36, Color.white);
+            Label(view, Report.Succeeded ? "ÚSPECH" : "KONIEC HRY", 640, 49, 228, 50, 30,
                 Report.Succeeded ? Gain : Loss).alignment = TextAlignmentOptions.Right;
 
             string dialogue = Report.Purchases.Count == 0 ? emptyDialogue
@@ -65,23 +65,23 @@ namespace AuctionGame.Auction
             if (Report.Purchases.Count > 0)
                 DrawPurchases();
             else
-                Label(view, "No purchases", 28, 206, 840, 68, 24, Accent);
+                Label(view, "Žiadne nákupy", 28, 206, 840, 68, 24, Accent);
 
-            Label(view, $"Total profit  {Money(Report.TotalProfit)}", 28, 476, 310, 56, 26, ProfitColor(Report.TotalProfit));
-            Label(view, $"Profit target  {Money(Report.TargetProfit)}", 352, 476, 290, 56, 23, Color.white);
+            Label(view, $"Celkový zisk  {Money(Report.TotalProfit)}", 28, 476, 310, 56, 26, ProfitColor(Report.TotalProfit));
+            Label(view, $"Cieľový zisk  {Money(Report.TargetProfit)}", 352, 476, 290, 56, 23, Color.white);
             if (Report.Succeeded)
-                DrawButton("Continue").onClick.AddListener(Continue);
+                DrawButton("Continue Button", "Pokračovať").onClick.AddListener(Continue);
             else
-                DrawButton("Retry").onClick.AddListener(Retry);
+                DrawButton("Retry Button", "Zopakovať").onClick.AddListener(Retry);
         }
 
         private void DrawPurchases()
         {
-            Label(view, "Item", 28, 172, 324, 34, 18, Accent);
-            Label(view, "Paid", 364, 172, 110, 34, 18, Accent);
-            Label(view, "True value", 484, 172, 120, 34, 18, Accent);
-            Label(view, "Profit", 614, 172, 100, 34, 18, Accent);
-            Label(view, "Result", 724, 172, 134, 34, 18, Accent);
+            Label(view, "Predmet", 28, 172, 324, 34, 18, Accent);
+            Label(view, "Zaplatené", 364, 172, 110, 34, 18, Accent);
+            Label(view, "Skutočná hodnota", 484, 172, 120, 34, 18, Accent);
+            Label(view, "Zisk", 614, 172, 100, 34, 18, Accent);
+            Label(view, "Výsledok", 724, 172, 134, 34, 18, Accent);
 
             var viewport = Box("Purchases", view, 28, 210, 840, 246);
             viewport.gameObject.AddComponent<RectMask2D>();
@@ -112,9 +112,9 @@ namespace AuctionGame.Auction
                 Label(row, Money(purchase.Profit), 586, 0, 100, 60, 20, profitColor);
                 string outcome = purchase.Outcome switch
                 {
-                    PurchaseOutcome.GoodBuy => "GOOD BUY",
-                    PurchaseOutcome.Overpaid => "OVERPAID",
-                    _ => "BREAK EVEN"
+                    PurchaseOutcome.GoodBuy => "DOBRÝ NÁKUP",
+                    PurchaseOutcome.Overpaid => "PREPLATENÉ",
+                    _ => "BEZ ZISKU"
                 };
                 Label(row, outcome, 696, 0, 134, 60, 18, profitColor);
             }
@@ -162,9 +162,9 @@ namespace AuctionGame.Auction
         {
             RemoveView();
             CreateView("Level Completion");
-            Label(view, "SALE", 28, 18, 110, 42, 24, Accent);
-            Label(view, "Level complete", 28, 70, 840, 60, 40, Gain);
-            Label(view, $"Final profit  {Money(Report.TotalProfit)}", 28, 144, 840, 56, 26, Color.white);
+            Label(view, "PREDAJ", 28, 18, 110, 42, 24, Accent);
+            Label(view, "Úroveň dokončená", 28, 70, 840, 60, 40, Gain);
+            Label(view, $"Konečný zisk  {Money(Report.TotalProfit)}", 28, 144, 840, 56, 26, Color.white);
         }
 
         private void CreateView(string title)
@@ -184,14 +184,14 @@ namespace AuctionGame.Auction
             view = null;
         }
 
-        private Button DrawButton(string title)
+        private Button DrawButton(string name, string caption)
         {
-            var rect = Box(title + " Button", view, 678, 476, 190, 56);
+            var rect = Box(name, view, 678, 476, 190, 56);
             var background = AddImage(rect, Accent, true);
             var button = rect.gameObject.AddComponent<Button>();
             ButtonClickAudio.Bind(button);
             button.targetGraphic = background;
-            Label(rect, title, 0, 0, 190, 56, 23, Panel).alignment = TextAlignmentOptions.Center;
+            Label(rect, caption, 0, 0, 190, 56, 23, Panel).alignment = TextAlignmentOptions.Center;
             return button;
         }
 

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: af7b7a576b6247838b25f9275ead5f2a, type: 3}
   m_Name: Bidder1
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AIPersonality
-  bidderName: Collector
+  bidderName: Zberateľ
   dialogueProfileId: collector
   startingBudget: 600
   overestimateBias: 55

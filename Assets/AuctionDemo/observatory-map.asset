@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: observatory-map
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: observatory-map
-  itemName: Observatory Map
+  itemName: Mapa observatória
   trueValue: 280
   sprite: {fileID: 0}
   itemType: {fileID: 11400000, guid: eef835d3506c4e85b7e6d06ab7d04807, type: 2}

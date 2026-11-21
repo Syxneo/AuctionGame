@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: type-royal-seal
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItemType
   typeId: royal-seal
-  displayName: "Royal Wax Seal"
+  displayName: "Kráľovská vosková pečať"
   categories:
   - 0

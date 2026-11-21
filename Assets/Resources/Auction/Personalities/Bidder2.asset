@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: af7b7a576b6247838b25f9275ead5f2a, type: 3}
   m_Name: Bidder2
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AIPersonality
-  bidderName: Trickster
+  bidderName: Vtipkár
   dialogueProfileId: trickster
   startingBudget: 600
   overestimateBias: 50
@@ -55,5 +55,5 @@ MonoBehaviour:
     interest: 10
     accuracy: 35
   bidComments:
-  - That’s my last bid. Probably.
-  - I wouldn’t go much higher if I were you.
+  - To je asi moja posledná ponuka.
+  - Ja by som na tvojom mieste už neprihadzoval.

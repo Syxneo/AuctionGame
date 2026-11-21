@@ -21,10 +21,10 @@ namespace AuctionGame.Auction
 
         public static string DisplayName(string id) => id switch
         {
-            Player => "You",
-            Collector => "Collector",
-            Trickster => "Trickster",
-            Analyst => "Analyst",
+            Player => "Ty",
+            Collector => "Zberateľ",
+            Trickster => "Vtipkár",
+            Analyst => "Analytik",
             _ => "—"
         };
     }

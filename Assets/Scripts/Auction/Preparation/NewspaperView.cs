@@ -23,7 +23,7 @@ namespace AuctionGame.Auction
             public Color textPanelColor = new(0.88f, 0.87f, 0.84f);
             public Color pictureColor = new(0.73f, 0.73f, 0.69f);
             public Color textColor = PreparationUi.Ink;
-            public string continuePrompt = "tap to continue";
+            public string continuePrompt = "klepni pre pokračovanie";
         }
 
         private static readonly Vector2 PageSize = new(400, 650);
@@ -49,7 +49,7 @@ namespace AuctionGame.Auction
             var paper = PreparationUi.Surface(page, appearance.paperColor);
             paper.sprite = appearance.paperSprite;
 
-            var masthead = PreparationUi.Label(Row("Masthead", page, 22, 16, 80), "NEWSSSS",
+            var masthead = PreparationUi.Label(Row("Masthead", page, 22, 16, 80), "NOVINKY",
                 59, appearance.textColor, FontStyles.Bold);
             if (appearance.mastheadFont)
                 masthead.font = appearance.mastheadFont;
@@ -57,7 +57,7 @@ namespace AuctionGame.Auction
             masthead.enableAutoSizing = true;
             masthead.fontSizeMin = 32;
             masthead.fontSizeMax = 59;
-            var subtitle = PreparationUi.Label(Row("Subtitle", page, 22, 77, 103), "WORLD SPECIAL NEWS",
+            var subtitle = PreparationUi.Label(Row("Subtitle", page, 22, 77, 103), "SVETOVÉ ŠPECIÁLNE SPRÁVY",
                 20, appearance.textColor);
             if (appearance.mastheadFont)
                 subtitle.font = appearance.mastheadFont;
@@ -84,7 +84,7 @@ namespace AuctionGame.Auction
             illustration.raycastTarget = false;
             illustration.preserveAspect = true;
             missingImage = PreparationUi.Label(PreparationUi.Fill("Image placeholder", picture),
-                "Image unavailable", 20, appearance.textColor);
+                "Obrázok nedostupný", 20, appearance.textColor);
             missingImage.alignment = TextAlignmentOptions.Center;
 
             PreparationUi.Surface(Row("Text panel", page, 0, 382, 650), appearance.textPanelColor);
@@ -96,7 +96,7 @@ namespace AuctionGame.Auction
             portrait.sprite = appearance.reporterSprite;
             portrait.preserveAspect = true;
             if (!appearance.reporterSprite)
-                PreparationUi.Label(PreparationUi.Fill("Reporter placeholder", reporter), "Reporter", 20,
+                PreparationUi.Label(PreparationUi.Fill("Reporter placeholder", reporter), "Reportér", 20,
                     appearance.textColor).alignment = TextAlignmentOptions.Center;
 
             BuildArticle(Row("Article", page, 22, 430, 587), appearance);

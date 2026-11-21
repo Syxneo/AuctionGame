@@ -10,6 +10,30 @@ namespace AuctionGame.Auction
         Silly = 12, Archeological = 13, PopCulture = 14, Fantasy = 15
     }
 
+    public static class ItemCategoryNames
+    {
+        public static string DisplayName(this ItemCategory category) => category switch
+        {
+            ItemCategory.Historical => "Historické",
+            ItemCategory.Rare => "Vzácne",
+            ItemCategory.Art => "Umenie",
+            ItemCategory.Technology => "Technológie",
+            ItemCategory.Misc => "Rôzne",
+            ItemCategory.Luxury => "Luxusné",
+            ItemCategory.Mechanical => "Mechanické",
+            ItemCategory.Military => "Vojenské",
+            ItemCategory.Jewelry => "Šperky",
+            ItemCategory.Gaming => "Herné",
+            ItemCategory.Collectible => "Zberateľské",
+            ItemCategory.Coins => "Mince",
+            ItemCategory.Silly => "Bláznivé",
+            ItemCategory.Archeological => "Archeologické",
+            ItemCategory.PopCulture => "Popkultúra",
+            ItemCategory.Fantasy => "Fantastické",
+            _ => category.ToString()
+        };
+    }
+
     [CreateAssetMenu(menuName = "Auction/Item")]
     public sealed class AuctionItem : ScriptableObject
     {

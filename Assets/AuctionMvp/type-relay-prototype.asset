@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: type-relay-prototype
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItemType
   typeId: relay-prototype
-  displayName: "Relay Prototype"
+  displayName: "Prototyp relé"
   categories:
   - 3

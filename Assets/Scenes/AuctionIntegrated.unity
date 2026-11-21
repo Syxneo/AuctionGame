@@ -1482,7 +1482,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Current bid
+  m_text: Aktuálna ponuka
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -2385,7 +2385,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "Collector   \xB7   Trickster   \xB7   Analyst"
+  m_text: "Zberateľ   \xB7   Vtipkár   \xB7   Analytik"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -3619,7 +3619,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Timer
+  m_text: Časovač
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -4421,8 +4421,8 @@ MonoBehaviour:
   level: {fileID: 11400000, guid: a9287539f8cc417e9bdda2d5b9e4f547, type: 2}
   auction: {fileID: 1471185880}
   auctionControls: {fileID: 1547383902}
-  saleBrief: Good evening, agent. You have {0}. I expect at least {1} profit. Choose
-    carefully.
+  saleBrief: Dobrý večer, agent. Máte {0}. Očakávam aspoň {1} zisku. Vyberajte
+    opatrne.
   sortingOrder: 100
   newsAppearance:
     reporterSprite: {fileID: 21300000, guid: e7d1a245add843747a6dd065b098e406, type: 3}
@@ -4434,7 +4434,7 @@ MonoBehaviour:
     textPanelColor: {r: 0.88, g: 0.87, b: 0.84, a: 1}
     pictureColor: {r: 0.73, g: 0.73, b: 0.69, a: 1}
     textColor: {r: 0.13, g: 0.16, b: 0.19, a: 1}
-    continuePrompt: tap to continue
+    continuePrompt: klepni pre pokračovanie
 --- !u!114 &1471185899
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4892,7 +4892,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Budget
+  m_text: Rozpočet
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -6991,7 +6991,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: You Own
+  m_text: Vlastníš
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

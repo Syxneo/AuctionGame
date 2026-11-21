@@ -751,7 +751,7 @@ namespace AuctionGame.Auction.Tests
 
             Assert.That(messages.Any(message => message.Contains("tick 1") && message.Contains("true value=$1000")), Is.True);
             Assert.That(messages.Count(message => message.Contains("evaluation | estimate=") && message.Contains("Accuracy=")), Is.EqualTo(3));
-            Assert.That(messages.Any(message => message.Contains("Bid accepted | You") && message.Contains("→ $10 |")), Is.True);
+            Assert.That(messages.Any(message => message.Contains("Bid accepted | Ty") && message.Contains("→ $10 |")), Is.True);
             Assert.That(messages.Any(message => message.Contains("tick 2") && message.Contains("t=") &&
                 message.Contains("attempting") && message.Contains("Interest roll=")), Is.True);
         }
@@ -1012,7 +1012,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction.Opponents.Select(opponent => opponent.Id), Is.Unique);
             var fourth = auction.Opponents[3];
             Assert.That(fourth.Personality, Is.SameAs(personality));
-            Assert.That(auction.GetBidderDisplayName(fourth.Id), Is.EqualTo("Collector"));
+            Assert.That(auction.GetBidderDisplayName(fourth.Id), Is.EqualTo("Zberateľ"));
         }
 
         [Test]

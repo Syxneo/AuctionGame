@@ -81,7 +81,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(Caption("+$10 Button"), Is.EqualTo("+$10"));
             AssertIcons(icons);
             Assert.That(CloseLot(auction).winnerId, Is.EqualTo(BidderIds.Player));
-            Assert.That(Label("Budget").text, Is.EqualTo("Budget  $950"));
+            Assert.That(Label("Budget").text, Is.EqualTo("Rozpočet  $950"));
             AssertIcons(icons, first.Sprite);
 
             OpenLot(auction);
@@ -101,7 +101,7 @@ namespace AuctionGame.Auction.Tests
             OpenLot(auction);
             Click("+$25 Button");
             Assert.That(CloseLot(auction).winnerId, Is.EqualTo(BidderIds.Player));
-            Assert.That(Label("Budget").text, Is.EqualTo("Budget  $925"));
+            Assert.That(Label("Budget").text, Is.EqualTo("Rozpočet  $925"));
             AssertIcons(icons, first.Sprite, second.Sprite);
             OpenLot(auction);
             Assert.That(CloseLot(auction).sold, Is.False);

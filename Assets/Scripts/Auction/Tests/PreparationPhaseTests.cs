@@ -96,15 +96,15 @@ namespace AuctionGame.Auction.Tests
 
             PointerClick(read);
             Assert.That(newspaper.IsOpen, Is.True);
-            Assert.That(Text("Masthead"), Is.EqualTo("NEWSSSS"));
-            Assert.That(Text("Subtitle"), Is.EqualTo("WORLD SPECIAL NEWS"));
+            Assert.That(Text("Masthead"), Is.EqualTo("NOVINKY"));
+            Assert.That(Text("Subtitle"), Is.EqualTo("SVETOVÉ ŠPECIÁLNE SPRÁVY"));
             Assert.That(GameObject.Find("Reporter"), Is.Not.Null);
             VerifyNewsLayout(newspaper);
             var next = GameObject.Find("Continue News").GetComponent<Button>();
             Assert.That(newspaper.GetComponentsInChildren<Button>(), Is.EqualTo(new[] { next }));
             Assert.That(newspaper.GetComponentsInChildren<TMP_Text>().Select(label => label.name),
                 Is.EquivalentTo(new[] { "Masthead", "Subtitle", "Reporter placeholder", "Headline", "Body", "Label" }));
-            Assert.That(next.GetComponentInChildren<TMP_Text>().text, Is.EqualTo("tap to continue"));
+            Assert.That(next.GetComponentInChildren<TMP_Text>().text, Is.EqualTo("klepni pre pokračovanie"));
             auction.Tick(1000);
             Assert.That(auction.State, Is.EqualTo(AuctionState.Idle));
             Assert.That(auction.Opponents, Is.Empty);

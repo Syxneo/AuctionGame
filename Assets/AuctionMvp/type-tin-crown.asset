@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: type-tin-crown
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItemType
   typeId: tin-crown
-  displayName: "Tin Crown"
+  displayName: "Cínová koruna"
   categories:
   - 4

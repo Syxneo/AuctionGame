@@ -106,15 +106,15 @@ namespace AuctionGame.Auction
                 itemImage.sprite = sprite;
                 itemImage.color = sprite ? Color.white : Placeholder;
             }
-            category.text = item ? string.Join(", ", item.Categories) : "";
+            category.text = item ? string.Join(", ", item.Categories.Select(category => category.DisplayName())) : "";
             category.gameObject.SetActive(!sprite && category.text.Length > 0);
-            itemName.text = item ? item.ItemName : "Auction";
+            itemName.text = item ? item.ItemName : "Dražba";
             string price = $"${manager.CurrentPrice}";
-            highestBid.text = !item ? "" : mobileHud ? price : $"Current bid  {price}";
-            highestBidder.text = $"Leading bidder  {manager.GetBidderDisplayName(manager.HighestBidderId)}";
+            highestBid.text = !item ? "" : mobileHud ? price : $"Aktuálna ponuka  {price}";
+            highestBidder.text = $"Vedúci dražiteľ  {manager.GetBidderDisplayName(manager.HighestBidderId)}";
             if (opponentNames)
                 opponentNames.text = string.Join("   ·   ", manager.Opponents.Select(opponent => opponent.Personality.Name));
-            budget.text = $"Budget  ${manager.Economy.AvailableBudget}";
+            budget.text = $"Rozpočet  ${manager.Economy.AvailableBudget}";
             SetButton(tenButton, item, AuctionManager.MinimumOpeningBid);
             SetButton(twentyFiveButton, item, AuctionManager.MediumIncrement);
             SetButton(fiftyButton, item, AuctionManager.HighIncrement);
@@ -128,12 +128,12 @@ namespace AuctionGame.Auction
 
             status.text = manager.State switch
             {
-                AuctionState.ItemReveal => "Item reveal",
-                AuctionState.Bidding => "Bidding open",
-                AuctionState.Sold => $"Sold to {manager.GetBidderDisplayName(manager.HighestBidderId)} for ${manager.CurrentPrice}",
-                AuctionState.Unsold => "Unsold",
-                AuctionState.Finished => $"Auction complete · {manager.Economy.Purchases.Count} purchased",
-                _ => "Waiting to start"
+                AuctionState.ItemReveal => "Odhalenie predmetu",
+                AuctionState.Bidding => "Dražba otvorená",
+                AuctionState.Sold => $"Predaj: {manager.GetBidderDisplayName(manager.HighestBidderId)} za ${manager.CurrentPrice}",
+                AuctionState.Unsold => "Nepredané",
+                AuctionState.Finished => $"Dražba ukončená · {manager.Economy.Purchases.Count} {Plural(manager.Economy.Purchases.Count, "zakúpený", "zakúpené", "zakúpených")}",
+                _ => "Čaká sa na začiatok"
             };
 
             var lines = new StringBuilder();
@@ -145,9 +145,12 @@ namespace AuctionGame.Auction
                 lines.Append($"{manager.GetBidderDisplayName(bid.bidderId)}  ${bid.amount}");
                 lines.AppendLine();
             }
-            history.text = lines.Length == 0 ? "No bids yet" : lines.ToString().TrimEnd();
+            history.text = lines.Length == 0 ? "Zatiaľ žiadne ponuky" : lines.ToString().TrimEnd();
             UpdateClock();
         }
+
+        private static string Plural(int count, string one, string few, string many) =>
+            count == 1 ? one : count is >= 2 and <= 4 ? few : many;
 
         private void SetButton(Button button, bool visible, int increment)
         {

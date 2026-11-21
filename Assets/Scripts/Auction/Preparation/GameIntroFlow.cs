@@ -41,9 +41,9 @@ namespace AuctionGame.Auction
         [SerializeField, Min(0)] private float fadeIn = .25f;
         [SerializeField] private Message[] dialogue =
         {
-            new(Speaker.Sale, 0, "Hi, have you seen today's NEWS? There should be some freaking super items for us to buy..."),
-            new(Speaker.Player, 1, "Wow, really? What's our budget for today?"),
-            new(Speaker.Sale, 2, "We've got {budget}. Make at least {profit} profit. Don't disappoint me.")
+            new(Speaker.Sale, 0, "Ahoj, videl si už dnešné NOVINKY? Údajne tam budú super veci na nákup..."),
+            new(Speaker.Player, 1, "Fakt? Aký máme dnes rozpočet?"),
+            new(Speaker.Sale, 2, "Máme {budget}. Dosiahni aspoň {profit} zisku. Nesklam ma.")
         };
 
         public Stage CurrentStage { get; private set; } = Stage.Completed;
@@ -73,8 +73,8 @@ namespace AuctionGame.Auction
             canvas.gameObject.SetActive(true);
             Open(Stage.StartScreen);
             Art("Auction Frenzy Logo", Box("Logo", safe, .07f, .40f, .93f, .84f), logo,
-                "AUCTION FRENZY\n[Logo placeholder]");
-            var play = AddButton("PLAY!", Box("PLAY", safe, .06f, .19f, .94f, .41f), Play);
+                "DRAŽOBNÁ HORÚČKA\n[zástupca loga]");
+            var play = AddButton("HRAŤ!", Box("PLAY", safe, .06f, .19f, .94f, .41f), Play);
             if (playButton)
             {
                 var image = (Image)play.targetGraphic;
@@ -142,8 +142,8 @@ namespace AuctionGame.Auction
                 return;
             Open(Stage.IncomingCall);
             Art("Incoming Telephone", Box("Incoming Telephone", safe, .11f, .08f, .89f, .47f),
-                incomingPhone, "[Rotary telephone placeholder]");
-            var pickUp = AddButton("Tap to Pick Up", Box("Pick Up Phone", safe, .07f, .02f, .93f, .48f), PickUp);
+                incomingPhone, "[zástupca rotačného telefónu]");
+            var pickUp = AddButton("Klepni a zdvihni", Box("Pick Up Phone", safe, .07f, .02f, .93f, .48f), PickUp);
             pickUp.targetGraphic.color = Color.clear;
             pickUp.transition = Selectable.Transition.None;
             if (ringtone)
@@ -171,8 +171,8 @@ namespace AuctionGame.Auction
             view.GetComponent<Image>().raycastTarget = false;
 
             Art("Picked Up Telephone", Box("Picked Up Telephone", safe, .11f, .08f, .89f, .47f), pickedUpPhone,
-                "[Picked up telephone placeholder]");
-            Caption(Box("Continue Prompt", safe, .05f, .02f, .95f, .075f), "Tap to continue", 26);
+                "[zástupca zdvihnutého telefónu]");
+            Caption(Box("Continue Prompt", safe, .05f, .02f, .95f, .075f), "Klepni pre pokračovanie", 26);
             var viewport = Box("Conversation", safe, .05f, .48f, .95f, .96f);
             var tap = AddButton("", PreparationUi.Fill("Tap Conversation", viewport), Advance);
             tap.targetGraphic.color = Color.clear;
@@ -208,13 +208,13 @@ namespace AuctionGame.Auction
 
             Message message = messages[next++];
             bool player = message.speaker == Speaker.Player;
-            var row = PreparationUi.Fill(player ? "Me" : "Sa-Le", scroll.content);
+            var row = PreparationUi.Fill(player ? "Ja" : "Sa-Le", scroll.content);
             var bubble = Box("Bubble", row, player ? .16f : 0, 0, player ? 1 : .84f, 1);
             var surface = PreparationUi.Surface(bubble, new Color(.83f, .82f, .80f));
             surface.raycastTarget = false;
             var label = PreparationUi.Label(PreparationUi.Rect("Message", bubble, Vector2.zero, Vector2.one,
                 new Vector2(18, 12), new Vector2(-18, -12)),
-                (player ? "Me" : "Sa-Le") + "\n" + Format(message.text), 27, PreparationUi.Ink);
+                (player ? "Ja" : "Sa-Le") + "\n" + Format(message.text), 27, PreparationUi.Ink);
             Canvas.ForceUpdateCanvases();
             row.gameObject.AddComponent<LayoutElement>().preferredHeight =
                 label.GetPreferredValues(label.text, Mathf.Max(1, scroll.viewport.rect.width * .84f - 36),
@@ -277,7 +277,7 @@ namespace AuctionGame.Auction
             var button = PreparationUi.Button(rect, caption);
             var label = rect.GetComponentInChildren<TMP_Text>();
             label.fontSize = 38;
-            if (caption == "Tap to Pick Up")
+            if (caption == "Klepni a zdvihni")
             {
                 label.alignment = TextAlignmentOptions.Bottom;
                 label.color = PreparationUi.Ink;

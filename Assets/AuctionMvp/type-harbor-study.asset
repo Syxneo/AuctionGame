@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: type-harbor-study
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItemType
   typeId: harbor-study
-  displayName: "Harbor Study"
+  displayName: "Prístavná štúdia"
   categories:
   - 2

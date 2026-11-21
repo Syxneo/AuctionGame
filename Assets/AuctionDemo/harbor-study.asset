@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: harbor-study
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: harbor-study
-  itemName: Harbor Study
+  itemName: Prístavná štúdia
   trueValue: 120
   sprite: {fileID: 0}
   itemType: {fileID: 11400000, guid: cc7a15fd825847dc8287ca6442dc6221, type: 2}

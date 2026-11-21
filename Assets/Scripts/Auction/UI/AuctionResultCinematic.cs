@@ -118,7 +118,7 @@ namespace AuctionGame.Auction
             itemImage.rectTransform.anchorMin = new Vector2(0.09f, result.sold ? 0.26f : 0.13f);
             ribbon.rectTransform.anchorMin = new Vector2(0.055f, result.sold ? 0.32f : 0.19f);
             ribbon.rectTransform.anchorMax = new Vector2(0.945f, result.sold ? 0.48f : 0.35f);
-            outcome.text = result.sold ? "SOLD" : "UNSOLD";
+            outcome.text = result.sold ? "PREDANÉ" : "NEPREDANÉ";
             winner.text = result.sold ? auction.GetBidderDisplayName(result.winnerId) : "";
             price.text = result.sold ? $"${result.finalPrice}" : "";
             winner.gameObject.SetActive(result.sold);
@@ -200,7 +200,7 @@ namespace AuctionGame.Auction
             RectTransform safeArea = Box("Result Safe Area", root, Vector2.zero, Vector2.one);
             safeArea.gameObject.AddComponent<AuctionHudSafeArea>();
             Label("Continue Prompt", safeArea, new Vector2(0.12f, 0.16f), new Vector2(0.88f, 0.24f),
-                44, Ivory).text = "Tap to continue";
+                44, Ivory).text = "Klepni pre pokračovanie";
             RectTransform frame = Box("Result Frame", safeArea, new Vector2(0.11f, 0.27f), new Vector2(0.89f, 0.77f));
             Fill(frame, Gold);
             RectTransform card = Box("Result Card", frame, Vector2.zero, Vector2.one);

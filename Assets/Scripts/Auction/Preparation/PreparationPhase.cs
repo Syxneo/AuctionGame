@@ -20,7 +20,7 @@ namespace AuctionGame.Auction
         [SerializeField] private AuctionManager auction;
         [SerializeField] private CanvasGroup auctionControls;
         [SerializeField, TextArea(2, 5)] private string saleBrief =
-            "Good evening, agent. You have {0}. I expect at least {1} profit. Choose carefully.";
+            "Dobrý večer, agent. Máte {0}. Očakávam aspoň {1} zisku. Vyberajte opatrne.";
         [SerializeField] private int sortingOrder = 100;
         [SerializeField] private NewspaperView.Appearance newsAppearance = new();
 
@@ -98,23 +98,23 @@ namespace AuctionGame.Auction
 
             string budget = Dollars(level.StartingBudget);
             string target = Dollars(level.ProfitTarget);
-            PreparationUi.Label(CardRow("Title", card, -74, -22), "SALE briefing", 34,
+            PreparationUi.Label(CardRow("Title", card, -74, -22), "Brífing PREDAJ", 34,
                 PreparationUi.Ink, FontStyles.Bold);
             PreparationUi.Label(CardRow("Brief", card, -172, -78), FormatBrief(budget, target),
                 24, PreparationUi.Ink);
             PreparationUi.Label(CardRow("Starting budget", card, -202, -170),
-                $"Starting budget  {budget}", 23, PreparationUi.Ink, FontStyles.Bold);
+                $"Počiatočný rozpočet  {budget}", 23, PreparationUi.Ink, FontStyles.Bold);
             PreparationUi.Label(CardRow("Profit target", card, -236, -204),
-                $"Profit target  {target}", 23, PreparationUi.Ink, FontStyles.Bold);
+                $"Cieľový zisk  {target}", 23, PreparationUi.Ink, FontStyles.Bold);
             if (intro)
                 foreach (Transform row in card)
                     row.gameObject.SetActive(false);
             status = PreparationUi.Label(CardRow("Status", card, -289, -241), "", 19, PreparationUi.Ink);
 
             readNews = PreparationUi.Button(PreparationUi.Rect("Read NEWSSSS", card, Vector2.right,
-                Vector2.right, new Vector2(-246, 20), new Vector2(-28, 66)), "Read NEWSSSS");
+                Vector2.right, new Vector2(-246, 20), new Vector2(-28, 66)), "Čítaj NOVINKY");
             startAuction = PreparationUi.Button(PreparationUi.Rect("Start Auction", card, Vector2.right,
-                Vector2.right, new Vector2(-246, 20), new Vector2(-28, 66)), "Start Auction");
+                Vector2.right, new Vector2(-246, 20), new Vector2(-28, 66)), "Spustiť dražbu");
             readNews.onClick.AddListener(ReadNews);
             startAuction.onClick.AddListener(RequestStart);
 
@@ -168,7 +168,7 @@ namespace AuctionGame.Auction
 
             if (auction.Economy.AvailableBudget != level.StartingBudget)
             {
-                status.text = "The auction budget does not match the MVP level.";
+                status.text = "Rozpočet dražby nezodpovedá úrovni MVP.";
                 return;
             }
 
@@ -191,7 +191,7 @@ namespace AuctionGame.Auction
             }
 
             if (!auction.StartAuction(run, level.Database))
-                status.text = "The auction could not start. Check the MVP run and catalog.";
+                status.text = "Dražbu sa nepodarilo spustiť. Skontrolujte beh MVP a katalóg.";
         }
 
         private void AuctionStateChanged(AuctionState state)

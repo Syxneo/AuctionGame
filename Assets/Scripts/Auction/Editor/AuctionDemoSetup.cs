@@ -74,12 +74,12 @@ namespace AuctionGame.Auction.Editor
             var items = managerData.FindProperty("items");
             var samples = new (string id, string name, int value, ItemCategory category)[]
             {
-                ("royal-seal", "Royal Wax Seal", 250, ItemCategory.Historical),
-                ("moon-glass", "Moon Glass", 215, ItemCategory.Rare),
-                ("harbor-study", "Harbor Study", 120, ItemCategory.Art),
-                ("relay-prototype", "Relay Prototype", 145, ItemCategory.Technology),
-                ("tin-crown", "Tin Crown", 20, ItemCategory.Misc),
-                ("observatory-map", "Observatory Map", 280, ItemCategory.Historical)
+                ("royal-seal", "Kráľovská vosková pečať", 250, ItemCategory.Historical),
+                ("moon-glass", "Mesačné sklo", 215, ItemCategory.Rare),
+                ("harbor-study", "Prístavná štúdia", 120, ItemCategory.Art),
+                ("relay-prototype", "Prototyp relé", 145, ItemCategory.Technology),
+                ("tin-crown", "Cínová koruna", 20, ItemCategory.Misc),
+                ("observatory-map", "Mapa observatória", 280, ItemCategory.Historical)
             };
             items.arraySize = samples.Length;
             for (int index = 0; index < samples.Length; index++)
@@ -123,10 +123,10 @@ namespace AuctionGame.Auction.Editor
             var ui = new SerializedObject(panel.gameObject.AddComponent<AuctionUI>());
             void Bind(string property, Object obj) => ui.FindProperty(property).objectReferenceValue = obj;
 
-            Label(panel, font, "Auction", 40, 32, 460, 48, 34, Accent);
+            Label(panel, font, "Dražba", 40, 32, 460, 48, 34, Accent);
             Bind("manager", manager);
-            Bind("budget", Label(panel, font, "Budget", 520, 32, 240, 48, 24, Color.white));
-            Bind("timer", Label(panel, font, "Timer", 820, 32, 100, 48, 34, Accent));
+            Bind("budget", Label(panel, font, "Rozpočet", 520, 32, 240, 48, 24, Color.white));
+            Bind("timer", Label(panel, font, "Časovač", 820, 32, 100, 48, 34, Accent));
 
             var image = Box("ItemImage", panel, 40, 96, 244, 178).gameObject.AddComponent<Image>();
             image.preserveAspect = true;
@@ -140,9 +140,9 @@ namespace AuctionGame.Auction.Editor
             Bind("highestBidder", Label(panel, font, "", 310, 238, 300, 34, 22, Color.white));
             Bind("status", Label(panel, font, "", 40, 286, 880, 42, 26, Accent));
 
-            Label(panel, font, "Opponents", 620, 162, 300, 34, 22, Accent);
+            Label(panel, font, "Súperi", 620, 162, 300, 34, 22, Accent);
             Bind("opponentNames", Label(panel, font, "", 620, 200, 300, 54, 18, Color.white));
-            Label(panel, font, "Recent bids", 620, 345, 300, 34, 22, Accent);
+            Label(panel, font, "Posledné ponuky", 620, 345, 300, 34, 22, Accent);
             var history = Label(panel, font, "", 620, 383, 300, 176, 20, Color.white);
             history.alignment = TextAlignmentOptions.TopLeft;
             Bind("history", history);
