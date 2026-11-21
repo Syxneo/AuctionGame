@@ -3,31 +3,28 @@ using UnityEngine;
 namespace AuctionGame.Auction
 {
     [DisallowMultipleComponent]
-    [RequireComponent(typeof(RectTransform))]
     public sealed class PodiumItemAnchor : MonoBehaviour
     {
-        [SerializeField] private Camera hallCamera;
         [SerializeField] private Transform holder;
-        [SerializeField] private Vector3 holderOffset;
+        [SerializeField, Min(0)] private float surfaceClearance = 0.03f;
 
-        private RectTransform item;
-        private RectTransform panel;
+        private MeshRenderer holderRenderer;
 
-        private void Awake()
+        private void OnEnable()
         {
-            item = (RectTransform)transform;
-            panel = item.parent as RectTransform;
+            holderRenderer = holder ? holder.GetComponent<MeshRenderer>() : null;
+            AlignToHolder();
         }
 
-        private void LateUpdate()
+        private void LateUpdate() => AlignToHolder();
+
+        private void AlignToHolder()
         {
-            if (!hallCamera || !holder || !panel)
+            if (!holderRenderer)
                 return;
 
-            Vector3 screenPoint = hallCamera.WorldToScreenPoint(holder.TransformPoint(holderOffset));
-            if (screenPoint.z > hallCamera.nearClipPlane &&
-                RectTransformUtility.ScreenPointToWorldPointInRectangle(panel, screenPoint, null, out Vector3 point))
-                item.position = point;
+            Bounds bounds = holderRenderer.bounds;
+            transform.position = new Vector3(bounds.center.x, bounds.max.y + surfaceClearance, bounds.center.z);
         }
     }
 }

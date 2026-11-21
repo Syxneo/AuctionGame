@@ -93,10 +93,14 @@ namespace AuctionGame.Auction
         private void Refresh()
         {
             AuctionItem item = manager.CurrentItem;
-            itemImage.sprite = item ? item.Sprite : null;
-            itemImage.color = itemImage.sprite ? Color.white : Placeholder;
+            Sprite sprite = item ? item.Sprite : null;
+            if (itemImage)
+            {
+                itemImage.sprite = sprite;
+                itemImage.color = sprite ? Color.white : Placeholder;
+            }
             category.text = item ? string.Join(", ", item.Categories) : "";
-            category.gameObject.SetActive(!itemImage.sprite && category.text.Length > 0);
+            category.gameObject.SetActive(!sprite && category.text.Length > 0);
             itemName.text = item ? item.ItemName : "Auction";
             string price = $"${manager.CurrentPrice}";
             highestBid.text = !item ? "" : mobileHud ? price : $"Current bid  {price}";
