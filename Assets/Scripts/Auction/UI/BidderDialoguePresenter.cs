@@ -621,7 +621,7 @@ namespace AuctionGame.Auction
                     }
                     else
                     {
-                        float width = (size - y) / 2f;
+                        float width = (y + 1) / 2f;
                         if (side < width)
                             pixels[y * size + x] = width - side < 2 ? border : fill;
                     }

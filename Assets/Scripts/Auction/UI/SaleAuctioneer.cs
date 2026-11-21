@@ -13,6 +13,16 @@ namespace AuctionGame.Auction
         [SerializeField] private BidderDialoguePresenter dialogue;
         [SerializeField, Min(0)] private float bidCooldown = 3f;
         [SerializeField] private bool playDialogueCue;
+        [Header("Bid Impact")]
+        [SerializeField] private bool enableBidImpact = true;
+        [SerializeField, Min(0.01f)] private float bidImpactDuration = 0.3f;
+        [SerializeField, Min(1)] private float pricePulseScale = 1.2f;
+        [SerializeField, Min(1)] private float bubblePulseScale = 1.08f;
+        [SerializeField] private Color bidFlashColor = new(0.21f, 0.53f, 0.26f);
+        [Header("Gavel Slam")]
+        [SerializeField] private bool enableGavelSlam = true;
+        [SerializeField, Min(0.01f)] private float gavelDuration = 0.28f;
+        [SerializeField] private AudioClip gavelImpactClip;
 
         private SpriteRenderer sprite;
         private BidderSpeechBubble bubble;
@@ -32,6 +42,12 @@ namespace AuctionGame.Auction
         private int playerBids;
         private int aiBids;
         private Pose effect;
+        private double bidImpactStarted = double.NegativeInfinity;
+        private Vector3 priceRestScale;
+        private Vector3 bubbleRestScale;
+        private Color priceRestColor;
+        private double gavelStarted = double.NegativeInfinity;
+        private bool gavelSoundPending;
 
         internal Pose CurrentPose { get; private set; }
         internal string ResultLine { get; private set; }
@@ -67,6 +83,8 @@ namespace AuctionGame.Auction
                 auction.OnClockChanged -= UpdateCountdown;
             }
             ResetPresentation();
+            bidImpactStarted = double.NegativeInfinity;
+            RestorePrice();
             if (priceBubble)
                 priceBubble.Hide();
             sprite.enabled = false;
@@ -87,6 +105,11 @@ namespace AuctionGame.Auction
                 or AuctionState.Sold or AuctionState.Unsold;
             if (!sprite.enabled && priceBubble)
                 priceBubble.Hide();
+            if (state != AuctionState.Bidding)
+            {
+                bidImpactStarted = double.NegativeInfinity;
+                RestorePrice();
+            }
             if (state == AuctionState.Idle || state == AuctionState.ItemReveal)
             {
                 nextBidComment = 0;
@@ -106,6 +129,11 @@ namespace AuctionGame.Auction
         private void ReactToBid(BidRecord bid)
         {
             double now = Time.unscaledTimeAsDouble;
+            if (enableBidImpact)
+            {
+                bidImpactStarted = now;
+                ShowPrice();
+            }
             bool player = bid.bidderId == BidderIds.Player;
             int bidsFromSide = player ? ++playerBids : ++aiBids;
             if (bid.extendedTimer)
@@ -161,7 +189,15 @@ namespace AuctionGame.Auction
             if (!auction || !dialogue)
                 return;
             if (!priceBubble)
+            {
                 priceBubble = dialogue.CreateBubble("SALE Price");
+                if (priceBubble)
+                {
+                    priceRestScale = priceBubble.Label.rectTransform.localScale;
+                    bubbleRestScale = priceBubble.Rect.localScale;
+                    priceRestColor = priceBubble.Label.color;
+                }
+            }
             if (!priceBubble)
                 return;
 
@@ -172,6 +208,30 @@ namespace AuctionGame.Auction
             }
             priceBubble.gameObject.SetActive(dialogue.PlaceSaleBubble(priceBubble, sprite, inFront: true));
             priceBubble.Group.alpha = 1f;
+            if (double.IsNegativeInfinity(bidImpactStarted))
+                return;
+            float progress = Mathf.Clamp01((float)((Time.unscaledTimeAsDouble - bidImpactStarted) / bidImpactDuration));
+            if (progress >= 1f || !enableBidImpact)
+            {
+                RestorePrice();
+                bidImpactStarted = double.NegativeInfinity;
+            }
+            else
+            {
+                float pulse = Mathf.Sin(Mathf.PI * progress);
+                priceBubble.Label.color = Color.Lerp(priceRestColor, bidFlashColor, Mathf.Clamp01(pulse * 1.8f));
+                priceBubble.Label.rectTransform.localScale = priceRestScale * Mathf.Lerp(1f, pricePulseScale, pulse);
+                priceBubble.Rect.localScale = bubbleRestScale * Mathf.Lerp(1f, bubblePulseScale, pulse);
+            }
+        }
+
+        private void RestorePrice()
+        {
+            if (!priceBubble)
+                return;
+            priceBubble.Rect.localScale = bubbleRestScale;
+            priceBubble.Label.rectTransform.localScale = priceRestScale;
+            priceBubble.Label.color = priceRestColor;
         }
 
         private void ReceiveResultLine(string bidderId, string category, string line)
@@ -216,6 +276,7 @@ namespace AuctionGame.Auction
 
         private void ResetPresentation()
         {
+            StopGavelSlam();
             ClearBubble();
             countdown = 0;
             priceAnnouncementUntil = 0;
@@ -229,6 +290,23 @@ namespace AuctionGame.Auction
         {
             transform.SetLocalPositionAndRotation(restPosition, restRotation);
             transform.localScale = restScale;
+        }
+
+        internal void StartGavelSlam()
+        {
+            if (!isActiveAndEnabled || !enableGavelSlam)
+                return;
+            gavelStarted = Time.unscaledTimeAsDouble;
+            gavelSoundPending = gavelImpactClip != null;
+        }
+
+        internal void StopGavelSlam()
+        {
+            if (double.IsNegativeInfinity(gavelStarted))
+                return;
+            gavelStarted = double.NegativeInfinity;
+            gavelSoundPending = false;
+            RestorePose();
         }
 
         private void LateUpdate()
@@ -269,6 +347,23 @@ namespace AuctionGame.Auction
 
             RestorePose();
             CurrentPose = now < effectEnds ? effect : speaking ? Pose.Speaking : Pose.Idle;
+            float slam = (float)((now - gavelStarted) / gavelDuration);
+            if (slam >= 0.45f && gavelSoundPending)
+            {
+                gavelSoundPending = false;
+                ButtonClickAudio.Find(gameObject.scene)?.PlayGavelImpact(gavelImpactClip);
+            }
+            if (slam < 1f)
+            {
+                // Short anticipation, quick strike, then return to the resting pose.
+                float gesture = slam < 0.2f ? Mathf.SmoothStep(0f, -0.35f, slam / 0.2f)
+                    : slam < 0.45f ? Mathf.SmoothStep(-0.35f, 1f, (slam - 0.2f) / 0.25f)
+                    : Mathf.SmoothStep(1f, 0f, (slam - 0.45f) / 0.55f);
+                transform.localPosition += Vector3.down * (0.23f * gesture);
+                transform.localRotation *= Quaternion.Euler(0, 0, -7f * gesture);
+                return;
+            }
+            StopGavelSlam();
             float wave = Mathf.Sin((float)(now % 100) * 7);
             float impulse = Mathf.Sin(Mathf.PI * Mathf.Clamp01((float)(effectEnds - now) / 0.6f));
             switch (CurrentPose)

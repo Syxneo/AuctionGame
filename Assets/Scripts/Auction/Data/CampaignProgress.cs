@@ -20,7 +20,7 @@ namespace AuctionGame.Auction
 
         private readonly bool persistent;
         private readonly MvpAuctionLevel level;
-        private readonly Save save;
+        private Save save;
 
         internal int CurrentDay => save.currentDay;
         internal int HighestUnlockedDay => save.highestUnlockedDay;
@@ -98,6 +98,14 @@ namespace AuctionGame.Auction
             save.seed = plan.Seed;
             save.lots = plan.Lots.Select(item => item.ItemId).ToArray();
             Persist();
+        }
+
+        internal void Restart(DailyRunPlan openingPlan)
+        {
+            if (!Completed)
+                throw new InvalidOperationException("Complete the campaign before restarting.");
+            save = new Save();
+            Accept(1, openingPlan);
         }
 
         internal void RecordSuccess()

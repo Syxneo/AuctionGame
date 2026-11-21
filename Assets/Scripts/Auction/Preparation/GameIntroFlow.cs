@@ -35,6 +35,7 @@ namespace AuctionGame.Auction
         }
 
         [SerializeField] private Sprite parchment;
+        [SerializeField] private Texture2D startParchment;
         [SerializeField] private Sprite logo;
         [SerializeField] private Sprite playButton;
         [SerializeField] private Sprite incomingPhone;
@@ -90,12 +91,6 @@ namespace AuctionGame.Auction
         internal Sprite ReportLogo => logo;
         internal Sprite ReportButton => playButton;
         internal BidderSpeechBubble SpeechBubble => speechBubble;
-
-        internal void PlayNewsJingle(AudioClip clip)
-        {
-            if (clip && audioSource)
-                audioSource.PlayOneShot(clip);
-        }
 
         internal void ShowEndCall(bool succeeded, Action<RectTransform> openReport)
         {
@@ -227,7 +222,7 @@ namespace AuctionGame.Auction
             Open(Stage.StartScreen);
             if (owner.CampaignDayCount > 0)
                 Caption(Box("Campaign Day", safe, .08f, .105f, .92f, .185f),
-                    $"DAY {owner.CurrentDay} / {owner.CampaignDayCount}", 48);
+                    $"DAY {owner.CurrentDay} / {owner.CampaignDayCount}", 56);
             Art("Auction Frenzy Logo", Box("Logo", safe, .07f, .40f, .93f, .84f), logo,
                 "DRAŽOBNÁ HORÚČKA\n[zástupca loga]");
             var play = AddButton("HRAŤ!", Box("PLAY", safe, .06f, .19f, .94f, .41f), Play);
@@ -244,7 +239,7 @@ namespace AuctionGame.Auction
             }
         }
 
-        internal void ShowCampaignComplete(int order)
+        internal void ShowCampaignComplete(PreparationPhase owner, int order)
         {
             StopAllCoroutines();
             if (!canvas)
@@ -253,7 +248,84 @@ namespace AuctionGame.Auction
             fade.gameObject.SetActive(false);
             canvas.gameObject.SetActive(true);
             Open(Stage.CampaignComplete);
-            Caption(Box("Campaign Complete", safe, .08f, .40f, .92f, .60f), "CAMPAIGN COMPLETE", 44);
+            var gold = new Color32(241, 195, 104, 255);
+            var cream = new Color32(255, 240, 213, 255);
+            view.GetComponent<Image>().color = new Color32(62, 23, 32, 255);
+            var frame = Box("Celebration Frame", safe, .07f, .30f, .93f, .87f);
+            PreparationUi.Surface(frame, gold).raycastTarget = false;
+            var card = PreparationUi.Rect("Celebration Card", frame, Vector2.zero, Vector2.one,
+                new Vector2(3, 3), new Vector2(-3, -3));
+            PreparationUi.Surface(card, new Color32(79, 26, 38, 255)).raycastTarget = false;
+            var confetti = PreparationUi.Fill("Celebration Confetti", safe);
+            var headline = Box("Campaign Complete", safe, .10f, .45f, .90f, .68f);
+            var title = PreparationUi.Label(headline, "CAMPAIGN\nCOMPLETE", 68, gold, FontStyles.Bold);
+            title.alignment = TextAlignmentOptions.Center;
+            title.enableAutoSizing = true;
+            title.fontSizeMin = 34;
+            title.fontSizeMax = 68;
+
+            if (logo)
+                Art("Celebration Logo", Box("Celebration Logo Space", safe, .28f, .69f, .72f, .84f), logo, "");
+            var message = PreparationUi.Label(Box("Congratulations", safe, .11f, .33f, .89f, .44f),
+                $"Gratulujeme! Zvládol si všetkých {owner.CampaignDayCount} aukčných dní.", 29, cream);
+            message.alignment = TextAlignmentOptions.Center;
+
+            var status = PreparationUi.Label(Box("Restart Error", safe, .10f, .09f, .90f, .16f),
+                "", 24, cream);
+            status.alignment = TextAlignmentOptions.Center;
+            var restart = AddButton("Nová kampaň", Box("Restart Campaign", safe, .15f, .17f, .85f, .27f), () =>
+            {
+                if (CurrentStage == Stage.CampaignComplete && !owner.TryRestartCampaign(out string error))
+                    status.text = error ?? "";
+            });
+            restart.targetGraphic.color = gold;
+            restart.GetComponentInChildren<TMP_Text>().color = PreparationUi.Ink;
+            StartCoroutine(Celebrate(confetti, headline, gold, cream));
+        }
+
+        private IEnumerator Celebrate(RectTransform layer, RectTransform headline, Color gold, Color cream)
+        {
+            var random = new System.Random(421);
+            var pieces = new (Image image, Vector2 start, Vector2 end, float spin, float delay)[32];
+            var colors = new Color[] { gold, cream, new Color32(219, 78, 105, 255) };
+            for (int index = 0; index < pieces.Length; index++)
+            {
+                bool left = index % 2 == 0;
+                float side = left ? -1f : 1f;
+                var start = new Vector2(left ? .14f : .86f, .91f);
+                var end = new Vector2(.5f + side * Mathf.Lerp(.35f, -.38f, (float)random.NextDouble()),
+                    Mathf.Lerp(.18f, .63f, (float)random.NextDouble()));
+                var rect = Box("Confetti", layer, start.x, start.y, start.x, start.y);
+                rect.sizeDelta = new Vector2(random.Next(6, 14), random.Next(9, 20));
+                var image = PreparationUi.Surface(rect, colors[index % colors.Length]);
+                image.raycastTarget = false;
+                pieces[index] = (image, start, end, side * random.Next(120, 500),
+                    (float)random.NextDouble() * .4f);
+            }
+
+            const float flightTime = 1.45f;
+            const float duration = flightTime + .4f;
+            for (float elapsed = 0; elapsed < duration; elapsed += Time.unscaledDeltaTime)
+            {
+                headline.localScale = Vector3.one * Mathf.Lerp(.94f, 1f, Mathf.SmoothStep(0, 1, elapsed / .32f));
+                foreach (var piece in pieces)
+                {
+                    float progress = Mathf.Clamp01((elapsed - piece.delay) / flightTime);
+                    var rect = piece.image.rectTransform;
+                    var anchor = Vector2.Lerp(piece.start, piece.end, progress);
+                    anchor.y += Mathf.Sin(progress * Mathf.PI) * .10f;
+                    rect.anchorMin = rect.anchorMax = anchor;
+                    rect.localRotation = Quaternion.Euler(0, 0, piece.spin * progress);
+                    var color = piece.image.color;
+                    color.a = Mathf.InverseLerp(0, .07f, elapsed - piece.delay) *
+                        (1f - Mathf.InverseLerp(.64f, 1f, progress));
+                    piece.image.color = color;
+                }
+                yield return null;
+            }
+
+            headline.localScale = Vector3.one;
+            Destroy(layer.gameObject);
         }
 
         private void Build(int order)
@@ -286,7 +358,14 @@ namespace AuctionGame.Auction
             fade.transform.SetAsLastSibling();
             bool endingStage = stage is Stage.EndIncomingCall or Stage.EndConversation or Stage.EndReport;
             Color fallback = endingStage ? new Color(.89f, .84f, .53f) : PreparationUi.Paper;
-            PreparationUi.Surface(view, parchment ? Color.white : fallback).sprite = parchment;
+            if (stage == Stage.StartScreen && startParchment)
+            {
+                var background = view.gameObject.AddComponent<RawImage>();
+                background.texture = startParchment;
+                background.raycastTarget = false;
+            }
+            else
+                PreparationUi.Surface(view, parchment ? Color.white : fallback).sprite = parchment;
             safe = PreparationUi.Fill("Intro Safe Area", view);
             lastScreen = default;
             Update();

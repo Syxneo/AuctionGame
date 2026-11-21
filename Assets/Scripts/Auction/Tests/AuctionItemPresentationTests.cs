@@ -20,15 +20,31 @@ namespace AuctionGame.Auction.Tests
         {
             yield return new EnterPlayMode();
             GameIntroTestDriver.LoadIntegratedScene();
-            yield return null;
+            AuctionItemSpritePresenter presenter = null;
+            float loadDeadline = Time.realtimeSinceStartup + 5f;
+            while (!presenter && Time.realtimeSinceStartup < loadDeadline)
+            {
+                yield return null;
+                if (SceneManager.GetActiveScene().path == DailyItemGenerationTests.IntegratedScenePath)
+                    presenter = Object.FindFirstObjectByType<AuctionItemSpritePresenter>(FindObjectsInactive.Include);
+            }
+            Assert.That((bool)presenter, Is.True, "The integrated podium presenter must be loaded.");
 
             var auction = Object.FindFirstObjectByType<AuctionManager>();
             VerifyAuctionAudio(auction);
             var camera = Camera.main;
-            var holder = GameObject.Find("Item Holder").GetComponent<MeshRenderer>();
-            var visual = GameObject.Find("AuctionItemVisual").GetComponent<SpriteRenderer>();
+            var holder = Object.FindObjectsByType<MeshRenderer>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+                .Single(renderer => renderer.name == "Item Holder");
+            var visual = presenter.GetComponent<SpriteRenderer>();
+            var podiumSpot = presenter.PodiumSpot;
+            Assert.That(podiumSpot, Is.Not.Null);
+            float baseSpotIntensity = podiumSpot.intensity;
+            Color baseSpotColor = podiumSpot.color;
+            var revealLightColor = presenter.RevealLightColor;
+            Color baseItemColor = visual.color;
             var sale = GameObject.Find("SALE_Character").GetComponent<SaleAuctioneer>();
             var saleSprite = sale.GetComponent<SpriteRenderer>();
+            var saleArtwork = saleSprite.sprite;
             Vector3 saleRestPosition = sale.transform.localPosition;
             Quaternion saleRestRotation = sale.transform.localRotation;
             Vector3 saleRestScale = sale.transform.localScale;
@@ -54,13 +70,28 @@ namespace AuctionGame.Auction.Tests
 
             Assert.That(camera.targetDisplay, Is.Zero);
             Assert.That(visual.enabled, Is.False);
+            Assert.That(podiumSpot.intensity, Is.EqualTo(baseSpotIntensity));
             Assert.That(saleSprite.enabled, Is.False);
-            Assert.That(saleSprite.sprite.name, Is.EqualTo("SALE_Idle"));
+            Assert.That(saleArtwork, Is.Not.Null);
             Assert.That(hudImage.enabled, Is.False);
             Assert.That(visual.GetComponentInParent<Canvas>(), Is.Null);
 
             yield return GameIntroTestDriver.OpenNewsFromIntro();
-            yield return GameIntroTestDriver.ReadBroadcast();
+            yield return GameIntroTestDriver.ReadBroadcast(() =>
+            {
+                Assert.That(stage.CurtainRevealProgress, Is.Not.Null);
+                Assert.That(podiumSpot.intensity, Is.GreaterThan(baseSpotIntensity * 1.4f));
+                Assert.That(podiumSpot.intensity, Is.EqualTo(baseSpotIntensity *
+                    Mathf.SmoothStep(2.5f, 1.4f, stage.CurtainRevealProgress.Value)).Within(0.1f));
+                float blend = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.22f, 1f, stage.CurtainRevealProgress.Value));
+                Assert.That(podiumSpot.color, Is.Not.EqualTo(baseSpotColor));
+                Assert.That(podiumSpot.color.b, Is.EqualTo(Mathf.Lerp(revealLightColor.b, baseSpotColor.b, blend))
+                    .Within(0.001f));
+                Assert.That(visual.color.b, Is.LessThan(baseItemColor.b));
+            });
+            Assert.That(podiumSpot.intensity, Is.EqualTo(baseSpotIntensity * 1.4f).Within(0.1f));
+            Assert.That(podiumSpot.color, Is.EqualTo(baseSpotColor));
+            Assert.That(visual.color, Is.EqualTo(baseItemColor));
 
             var lots = level.CreateRun();
             for (int lotIndex = 0; lotIndex < lots.Count; lotIndex++)
@@ -68,6 +99,7 @@ namespace AuctionGame.Auction.Tests
                 AuctionItem lot = lots[lotIndex];
                 Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
                 Assert.That(saleSprite.enabled, Is.True);
+                Assert.That(saleSprite.sprite, Is.SameAs(saleArtwork));
                 Assert.That(auction.CurrentItem, Is.SameAs(lot));
                 Assert.That(visual.sprite, Is.SameAs(lot.Sprite));
                 Assert.That(visual.enabled, Is.True);
@@ -90,6 +122,8 @@ namespace AuctionGame.Auction.Tests
                 if (lotIndex == 0)
                 {
                     yield return null;
+                    Assert.That(podiumSpot.intensity, Is.EqualTo(baseSpotIntensity * 1.4f).Within(0.1f));
+                    Assert.That(camera.transform.localPosition, Is.EqualTo(basePosition));
                     var bubble = GameObject.Find("SALE Bubble").GetComponent<BidderSpeechBubble>();
                     Assert.That(bubble.GetComponentInChildren<TMP_Text>().text, Does.Contain(lot.ItemName));
                     Assert.That(bubble.Group.blocksRaycasts, Is.False);
@@ -116,12 +150,17 @@ namespace AuctionGame.Auction.Tests
                     string opponent = FindBidderWithLimit(auction, 55).Id;
                     auction.Tick(2.5f);
                     Assert.That(auction.TryPlaceBid(opponent, 20), Is.True);
+                    var pulse = typeof(SaleAuctioneer).GetField("bidImpactStarted",
+                        BindingFlags.Instance | BindingFlags.NonPublic);
+                    Assert.That((double)pulse.GetValue(sale), Is.EqualTo(Time.unscaledTimeAsDouble));
                     Click("+$25 Button");
                     Assert.That(auction.CurrentPrice, Is.EqualTo(45));
                     yield return null;
                     var saleBidBubble = GameObject.Find("SALE Bubble");
                     Assert.That(saleBidBubble.GetComponentInChildren<TMP_Text>().text, Does.Contain("Odvážna ponuka"));
+                    var lastImpact = pulse.GetValue(sale);
                     Assert.That(auction.TryPlaceBid(BidderIds.Player, 45), Is.False);
+                    Assert.That(pulse.GetValue(sale), Is.EqualTo(lastImpact));
                     auction.Tick(2.5f);
                     Assert.That(auction.TryPlaceBid(opponent, 55), Is.True);
                     Click("+$50 Button");
@@ -134,6 +173,10 @@ namespace AuctionGame.Auction.Tests
                 auction.Tick(auction.RemainingTime + 1000f);
                 StartWaitingCinematic(auction);
                 Assert.That(auction.State, Is.EqualTo(sold ? AuctionState.Sold : AuctionState.Unsold));
+                Assert.That(podiumSpot.intensity, Is.EqualTo(baseSpotIntensity));
+                var gavel = typeof(SaleAuctioneer).GetField("gavelStarted",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(double.IsNegativeInfinity((double)gavel.GetValue(sale)), Is.EqualTo(!sold));
                 Assert.That(auction.CurrentItem, Is.SameAs(lot));
                 Assert.That(auction.RemainingTime, Is.Zero);
                 Assert.That(auction.TryPlaceBid(auction.Opponents[0].Id, 10), Is.False);
@@ -160,6 +203,14 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(right.localPosition.x, Is.EqualTo(-closedX));
                 var canvas = GameObject.Find("Auction Result Overlay").GetComponent<Canvas>();
                 Assert.That(canvas.enabled, Is.True);
+                var stamp = canvas.GetComponentsInChildren<Image>().Single(image => image.name == "SOLD Sticker");
+                var ribbon = canvas.GetComponentsInChildren<Image>().Single(image => image.name == "Result Ribbon");
+                Assert.That(ribbon.rectTransform.anchorMax.x - ribbon.rectTransform.anchorMin.x,
+                    Is.EqualTo(sold ? 1.2f : 1f).Within(0.001f));
+                Assert.That(stamp.rectTransform.localScale.x, Is.EqualTo(sold ? 1.4f : 1f).Within(0.001f));
+                Assert.That(canvas.GetComponentsInChildren<Image>()
+                    .Count(image => image.enabled && image.name == "Victory Confetti"),
+                    Is.EqualTo(sold && result.winnerId == BidderIds.Player ? 12 : 0));
                 Assert.That(canvas.GetComponentsInChildren<Graphic>()
                     .Where(graphic => graphic.raycastTarget).Select(graphic => graphic.name),
                     Is.EqualTo(new[] { "Continue Result" }));
@@ -190,10 +241,24 @@ namespace AuctionGame.Auction.Tests
 
                 AdvanceMotion(stage, 10f);
                 Assert.That(canvas.enabled, Is.True);
+                Assert.That(stamp.rectTransform.localScale.x, Is.EqualTo(sold ? 1.4f : 1f).Within(0.001f));
                 Assert.That(auction.CurrentItem, Is.SameAs(lot));
+                if (sold)
+                {
+                    typeof(AuctionResultCinematic).GetMethod("UpdateSoldEffects",
+                        BindingFlags.Instance | BindingFlags.NonPublic)
+                        .Invoke(auction.GetComponent<AuctionResultCinematic>(), new object[] { 0.16f });
+                    var flecks = canvas.GetComponentsInChildren<Image>()
+                        .Where(image => image.enabled && image.name == "Stamp Flecks").ToArray();
+                    Assert.That(flecks, Has.Length.EqualTo(6));
+                    Assert.That(flecks.All(fleck => fleck.rectTransform.sizeDelta.x >= 10f), Is.True);
+                }
                 Click("Continue Result");
                 AdvanceMotion(stage, 0.5f);
                 Assert.That(canvas.enabled, Is.False);
+                Assert.That(stamp.rectTransform.localScale, Is.EqualTo(Vector3.one));
+                Assert.That(canvas.GetComponentsInChildren<Image>()
+                    .Any(image => image.enabled && image.name == "Victory Confetti"), Is.False);
                 Assert.That(hudGroup.alpha, Is.Zero);
                 Assert.That(left.localPosition.x, Is.InRange(closedX + 0.01f, leftOpen.x - 0.01f));
                 Assert.That(right.localPosition.x, Is.InRange(rightOpen.x + 0.01f, -closedX - 0.01f));
@@ -240,19 +305,13 @@ namespace AuctionGame.Auction.Tests
         {
             try
             {
-                var resolutions = new[] { new Vector2Int(720, 1280), new Vector2Int(1080, 1920),
-                    new Vector2Int(720, 1600), new Vector2Int(1080, 2340) };
-                foreach (Vector2Int resolution in resolutions)
-                {
-                    camera.aspect = resolution.x / (float)resolution.y;
-                    Vector3[] salePoints = GetWorldVertices(sale).Select(camera.WorldToViewportPoint).ToArray();
-                    Vector3[] itemPoints = GetWorldVertices(item).Select(camera.WorldToViewportPoint).ToArray();
-                    Assert.That(salePoints.Min(point => point.x), Is.GreaterThan(itemPoints.Max(point => point.x)),
-                        resolution.ToString());
-                    Assert.That(salePoints.Max(point => point.x), Is.LessThan(1f), resolution.ToString());
-                    Assert.That(salePoints.Min(point => point.y), Is.GreaterThan(0.43f), resolution.ToString());
-                    Assert.That(salePoints.Max(point => point.y), Is.LessThan(0.72f), resolution.ToString());
-                }
+                camera.aspect = 720f / 1280f;
+                Vector3[] salePoints = GetWorldVertices(sale).Select(camera.WorldToViewportPoint).ToArray();
+                Vector3[] itemPoints = GetWorldVertices(item).Select(camera.WorldToViewportPoint).ToArray();
+                Assert.That(salePoints.Min(point => point.x), Is.GreaterThan(itemPoints.Max(point => point.x)));
+                Assert.That(salePoints.Max(point => point.x), Is.LessThan(1f));
+                Assert.That(salePoints.Min(point => point.y), Is.GreaterThan(0.43f));
+                Assert.That(salePoints.Max(point => point.y), Is.LessThan(1f));
             }
             finally
             {

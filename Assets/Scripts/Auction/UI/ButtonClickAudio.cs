@@ -110,6 +110,11 @@ namespace AuctionGame.Auction
         private void PlayBid(AudioClip clip) =>
             PlayLimited(clip, effectsVolume, ref nextBid, clip ? System.Math.Max(.12, clip.length) : 0);
         private void AuctionEnded(AuctionResult result) => Play(result.sold ? sold : unsold);
+        internal void PlayGavelImpact(AudioClip clip)
+        {
+            if (!sold)
+                Play(clip);
+        }
         private void CurtainStarted() => Play(curtain);
         internal void NewsEntered() => Play(newsTransition);
         internal void ReportOpened(bool succeeded) => Play(succeeded ? success : gameOver);

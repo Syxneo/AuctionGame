@@ -88,6 +88,10 @@ namespace AuctionGame.Auction.Tests
             while (intro.CurrentStage != GameIntroFlow.Stage.Completed && Time.realtimeSinceStartup < deadline)
                 yield return null;
             Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.Completed));
+            var newsAudio = GameObject.Find("Breaking News").GetComponent<AudioSource>();
+            Assert.That(newsAudio.clip, Is.Not.Null);
+            Assert.That(newsAudio.clip.name, Is.EqualTo("NewsIntroJingle"));
+            Assert.That(newsAudio.isPlaying, Is.True);
             Assert.That(GameObject.Find("Continue News"), Is.Not.Null);
             Assert.That(GameObject.Find("RetroTVFrame"), Is.Null);
             Assert.That(GameObject.Find("NewsBodyText"), Is.Null);
@@ -95,7 +99,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(GameObject.Find("SALE briefing"), Is.Null);
         }
 
-        internal static IEnumerator ReadBroadcast()
+        internal static IEnumerator ReadBroadcast(System.Action duringOpening = null)
         {
             var preparation = Object.FindFirstObjectByType<PreparationPhase>();
             var auction = preparation.GetComponent<AuctionManager>();
@@ -204,6 +208,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(dialogueLines, Is.Zero);
             Assert.That(auction.RemainingTime, Is.Zero);
             Assert.That(hud.alpha, Is.Zero);
+            duringOpening?.Invoke();
 
             float deadline = Time.realtimeSinceStartup + 5f;
             while (auction.State == AuctionState.Opening && Time.realtimeSinceStartup < deadline)

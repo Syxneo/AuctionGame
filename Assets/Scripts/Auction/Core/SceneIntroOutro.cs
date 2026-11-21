@@ -60,6 +60,20 @@ namespace AuctionGame.Auction
             (resultFinished == null || resultElapsed < curtainCloseDelay);
         internal event Action CurtainMovementStarted;
         internal bool OpeningItemVisible => !openingPrepared || openingElapsed > 0f;
+        internal float? CurtainRevealProgress
+        {
+            get
+            {
+                if (openingFinished != null && openingDuration > 0f)
+                    return Mathf.Clamp01(openingElapsed / openingDuration);
+                if (resultFinished != null && resultConfirmed && reopenDuration > 0f && resultElapsed >= ResultReopenAt)
+                    return Mathf.Clamp01((resultElapsed - ResultReopenAt) / reopenDuration);
+                return null;
+            }
+        }
+
+        private float ResultClosedAt => Mathf.Max(approachDuration, curtainCloseDelay + curtainCloseDuration);
+        private float ResultReopenAt => ResultClosedAt + resultHoldDuration;
 
         private bool curtainsOpen;
         private bool openingPrepared;
@@ -227,8 +241,8 @@ namespace AuctionGame.Auction
             if (resultFinished == null)
                 return;
 
-            float closedAt = Mathf.Max(approachDuration, curtainCloseDelay + curtainCloseDuration);
-            float reopenAt = closedAt + resultHoldDuration;
+            float closedAt = ResultClosedAt;
+            float reopenAt = ResultReopenAt;
             float previousElapsed = resultElapsed;
             resultElapsed = resultConfirmed
                 ? resultElapsed + deltaTime

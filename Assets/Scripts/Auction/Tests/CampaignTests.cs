@@ -200,6 +200,28 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(preparation.CurrentDay, Is.EqualTo(5));
                 Assert.That(preparation.HighestUnlockedDay, Is.EqualTo(5));
                 Assert.That(new CampaignProgress(Level, true).Completed, Is.True);
+
+                var finalPlan = preparation.DailyPlan;
+                var restart = GameObject.Find("Restart Campaign").GetComponent<Button>();
+                restart.onClick.Invoke();
+                var freshPlan = preparation.DailyPlan;
+                restart.onClick.Invoke();
+                Assert.That(preparation.DailyPlan, Is.SameAs(freshPlan));
+                Assert.That(freshPlan, Is.Not.SameAs(finalPlan));
+                Assert.That(preparation.CurrentDay, Is.EqualTo(1));
+                Assert.That(preparation.HighestUnlockedDay, Is.EqualTo(1));
+                Assert.That(preparation.CampaignCompleted, Is.False);
+                Assert.That(auction.State, Is.EqualTo(AuctionState.Idle));
+                Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(400));
+                Assert.That(auction.Economy.Purchases, Is.Empty);
+                Assert.That(report.Report, Is.Null);
+                Assert.That(GameObject.Find("Campaign Day").GetComponent<TMP_Text>().text, Is.EqualTo("DAY 1 / 5"));
+
+                var saved = new CampaignProgress(Level, true);
+                Assert.That(saved.CurrentDay, Is.EqualTo(1));
+                Assert.That(saved.HighestUnlockedDay, Is.EqualTo(1));
+                Assert.That(saved.Completed, Is.False);
+                Assert.That(saved.Open(0).Lots, Is.EqualTo(freshPlan.Lots));
             }
             finally
             {

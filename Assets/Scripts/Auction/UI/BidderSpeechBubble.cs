@@ -12,6 +12,7 @@ namespace AuctionGame.Auction
         [SerializeField] private Image pointer;
 
         internal RectTransform Rect => (RectTransform)transform;
+        internal TMP_Text Label => label;
         internal CanvasGroup Group { get; private set; }
         internal Vector2 Velocity;
         internal bool Positioned;
@@ -129,9 +130,9 @@ namespace AuctionGame.Auction
                 pointer = Child<Image>("Pointer");
                 pointer.transform.SetAsFirstSibling();
                 pointer.rectTransform.anchorMin = pointer.rectTransform.anchorMax = Vector2.one * 0.5f;
-                pointer.rectTransform.pivot = new Vector2(0.5f, 0);
                 pointer.rectTransform.sizeDelta = new Vector2(14, 0);
             }
+            pointer.rectTransform.pivot = new Vector2(0.5f, 1);
             if (!pointer.sprite)
                 pointer.sprite = arrow;
             pointer.raycastTarget = false;
@@ -170,10 +171,25 @@ namespace AuctionGame.Auction
             pointer.enabled = direction.sqrMagnitude > 4;
             pointer.rectTransform.anchoredPosition = start;
             pointer.rectTransform.sizeDelta = new Vector2(pointerWidth, direction.magnitude);
-            pointer.rectTransform.localRotation = Quaternion.Euler(0, 0, Mathf.Atan2(-direction.x, direction.y) * Mathf.Rad2Deg);
+            float angle = Vector2.SignedAngle(Vector2.down, direction);
+            pointer.rectTransform.localRotation = Quaternion.Euler(0, 0, angle);
         }
 
         internal void SetBackgroundColor(Color color) => background.color = color;
+
+        internal void ShowBottomPointer(float width)
+        {
+            if (!pointer.sprite)
+                return;
+
+            var rect = pointer.rectTransform;
+            rect.anchorMin = rect.anchorMax = new Vector2(.5f, 0);
+            rect.pivot = new Vector2(.5f, 1);
+            rect.anchoredPosition = Vector2.up * 5;
+            rect.localRotation = Quaternion.identity;
+            rect.sizeDelta = new Vector2(width, width * pointer.sprite.rect.height / pointer.sprite.rect.width);
+            pointer.enabled = true;
+        }
 
         internal void HidePointer() => pointer.enabled = false;
 

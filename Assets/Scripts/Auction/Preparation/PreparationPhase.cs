@@ -76,14 +76,11 @@ namespace AuctionGame.Auction
                     if (!intro)
                         throw new InvalidOperationException("The campaign requires the game intro presentation.");
                     campaign = new CampaignProgress(level, !useFixedDailySeed);
-                    if (CampaignCompleted)
+                    if (!CampaignCompleted)
                     {
-                        ShowCampaignComplete();
-                        return;
+                        var plan = campaign.Open(NewDailySeed(HighestUnlockedDay));
+                        ApplyCampaignDay(HighestUnlockedDay, plan, broadcastEdition.Select(plan, auction.NewsBidderPool));
                     }
-
-                    var plan = campaign.Open(NewDailySeed(HighestUnlockedDay));
-                    ApplyCampaignDay(HighestUnlockedDay, plan, broadcastEdition.Select(plan, auction.NewsBidderPool));
                 }
                 else if (useValueCappedGeneration)
                 {
@@ -110,7 +107,10 @@ namespace AuctionGame.Auction
                 return;
             }
             auction.OnStateChanged += AuctionStateChanged;
-            AuctionStateChanged(auction.State);
+            if (CampaignCompleted)
+                ShowCampaignComplete();
+            else
+                AuctionStateChanged(auction.State);
         }
 
         private void OnDestroy()
@@ -153,12 +153,50 @@ namespace AuctionGame.Auction
             }
         }
 
+        internal bool TryRestartCampaign(out string error)
+        {
+            error = null;
+            if (!CampaignCompleted || auction.State is not (AuctionState.Idle or AuctionState.Finished))
+                return false;
+
+            try
+            {
+                var plan = campaign.Generate(1, NewDailySeed(1), out _);
+                var news = broadcastEdition.Select(plan, auction.NewsBidderPool);
+                void Restart()
+                {
+                    campaign.Restart(plan);
+                    ConfigureAuctionDay(plan, news);
+                    if (auction.TryGetComponent(out AuctionReportUI report))
+                        report.ClearCompletedCampaign();
+                }
+
+                if (auction.State == AuctionState.Finished)
+                    return auction.ResetLevel(Restart);
+
+                Restart();
+                AuctionStateChanged(AuctionState.Idle);
+                return true;
+            }
+            catch (InvalidOperationException exception)
+            {
+                error = exception.Message;
+                Debug.LogError(error, this);
+                return false;
+            }
+        }
+
         private int NewDailySeed(int day) =>
             useFixedDailySeed ? unchecked(fixedDailySeed + day - 1) : new System.Random().Next();
 
         private void ApplyCampaignDay(int day, DailyRunPlan plan, IReadOnlyList<NewsCard> news)
         {
             campaign.Accept(day, plan);
+            ConfigureAuctionDay(plan, news);
+        }
+
+        private void ConfigureAuctionDay(DailyRunPlan plan, IReadOnlyList<NewsCard> news)
+        {
             DailyPlan = plan;
             selectedNews = news;
             auction.CampaignDay = campaign.Day;
@@ -168,7 +206,7 @@ namespace AuctionGame.Auction
         private void ShowCampaignComplete()
         {
             CoverControls();
-            intro.ShowCampaignComplete(sortingOrder + 1);
+            intro.ShowCampaignComplete(this, sortingOrder + 1);
             OnCampaignCompletePresented?.Invoke();
         }
 
@@ -224,7 +262,7 @@ namespace AuctionGame.Auction
                 ready.offsetMin = ready.offsetMax = Vector2.zero;
                 startAuction.GetComponentInChildren<TMP_Text>().fontSize = 32;
                 broadcast = PreparationUi.Fill("Breaking News", root).gameObject.AddComponent<BreakingNewsView>();
-                broadcast.Initialize(newsAppearance, intro.SpeechBubble, newsPresenterDialogue);
+                broadcast.Initialize(newsAppearance, intro.SpeechBubble, newsPresenterDialogue, newsIntroJingle);
             }
             else
             {
@@ -284,7 +322,6 @@ namespace AuctionGame.Auction
             if (broadcast)
             {
                 broadcast.Present(selectedNews, () => intro.CurrentStage == GameIntroFlow.Stage.Completed, ShowReady);
-                intro.PlayNewsJingle(newsIntroJingle);
             }
             else
                 newspaper.Present(DailyPlan?.NewspaperEntries ?? level.GetNewspaperEntries(), level.Database,

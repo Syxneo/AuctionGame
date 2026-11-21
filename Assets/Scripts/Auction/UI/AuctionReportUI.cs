@@ -52,6 +52,15 @@ namespace AuctionGame.Auction
 
         private void OnDestroy() => RemoveView();
 
+        internal void ClearCompletedCampaign()
+        {
+            RemoveView();
+            Report = null;
+            endReportParent = null;
+            continuing = false;
+            auctionPanel.gameObject.SetActive(true);
+        }
+
         private void OpenReport()
         {
             if (Report != null || awaitingCall)

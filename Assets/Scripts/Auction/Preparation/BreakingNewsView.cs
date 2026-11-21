@@ -16,6 +16,7 @@ namespace AuctionGame.Auction
         private BidderSpeechBubble articleBubble;
         private BidderSpeechBubble introBubble;
         private string presenterDialogue;
+        private AudioSource jingleSource;
         private float entranceStarted;
         private const float EntranceDuration = .32f;
         private NewspaperView.Appearance appearance;
@@ -29,8 +30,13 @@ namespace AuctionGame.Auction
         internal NewsCard CurrentCard => completed != null && index >= 0 ? cards[index] : null;
 
         internal void Initialize(NewspaperView.Appearance appearance, BidderSpeechBubble speechBubble,
-            string openingDialogue)
+            string openingDialogue, AudioClip openingJingle)
         {
+            jingleSource = gameObject.AddComponent<AudioSource>();
+            jingleSource.playOnAwake = false;
+            jingleSource.spatialBlend = 0;
+            jingleSource.clip = openingJingle ? openingJingle : Resources.Load<AudioClip>("Auction/NewsIntroJingle");
+
             var background = PreparationUi.Fill("Background", transform);
             if (appearance.paperSprite || !appearance.paperTexture)
                 Art(background, appearance.paperSprite, new Color(.83f, .73f, .47f), false);
@@ -60,6 +66,8 @@ namespace AuctionGame.Auction
             header.lineSpacing = -12;
 
             reader = Box("Reporter", safe, .025f, 0, .975f, .54f);
+            reader.pivot = new Vector2(.5f, 0);
+            reader.offsetMin = reader.offsetMax = Vector2.zero;
             if (appearance.reporterSprite)
                 Art(reader, appearance.reporterSprite, Color.white);
             else
@@ -82,14 +90,11 @@ namespace AuctionGame.Auction
             missingImage = Label(PreparationUi.Fill("Illustration placeholder", screen),
                 "", 24, appearance.articleFont);
             missingImage.color = appearance.televisionSprite ? PreparationUi.Ink : Color.white;
-            if (appearance.reporterSprite)
-                Art(Box("Article Presenter", broadcastArea, .78f, .02f, 1, .52f),
-                    appearance.reporterSprite, Color.white);
             this.appearance = appearance;
 
             presenterDialogue = openingDialogue;
             introBubble = BidderSpeechBubble.CreateDialogue(speechBubble,
-                Box("Presenter Speech", safe, .06f, .55f, .94f, .755f), "Presenter Dialogue", 34);
+                Box("Presenter Speech", safe, .06f, .44f, .94f, .65f), "Presenter Dialogue", 34);
             articleBubble = BidderSpeechBubble.CreateDialogue(speechBubble,
                 Box("Article Speech", safe, .06f, .075f, .94f, .32f), "NewsBodyText", 36);
             introPromptBacking = Art(Box("Intro prompt backing", safe, .32f, .021f, .68f, .059f), null,
@@ -115,6 +120,8 @@ namespace AuctionGame.Auction
             gameObject.SetActive(true);
             Canvas.ForceUpdateCanvases();
             Update();
+            if (jingleSource.clip)
+                jingleSource.Play();
         }
 
         internal void Hide()
@@ -177,13 +184,17 @@ namespace AuctionGame.Auction
             if (completed == null || index >= 0)
                 return;
 
-            // Convert the physical screen edge to safe-area coordinates for the entrance only.
+            // The artwork rests on the physical screen edge while controls stay inside the safe area.
             RectTransformUtility.ScreenPointToLocalPointInRectangle(safe, Vector2.zero, null, out Vector2 edge);
-            float offset = edge.y - safe.rect.yMin - reader.rect.height - 2;
+            float bottomOffset = edge.y - safe.rect.yMin;
             float progress = Mathf.Clamp01((Time.unscaledTime - entranceStarted) / EntranceDuration);
-            reader.anchoredPosition = Vector2.up * (offset * (1 - Mathf.SmoothStep(0, 1, progress)));
+            float entranceOffset = (reader.rect.height + 2) * (1 - Mathf.SmoothStep(0, 1, progress));
+            reader.anchoredPosition = Vector2.up * (bottomOffset - entranceOffset);
             if (progress >= 1 && !introBubble.gameObject.activeSelf && !string.IsNullOrWhiteSpace(presenterDialogue))
+            {
                 introBubble.SetDialogue(presenterDialogue);
+                introBubble.ShowBottomPointer(110);
+            }
         }
 
         private static RectTransform Box(string name, Transform parent, float left, float bottom,

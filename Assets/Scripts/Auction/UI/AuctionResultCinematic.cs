@@ -15,22 +15,39 @@ namespace AuctionGame.Auction
         [SerializeField] private TMP_FontAsset font;
         [SerializeField] private Sprite soldStamp;
         [SerializeField] private SaleAuctioneer sale;
+        [SerializeField] private BidderSpeechBubble speechBubble;
+        [Header("SOLD Impact")]
+        [SerializeField] private bool enableSoldStampImpact = true;
+        [SerializeField, Min(0.01f)] private float stampDuration = 0.35f;
+        [SerializeField, Min(1)] private float stampStartScale = 1.4f;
+        [SerializeField, Range(1f, 1.4f)] private float soldRibbonWidth = 1.2f;
+        [SerializeField, Min(1f)] private float stampFleckScale = 2.5f;
+        [Header("Player Confetti")]
+        [SerializeField] private bool enablePlayerConfetti = true;
+        [SerializeField, Min(0.01f)] private float confettiDuration = 0.8f;
+        [SerializeField, Range(1, 20)] private int confettiCount = 12;
 
         private static readonly Color Gold = new(0.91f, 0.75f, 0.49f);
         private static readonly Color Ivory = new(1f, 0.95f, 0.85f);
         private static readonly Color SoldRed = new(0.46f, 0.10f, 0.16f);
         private static readonly Color UnsoldBlue = new(0.19f, 0.25f, 0.32f);
+        private static readonly Color VictoryGreen = new(0.64f, 0.84f, 0.49f);
 
         private Canvas overlay;
         private Button continueButton;
         private RectTransform itemBackdrop;
         private Image itemImage;
         private Image ribbon;
+        private RectTransform banner;
         private Image stamp;
+        private Image[] stampBurst;
+        private Image[] confetti;
+        private bool soldEffectsPlayed;
+        private double soldEffectsStarted = double.NegativeInfinity;
         private TMP_Text outcome;
         private TMP_Text winner;
         private TMP_Text price;
-        private TMP_Text saleComment;
+        private BidderSpeechBubble saleComment;
         private AuctionResult activeResult;
         private BidderDialoguePresenter bidderDialogue;
         private bool waitingForDialogue;
@@ -67,6 +84,9 @@ namespace AuctionGame.Auction
                 Cancel();
             else if (waitingForDialogue)
                 TryStartResult();
+
+            if (!double.IsNegativeInfinity(soldEffectsStarted))
+                UpdateSoldEffects((float)(Time.unscaledTimeAsDouble - soldEffectsStarted));
         }
 
         private void Cancel()
@@ -89,6 +109,7 @@ namespace AuctionGame.Auction
             waitingForDialogue = true;
             resultConfirmed = false;
             presentationCompleted = false;
+            soldEffectsPlayed = false;
             TryStartResult();
         }
 
@@ -116,21 +137,30 @@ namespace AuctionGame.Auction
             if (sale)
             {
                 sale.ClearBubble();
-                saleComment.text = sale.ResultLine ?? "";
+                if (string.IsNullOrWhiteSpace(sale.ResultLine))
+                    saleComment.Hide();
+                else
+                    saleComment.SetDialogue(sale.ResultLine);
+                if (activeResult.sold)
+                    sale.StartGavelSlam();
             }
             AuctionResult result = activeResult;
             itemImage.sprite = auction.CurrentItem.Sprite;
             itemImage.enabled = itemImage.sprite != null;
             bool showStamp = result.sold && soldStamp;
             ribbon.color = result.sold ? SoldRed : UnsoldBlue;
+            float ribbonOverhang = result.sold ? (soldRibbonWidth - 1f) * 0.5f : 0f;
+            ribbon.rectTransform.anchorMin = new Vector2(-ribbonOverhang, 0.08f);
+            ribbon.rectTransform.anchorMax = new Vector2(1f + ribbonOverhang, 0.92f);
             stamp.enabled = showStamp;
             outcome.enabled = !showStamp;
             itemBackdrop.anchorMin = new Vector2(0.026f, result.sold ? 0.235f : 0.025f);
             itemImage.rectTransform.anchorMin = new Vector2(0.09f, result.sold ? 0.26f : 0.13f);
-            ribbon.rectTransform.anchorMin = new Vector2(0.055f, result.sold ? 0.36f : 0.19f);
-            ribbon.rectTransform.anchorMax = new Vector2(0.945f, result.sold ? 0.52f : 0.35f);
+            banner.anchorMin = new Vector2(0.055f, result.sold ? 0.36f : 0.19f);
+            banner.anchorMax = new Vector2(0.945f, result.sold ? 0.52f : 0.35f);
             outcome.text = result.sold ? "PREDANÉ" : "NEPREDANÉ";
             winner.text = result.sold ? auction.GetBidderDisplayName(result.winnerId) : "";
+            winner.color = result.sold && result.winnerId == BidderIds.Player ? VictoryGreen : Ivory;
             price.text = result.sold ? $"${result.finalPrice}" : "";
             winner.gameObject.SetActive(result.sold);
             price.gameObject.SetActive(result.sold);
@@ -140,6 +170,8 @@ namespace AuctionGame.Auction
         {
             waitingForDialogue = false;
             ShowOverlay(false);
+            if (sale)
+                sale.StopGavelSlam();
             RestoreHud();
             if (itemImage)
                 itemImage.sprite = null;
@@ -184,6 +216,14 @@ namespace AuctionGame.Auction
             {
                 overlay.enabled = visible;
                 continueButton.interactable = visible;
+                if (visible && activeResult != null && activeResult.sold && !soldEffectsPlayed)
+                {
+                    soldEffectsPlayed = true;
+                    soldEffectsStarted = Time.unscaledTimeAsDouble;
+                    UpdateSoldEffects(0f);
+                }
+                else if (!visible)
+                    ResetSoldEffects();
                 // The overlay hides exactly when the curtains start reopening after the
                 // player confirmed the result. Complete the presentation right away so
                 // the auction swaps in the next lot while the intro reveal is running,
@@ -228,13 +268,13 @@ namespace AuctionGame.Auction
 
             RectTransform safeArea = Box("Result Safe Area", root, Vector2.zero, Vector2.one);
             safeArea.gameObject.AddComponent<AuctionHudSafeArea>();
-            Label("Continue Prompt", safeArea, new Vector2(0.12f, 0.16f), new Vector2(0.88f, 0.24f),
-                44, Ivory).text = "Klepni pre pokračovanie";
+            Label("Continue Prompt", safeArea, new Vector2(0.07f, 0.14f), new Vector2(0.93f, 0.245f),
+                58, Ivory).text = "Klepni pre pokračovanie";
             if (sale)
             {
-                saleComment = Label("SALE Commentary", safeArea, new Vector2(0.12f, 0.78f),
-                    new Vector2(0.88f, 0.88f), 35, Ivory);
-                saleComment.textWrappingMode = TextWrappingModes.Normal;
+                var commentary = Box("SALE Commentary Region", safeArea,
+                    new Vector2(0.07f, 0.785f), new Vector2(0.93f, 0.96f));
+                saleComment = BidderSpeechBubble.CreateDialogue(speechBubble, commentary, "SALE Commentary", 49);
             }
             RectTransform frame = Box("Result Frame", safeArea, new Vector2(0.11f, 0.27f), new Vector2(0.89f, 0.77f));
             Fill(frame, Gold);
@@ -249,11 +289,12 @@ namespace AuctionGame.Auction
                 Color.white);
             itemImage.preserveAspect = true;
 
-            RectTransform banner = Box("Result Ribbon", card, new Vector2(0.055f, 0.32f), new Vector2(0.945f, 0.48f));
+            banner = Box("Result Banner", card, new Vector2(0.055f, 0.32f), new Vector2(0.945f, 0.48f));
             banner.localRotation = Quaternion.Euler(0, 0, 7);
-            ribbon = Fill(banner, SoldRed);
             Fill(Box("Ribbon Top Trim", banner, new Vector2(0, 0.92f), Vector2.one), Gold);
             Fill(Box("Ribbon Bottom Trim", banner, Vector2.zero, new Vector2(1, 0.08f)), Gold);
+            // Keep the trim exposed while the red center snaps open behind the sticker.
+            ribbon = Fill(Box("Result Ribbon", banner, new Vector2(0, 0.08f), new Vector2(1, 0.92f)), SoldRed);
             outcome = Label("Result Outcome", banner, new Vector2(0.08f, 0.1f), new Vector2(0.92f, 0.9f), 92, Ivory);
             outcome.fontStyle = FontStyles.Bold;
             outcome.characterSpacing = 10f;
@@ -262,9 +303,105 @@ namespace AuctionGame.Auction
             stamp.sprite = soldStamp;
             stamp.preserveAspect = true;
 
-            winner = Label("Result Winner", card, new Vector2(0.05f, 0.127f), new Vector2(0.95f, 0.225f), 49, Ivory);
-            price = Label("Result Price", card, new Vector2(0.05f, 0.025f), new Vector2(0.95f, 0.132f), 71, Gold);
+            winner = Label("Result Winner", card, new Vector2(0.05f, 0.132f), new Vector2(0.95f, 0.245f), 72, Ivory);
+            price = Label("Result Price", card, new Vector2(0.05f, 0.012f), new Vector2(0.95f, 0.132f), 86, Gold);
             price.fontStyle = FontStyles.Bold;
+        }
+
+        private void UpdateSoldEffects(float elapsed)
+        {
+            float stampProgress = Mathf.Clamp01(elapsed / stampDuration);
+            float confettiProgress = Mathf.Clamp01(elapsed / confettiDuration);
+            bool impact = enableSoldStampImpact && stamp.enabled;
+            bool celebrate = enablePlayerConfetti && activeResult.winnerId == BidderIds.Player;
+            if (impact && stampProgress < 1f)
+            {
+                float scale = stampProgress < 0.42f
+                    ? Mathf.SmoothStep(stampStartScale, 0.95f, stampProgress / 0.42f)
+                    : Mathf.SmoothStep(0.95f, 1f, (stampProgress - 0.42f) / 0.58f);
+                var rect = stamp.rectTransform;
+                rect.localScale = Vector3.one * scale;
+                float shake = Mathf.Sin(stampProgress * 17f) * (1f - stampProgress);
+                rect.localRotation = Quaternion.Euler(0f, 0f, 5f * (1f - stampProgress) + 2f * shake);
+                rect.anchoredPosition = new Vector2(5f * shake, 0f);
+                ribbon.rectTransform.localScale = new Vector3(Mathf.SmoothStep(0.6f, 1f, stampProgress * 3f), 1f, 1f);
+                if (stampProgress >= 0.25f)
+                {
+                    stampBurst ??= CreateParticles("Stamp Flecks", 6, stampFleckScale);
+                    AnimateParticles(stampBurst, (stampProgress - 0.25f) / 0.75f, false);
+                }
+            }
+            else
+                ResetStamp();
+
+            if (celebrate && confettiProgress < 1f)
+            {
+                confetti ??= CreateParticles("Victory Confetti", confettiCount);
+                AnimateParticles(confetti, confettiProgress, true);
+            }
+            else
+                HideParticles(confetti);
+
+            if ((!impact || stampProgress >= 1f) && (!celebrate || confettiProgress >= 1f))
+                ResetSoldEffects();
+        }
+
+        private Image[] CreateParticles(string label, int count, float sizeMultiplier = 1f)
+        {
+            var particles = new Image[count];
+            for (int i = 0; i < count; i++)
+            {
+                var rect = Box(label, banner, Vector2.one * 0.5f, Vector2.one * 0.5f);
+                rect.sizeDelta = new Vector2(4f + i % 3 * 2f, 8f + i % 4 * 2f) * sizeMultiplier;
+                particles[i] = Fill(rect, Gold);
+            }
+            return particles;
+        }
+
+        private void AnimateParticles(Image[] particles, float progress, bool victory)
+        {
+            float spread = 1f - (1f - progress) * (1f - progress);
+            for (int i = 0; i < particles.Length; i++)
+            {
+                Image particle = particles[i];
+                var rect = particle.rectTransform;
+                float side = i % 2 == 0 ? -1f : 1f;
+                float variation = (i * 7 % 11) / 10f;
+                float width = banner.rect.width;
+                float origin = victory ? 0.38f : 0.47f;
+                rect.anchoredPosition = new Vector2(side * (width * origin + spread * (22f + variation * 55f)),
+                    (variation - 0.35f) * 65f + spread * (victory ? 85f : 35f) -
+                    progress * progress * (victory ? 140f : 20f));
+                rect.localRotation = Quaternion.Euler(0f, 0f, i * 31f + side * progress * 140f);
+                Color color = victory && i % 3 == 2 ? VictoryGreen : i % 3 == 1 ? Ivory : Gold;
+                color.a = Mathf.Clamp01(progress * 12f) * (1f - Mathf.SmoothStep(0f, 1f, progress));
+                particle.color = color;
+                particle.enabled = true;
+            }
+        }
+
+        private void ResetStamp()
+        {
+            stamp.rectTransform.localScale = Vector3.one;
+            stamp.rectTransform.localRotation = Quaternion.identity;
+            stamp.rectTransform.anchoredPosition = Vector2.zero;
+            ribbon.rectTransform.localScale = Vector3.one;
+            HideParticles(stampBurst);
+        }
+
+        private void ResetSoldEffects()
+        {
+            soldEffectsStarted = double.NegativeInfinity;
+            ResetStamp();
+            HideParticles(confetti);
+        }
+
+        private static void HideParticles(Image[] particles)
+        {
+            if (particles == null)
+                return;
+            foreach (Image particle in particles)
+                particle.enabled = false;
         }
 
         private TMP_Text Label(string name, RectTransform parent, Vector2 min, Vector2 max, float size, Color color)
