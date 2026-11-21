@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
@@ -6,6 +7,7 @@ using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
@@ -46,12 +48,18 @@ namespace AuctionGame.Auction.Tests
             managerSettings.FindProperty("enableAutomaticAi").boolValue = false;
             managerSettings.ApplyModifiedPropertiesWithoutUndo();
             Assert.That(auction.State, Is.EqualTo(AuctionState.Idle));
-            var start = CompletePreparation();
+            var preparation = new SerializedObject(auction.GetComponent<PreparationPhase>());
+            var level = (MvpAuctionLevel)preparation.FindProperty("level").objectReferenceValue;
+            GameObject.Find("Read NEWSSSS").GetComponent<Button>().onClick.Invoke();
+            foreach (var entry in level.GetNewspaperEntries())
+                GameObject.Find("Continue News").GetComponent<Button>().onClick.Invoke();
+            var start = GameObject.Find("Start Auction").GetComponent<Button>();
             Assert.That(start.GetComponentInParent<Canvas>().targetDisplay, Is.Zero);
             start.onClick.Invoke();
             Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
             auction.Tick(2);
             yield return null;
+            VerifyDebugDisplayIgnoresPrimaryPointer(debugCanvas);
             Assert.That(Visible(canvas).Length, Is.EqualTo(3));
             VerifyPrefabStyling(bubblePrefab, Visible(canvas)[0]);
             VerifyLayout(canvas);
@@ -75,7 +83,6 @@ namespace AuctionGame.Auction.Tests
             yield return null;
             Assert.That(Visible(canvas).Length, Is.EqualTo(2));
             VerifyUiDoesNotChangeAuction(presenter, auction);
-            VerifyRetryLeavesSecondaryDisplayInactive(auction);
             Assert.That(SecondaryDisplayActive(), Is.EqualTo(secondaryWasActive));
 
             yield return new ExitPlayMode();
@@ -83,30 +90,20 @@ namespace AuctionGame.Auction.Tests
 
         private static bool SecondaryDisplayActive() => Display.displays.Length > 1 && Display.displays[1].active;
 
-        private static void VerifyRetryLeavesSecondaryDisplayInactive(AuctionManager auction)
+        private static void VerifyDebugDisplayIgnoresPrimaryPointer(Canvas debugCanvas)
         {
-            if (SecondaryDisplayActive())
-                return;
-
-            var settings = new SerializedObject(auction);
-            settings.FindProperty("enableAutomaticAi").boolValue = false;
-            settings.ApplyModifiedPropertiesWithoutUndo();
-            var retry = GameObject.Find("Retry Button").GetComponent<Button>();
-            retry.onClick.Invoke();
-            Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
-            auction.Tick(2);
-            Assert.That(auction.State, Is.EqualTo(AuctionState.Bidding));
-            Assert.That(auction.BidHistory, Is.Empty);
-            Assert.That(SecondaryDisplayActive(), Is.False);
-        }
-
-        private static Button CompletePreparation()
-        {
-            var level = AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>("Assets/AuctionMvp/MvpAuctionLevel.asset");
-            GameObject.Find("Read NEWSSSS").GetComponent<Button>().onClick.Invoke();
-            foreach (var entry in level.GetNewspaperEntries())
-                GameObject.Find("Continue News").GetComponent<Button>().onClick.Invoke();
-            return GameObject.Find("Start Auction").GetComponent<Button>();
+            var button = GameObject.Find("+$10 Button").GetComponent<Button>();
+            Assert.That(button.GetComponentInParent<Canvas>(), Is.SameAs(debugCanvas));
+            Assert.That(button.IsInteractable(), Is.True);
+            var rect = (RectTransform)button.transform;
+            var pointer = new PointerEventData(EventSystem.current)
+            {
+                displayIndex = 0,
+                position = RectTransformUtility.WorldToScreenPoint(null, rect.TransformPoint(rect.rect.center))
+            };
+            var hits = new List<RaycastResult>();
+            debugCanvas.GetComponent<GraphicRaycaster>().Raycast(pointer, hits);
+            Assert.That(hits, Is.Empty);
         }
 
         private static void CheckBindings(SerializedProperty bindings)
@@ -214,7 +211,7 @@ namespace AuctionGame.Auction.Tests
                 settings.FindProperty("enableDialogueUi").boolValue = visible;
                 settings.ApplyModifiedPropertiesWithoutUndo();
                 Assert.That(auction.RestartAuction(), Is.True);
-                var bids = new System.Collections.Generic.List<string>();
+                var bids = new List<string>();
                 void Record(BidRecord bid) => bids.Add($"{bid.itemId}:{bid.bidderId}:{bid.amount}:{bid.biddingElapsed:R}");
                 auction.OnBidPlaced += Record;
                 auction.Tick(1000);

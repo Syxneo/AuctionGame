@@ -2,9 +2,11 @@ using System.Collections;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
+using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
@@ -26,52 +28,34 @@ namespace AuctionGame.Auction.Tests
             var holder = GameObject.Find("Item Holder").GetComponent<MeshRenderer>();
             var visual = GameObject.Find("AuctionItemVisual").GetComponent<SpriteRenderer>();
             var hudImage = GameObject.Find("ItemImage").GetComponent<Image>();
+            var hudGroup = GameObject.Find("AuctionPanel").GetComponent<CanvasGroup>();
             var level = AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>("Assets/AuctionMvp/MvpAuctionLevel.asset");
-            var presenter = Object.FindFirstObjectByType<BidderDialoguePresenter>();
-            var presenterData = new SerializedObject(presenter);
-            Assert.That(presenterData.FindProperty("auction").objectReferenceValue, Is.SameAs(auction));
-            var dialogueAudio = (AudioSource)presenterData.FindProperty("dialogueAudio").objectReferenceValue;
-            var dialogueCue = (AudioClip)presenterData.FindProperty("dialogueCue").objectReferenceValue;
-            Assert.That(dialogueAudio, Is.Not.Null);
-            Assert.That(dialogueAudio.playOnAwake, Is.False);
-            Assert.That(dialogueCue, Is.Not.Null);
-            Assert.That(dialogueCue.length, Is.EqualTo(0.095f).Within(0.001f));
-            var audioRoot = dialogueAudio.gameObject;
-            var ambience = audioRoot.GetComponents<AudioSource>().Where(source => source.playOnAwake).ToArray();
-            Assert.That(ambience.Select(source => source.clip.name),
-                Is.EquivalentTo(new[] { "auction_ambient", "auction_ambient_talking" }));
-            Assert.That(ambience.All(source => source.loop && source.spatialBlend == 0f), Is.True);
-            var clickAudio = new SerializedObject(audioRoot.GetComponent<ButtonClickAudio>());
-            Assert.That(clickAudio.FindProperty("effects").objectReferenceValue, Is.SameAs(dialogueAudio));
-            Assert.That(clickAudio.FindProperty("click").objectReferenceValue.name, Is.EqualTo("button_click"));
-            var dialogueCanvas = (Canvas)presenterData.FindProperty("canvas").objectReferenceValue;
-            Assert.That(dialogueCanvas.targetDisplay, Is.Zero);
-            Assert.That(hudImage.GetComponentInParent<Canvas>(true).targetDisplay, Is.Zero);
-            var bindings = presenterData.FindProperty("bidders");
-            Assert.That(bindings.arraySize, Is.EqualTo(5));
-            var inactiveShader = (Shader)presenterData.FindProperty("inactiveBidderShader").objectReferenceValue;
-            Assert.That(inactiveShader, Is.Not.Null);
-            Assert.That(ShaderUtil.ShaderHasError(inactiveShader), Is.False);
-            var secondaryWasActive = Display.displays.Length > 1 && Display.displays[1].active;
             var managerData = new SerializedObject(auction);
             managerData.FindProperty("enableAutomaticAi").boolValue = false;
             managerData.ApplyModifiedPropertiesWithoutUndo();
-            Object.FindFirstObjectByType<SceneIntroOutro>().SkipToEnd();
+            var stage = Object.FindFirstObjectByType<SceneIntroOutro>();
+            stage.SkipToEnd();
+            var stageData = new SerializedObject(stage);
+            var left = (Transform)stageData.FindProperty("leftCurtain").objectReferenceValue;
+            var right = (Transform)stageData.FindProperty("rightCurtain").objectReferenceValue;
+            var basePosition = camera.transform.localPosition;
+            var baseRotation = camera.transform.localRotation;
+            float baseFov = camera.fieldOfView;
+            var leftOpen = left.localPosition;
+            var rightOpen = right.localPosition;
+            float closedX = stageData.FindProperty("curtainClosedX").floatValue;
 
             Assert.That(camera.targetDisplay, Is.Zero);
             Assert.That(visual.enabled, Is.False);
             Assert.That(hudImage.enabled, Is.False);
             Assert.That(visual.GetComponentInParent<Canvas>(), Is.Null);
 
-            Click("Read NEWSSSS");
+            yield return GameIntroTestDriver.OpenNewsFromIntro();
             foreach (var entry in level.GetNewspaperEntries())
                 Click("Continue News");
             Click("Start Auction");
 
             var lots = level.CreateRun();
-            Assert.That(auction.Opponents.Select(bidder => bidder.Personality.Name),
-                Is.EqualTo(new[] { "Helena", "Ferko", "Viktor", "Zuzu", "Grumblewick" }));
-            Assert.That(auction.Opponents.Select(bidder => bidder.StartingBudget), Is.All.EqualTo(600));
             foreach (AuctionItem lot in lots)
             {
                 Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
@@ -79,137 +63,144 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(visual.sprite, Is.SameAs(lot.Sprite));
                 Assert.That(visual.enabled, Is.True);
                 Assert.That(hudImage.enabled, Is.False);
-                Assert.That(visual.bounds.min.y - holder.bounds.max.y, Is.EqualTo(0.03f).Within(0.001f));
-                Assert.That(visual.bounds.center.x, Is.EqualTo(holder.bounds.center.x).Within(0.001f));
-                Assert.That(visual.bounds.center.z, Is.EqualTo(holder.bounds.center.z).Within(0.001f));
+                var vertices = GetWorldVertices(visual);
+                Assert.That(vertices.Min(vertex => vertex.y) - holder.bounds.max.y,
+                    Is.EqualTo(0.03f).Within(0.001f));
+                Assert.That((vertices.Min(vertex => vertex.x) + vertices.Max(vertex => vertex.x)) * 0.5f,
+                    Is.EqualTo(holder.bounds.center.x).Within(0.001f));
+                Assert.That((vertices.Min(vertex => vertex.z) + vertices.Max(vertex => vertex.z)) * 0.5f,
+                    Is.EqualTo(holder.bounds.center.z).Within(0.001f));
                 Assert.That(visual.transform.localScale.x, Is.EqualTo(visual.transform.localScale.y));
-                Vector3 toCamera = camera.transform.position - visual.bounds.center;
+                Vector3 toCamera = camera.transform.position - visual.transform.parent.position;
                 toCamera.y = 0f;
                 Assert.That(Vector3.Dot(-visual.transform.forward, toCamera.normalized), Is.GreaterThan(0.999f));
-                AssertInPortrait(camera, visual);
-                CheckBidderAppearance(auction, bindings, inactiveShader);
+                AssertInPortrait(camera, vertices);
 
                 auction.Tick(AuctionManager.RevealDuration);
+                bool sold = lot != lots[1];
+                if (sold)
+                    Click("+$10 Button");
+                Assert.That(auction.CurrentPrice, Is.EqualTo(sold ? 10 : 0));
+                // The leading bidder cannot raise their own bid.
                 if (lot == lots[0])
                 {
-                    yield return null;
-                    Assert.That(dialogueCanvas.GetComponentsInChildren<BidderSpeechBubble>(), Has.Length.EqualTo(3));
-                    var cueTime = typeof(BidderDialoguePresenter).GetField("nextDialogueCue",
-                        BindingFlags.Instance | BindingFlags.NonPublic);
-                    var render = typeof(BidderDialoguePresenter).GetMethod("Render",
-                        BindingFlags.Instance | BindingFlags.NonPublic);
-                    double now = Time.unscaledTimeAsDouble + 0.25;
-                    render.Invoke(presenter, new object[] { now, 0.05f });
-                    double played = (double)cueTime.GetValue(presenter);
-                    Assert.That(played, Is.GreaterThan(0d));
-                    render.Invoke(presenter, new object[] { now + 0.25, 0.05f });
-                    Assert.That(cueTime.GetValue(presenter), Is.EqualTo(played));
-                    Click("+$10 Button");
-                    Assert.That(auction.CurrentPrice, Is.EqualTo(10));
-                    var opponent = auction.Opponents.First(bidder => bidder.IsActiveForLot && bidder.EstimatedValue >= 115);
-                    var opponentSprite = GetBidderSprite(bindings, auction.Opponents.ToList().IndexOf(opponent));
-                    Vector3 restingScale = opponentSprite.transform.localScale;
-                    Assert.That(auction.TryPlaceBid(opponent.Id, 20), Is.True);
-                    UpdateCharacters(presenter, 0.5);
-                    Assert.That(opponentSprite.transform.localScale.x, Is.GreaterThan(restingScale.x));
-                    Assert.That(opponentSprite.color.b, Is.LessThan(opponentSprite.color.r));
+                    string opponent = FindBidderWithLimit(auction, 55).Id;
+                    Assert.That(auction.TryPlaceBid(opponent, 20), Is.True);
                     Click("+$25 Button");
                     Assert.That(auction.CurrentPrice, Is.EqualTo(45));
-                    UpdateCharacters(presenter, 0.5);
-                    Assert.That(opponentSprite.transform.localScale, Is.EqualTo(restingScale));
-                    Assert.That(auction.TryPlaceBid(opponent.Id, 55), Is.True);
+                    Assert.That(auction.TryPlaceBid(opponent, 55), Is.True);
                     Click("+$50 Button");
                     Assert.That(auction.CurrentPrice, Is.EqualTo(105));
                     Assert.That(auction.HighestBidderId, Is.EqualTo(BidderIds.Player));
-                    Assert.That(auction.TryPlaceBid(opponent.Id, 115), Is.True);
-                    var withdrawing = auction.Opponents.First(bidder => bidder.IsActiveForLot && bidder != opponent);
-                    typeof(AIBidder).GetProperty(nameof(AIBidder.HasChickenedOut)).SetValue(withdrawing, true);
-                    typeof(AuctionManager).GetMethod("NotifyChickenOut", BindingFlags.Instance | BindingFlags.NonPublic)
-                        .Invoke(auction, new object[] { withdrawing });
-                    UpdateCharacters(presenter, 0.6);
-                    CheckBidderAppearance(auction, bindings, inactiveShader);
-                    var inactiveSprite = GetBidderSprite(bindings, auction.Opponents.ToList().IndexOf(withdrawing));
-                    Vector3 inactivePosition = inactiveSprite.transform.localPosition;
-                    Vector3 activePosition = opponentSprite.transform.localPosition;
-                    Quaternion activeRotation = opponentSprite.transform.localRotation;
-                    bool hopped = false;
-                    bool swayed = false;
-                    for (int sample = 1; sample <= 8; sample++)
-                    {
-                        UpdateCharacters(presenter, 0.6 + sample * 0.35);
-                        Assert.That(inactiveSprite.transform.localPosition, Is.EqualTo(inactivePosition));
-                        hopped |= opponentSprite.transform.localPosition != activePosition;
-                        swayed |= opponentSprite.transform.localRotation != activeRotation;
-                    }
-                    Assert.That(hopped && swayed, Is.True);
                 }
 
-                auction.Tick(auction.RemainingTime + 2.01f);
+                auction.Tick(auction.RemainingTime + 1000f);
+                Assert.That(auction.State, Is.EqualTo(sold ? AuctionState.Sold : AuctionState.Unsold));
+                Assert.That(auction.CurrentItem, Is.SameAs(lot));
+                Assert.That(auction.RemainingTime, Is.Zero);
+                Assert.That(auction.TryPlaceBid(auction.Opponents[0].Id, 10), Is.False);
+                Assert.That(hudGroup.alpha, Is.Zero);
+                Assert.That(hudGroup.interactable, Is.False);
+                Assert.That(hudGroup.blocksRaycasts, Is.False);
+                var result = auction.Results.Last();
+                int purchases = auction.Economy.Purchases.Count;
+                int budget = auction.Economy.AvailableBudget;
+
+                AdvanceMotion(stage, 0.7f);
+                var podiumPosition = visual.transform.parent.position;
+                var closePosition = podiumPosition + stageData.FindProperty("closeUpOffset").vector3Value;
+                Assert.That(Vector3.Distance(camera.transform.position, closePosition), Is.LessThan(0.001f));
+                Assert.That(camera.fieldOfView, Is.EqualTo(stageData.FindProperty("closeUpFieldOfView").floatValue));
+                AssertInPortrait(camera, GetWorldVertices(visual), 0.38f, 0.89f);
+
+                AdvanceMotion(stage, 0.71f);
+                Assert.That(left.localPosition.x, Is.EqualTo(closedX));
+                Assert.That(right.localPosition.x, Is.EqualTo(-closedX));
+                var canvas = GameObject.Find("Auction Result Overlay").GetComponent<Canvas>();
+                Assert.That(canvas.enabled, Is.True);
+                Assert.That(canvas.GetComponentsInChildren<Graphic>().All(graphic => !graphic.raycastTarget), Is.True);
+                Assert.That(canvas.GetComponent<GraphicRaycaster>(), Is.Null);
+                Assert.That(GameObject.Find("Result Item Sprite").GetComponent<Image>().sprite, Is.SameAs(lot.Sprite));
+                Assert.That(visual.sprite, Is.SameAs(lot.Sprite));
+                Assert.That(GameObject.Find("Result Outcome").GetComponent<TMP_Text>().text,
+                    Is.EqualTo(sold ? "SOLD" : "UNSOLD"));
+                if (sold)
+                {
+                    Assert.That(GameObject.Find("Result Winner").GetComponent<TMP_Text>().text,
+                        Is.EqualTo(auction.GetBidderDisplayName(result.winnerId)));
+                    Assert.That(GameObject.Find("Result Price").GetComponent<TMP_Text>().text,
+                        Is.EqualTo($"${result.finalPrice}"));
+                }
+                else
+                {
+                    Assert.That(GameObject.Find("Result Winner"), Is.Null);
+                    Assert.That(GameObject.Find("Result Price"), Is.Null);
+                }
+
+                auction.Tick(1000f);
+                Assert.That(auction.CurrentItem, Is.SameAs(lot));
+                Assert.That(auction.GetComponent<AuctionReportUI>().Report, Is.Null);
+                Assert.That(auction.Economy.Purchases.Count, Is.EqualTo(purchases));
+                Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(budget));
+
+                AdvanceMotion(stage, 1.7f);
+                Assert.That(canvas.enabled, Is.False);
+                Assert.That(hudGroup.alpha, Is.Zero);
+                Assert.That(left.localPosition.x, Is.InRange(closedX + 0.01f, leftOpen.x - 0.01f));
+                Assert.That(right.localPosition.x, Is.InRange(rightOpen.x + 0.01f, -closedX - 0.01f));
+                Assert.That(camera.fieldOfView, Is.InRange(45f, 63f));
+                if (lot == lots[1])
+                    stage.enabled = false;
+                else
+                    AdvanceMotion(stage, 0.5f);
+                Assert.That(camera.transform.localPosition, Is.EqualTo(basePosition));
+                Assert.That(camera.transform.localRotation, Is.EqualTo(baseRotation));
+                Assert.That(camera.fieldOfView, Is.EqualTo(baseFov));
+                Assert.That(left.localPosition, Is.EqualTo(leftOpen));
+                Assert.That(right.localPosition, Is.EqualTo(rightOpen));
+                Assert.That(stage.IsPlaying, Is.False);
+                Assert.That(hudGroup.alpha, Is.EqualTo(1f));
+                Assert.That(hudGroup.interactable, Is.True);
+                Assert.That(hudGroup.blocksRaycasts, Is.True);
+                stage.enabled = true;
+                Assert.That(auction.CurrentItem, Is.SameAs(lot));
+                auction.Tick(1000f);
             }
 
             Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
             Assert.That(visual.enabled, Is.False);
             Assert.That(visual.sprite, Is.Null);
             Assert.That(auction.Results, Has.Count.EqualTo(6));
-            Assert.That(GameObject.Find("SALE Report"), Is.Not.Null);
-            Click("Retry Button");
-            Assert.That(auction.State, Is.EqualTo(AuctionState.Idle));
-            Click("Read NEWSSSS");
-            foreach (var entry in level.GetNewspaperEntries())
-                Click("Continue News");
-            Click("Start Auction");
-            Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
-            Assert.That(auction.Opponents.Select(bidder => bidder.AvailableBudget), Is.All.EqualTo(600));
-            CheckBidderAppearance(auction, bindings, inactiveShader);
-            Assert.That(Display.displays.Length > 1 && Display.displays[1].active, Is.EqualTo(secondaryWasActive));
+            Assert.That(auction.GetComponent<AuctionReportUI>().Report, Is.Not.Null);
+            Assert.That(Object.FindObjectsByType<Camera>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
+            Assert.That(Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
+            Assert.That(Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
             yield return new ExitPlayMode();
         }
 
-        private static SpriteRenderer GetBidderSprite(SerializedProperty bindings, int index) =>
-            (SpriteRenderer)bindings.GetArrayElementAtIndex(index).FindPropertyRelative("sprite").objectReferenceValue;
-
-        private static void UpdateCharacters(BidderDialoguePresenter presenter, double time) =>
-            typeof(BidderDialoguePresenter).GetMethod("UpdateCharacters", BindingFlags.Instance | BindingFlags.NonPublic)
-                .Invoke(presenter, new object[] { time });
-
-        private static void CheckBidderAppearance(AuctionManager auction, SerializedProperty bindings, Shader inactiveShader)
+        internal static void AdvanceMotion(SceneIntroOutro stage, float seconds)
         {
-            Assert.That(auction.Opponents.Count(bidder => bidder.IsActiveForLot), Is.EqualTo(3));
-            for (int index = 0; index < bindings.arraySize; index++)
-            {
-                var binding = bindings.GetArrayElementAtIndex(index);
-                var bidder = auction.Opponents[index];
-                Assert.That(binding.FindPropertyRelative("bidderId").stringValue, Is.EqualTo(bidder.Id));
-                var sprite = GetBidderSprite(bindings, index);
-                Assert.That(sprite && sprite.sprite && sprite.enabled && sprite.gameObject.activeInHierarchy, Is.True);
-                var camera = Camera.main;
-                camera.aspect = 9f / 16f;
-                Vector3 head = camera.WorldToViewportPoint(new Vector3(sprite.bounds.center.x, sprite.bounds.max.y,
-                    sprite.bounds.center.z));
-                camera.ResetAspect();
-                Assert.That(head.z, Is.GreaterThan(camera.nearClipPlane), bidder.Id);
-                Assert.That(head.x, Is.InRange(0f, 1f), bidder.Id);
-                Assert.That(head.y, Is.InRange(0f, 1f), bidder.Id);
-                Assert.That(sprite.color.a, Is.EqualTo(1f).Within(0.001f));
-                Assert.That(sprite.sharedMaterial.shader == inactiveShader,
-                    Is.EqualTo(!bidder.IsActiveForLot || bidder.HasChickenedOut), bidder.Id);
-            }
+            typeof(SceneIntroOutro).GetMethod("AdvanceResultMotion", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(stage, new object[] { seconds });
         }
 
-        private static void AssertInPortrait(Camera camera, SpriteRenderer visual)
+        internal static AIBidder FindBidderWithLimit(AuctionManager auction, int amount) =>
+            auction.Opponents.First(bidder => auction.TryGetMaxBid(bidder.Id, out int maxBid) && maxBid >= amount);
+
+        private static Vector3[] GetWorldVertices(SpriteRenderer visual) =>
+            visual.sprite.vertices.Select(vertex => visual.transform.TransformPoint(vertex)).ToArray();
+
+        private static void AssertInPortrait(Camera camera, Vector3[] vertices, float minY = 0f, float maxY = 1f)
         {
-            Bounds bounds = visual.sprite.bounds;
             foreach (float aspect in new[] { 9f / 16f, 9f / 20f })
             {
                 camera.aspect = aspect;
-                foreach (float x in new[] { bounds.min.x, bounds.max.x })
-                foreach (float y in new[] { bounds.min.y, bounds.max.y })
+                foreach (Vector3 vertex in vertices)
                 {
-                    Vector3 point = camera.WorldToViewportPoint(
-                        visual.transform.TransformPoint(x, y, bounds.center.z));
+                    Vector3 point = camera.WorldToViewportPoint(vertex);
                     Assert.That(point.z, Is.GreaterThan(camera.nearClipPlane));
                     Assert.That(point.x, Is.InRange(0f, 1f));
-                    Assert.That(point.y, Is.InRange(0f, 1f));
+                    Assert.That(point.y, Is.InRange(minY, maxY));
                 }
             }
             camera.ResetAspect();

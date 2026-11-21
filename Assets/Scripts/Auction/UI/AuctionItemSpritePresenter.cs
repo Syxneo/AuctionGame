@@ -50,10 +50,25 @@ namespace AuctionGame.Auction
             if (!visual.enabled)
                 return;
 
-            Bounds bounds = visual.sprite.bounds;
-            float scale = Mathf.Min(maximumSize.x / bounds.size.x, maximumSize.y / bounds.size.y);
+            // A Tight sprite mesh excludes the transparent margins of the artwork.
+            Vector2 min = Vector2.positiveInfinity;
+            Vector2 max = Vector2.negativeInfinity;
+            foreach (Vector2 vertex in visual.sprite.vertices)
+            {
+                min = Vector2.Min(min, vertex);
+                max = Vector2.Max(max, vertex);
+            }
+
+            Vector2 size = max - min;
+            if (size.x <= 0f || size.y <= 0f)
+            {
+                visual.enabled = false;
+                return;
+            }
+
+            float scale = Mathf.Min(maximumSize.x / size.x, maximumSize.y / size.y);
             transform.localScale = Vector3.one * scale;
-            bottomCenter = new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
+            bottomCenter = new Vector3((min.x + max.x) * 0.5f, min.y);
             FaceCamera();
         }
 

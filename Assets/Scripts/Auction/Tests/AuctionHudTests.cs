@@ -1,0 +1,215 @@
+using System.Collections;
+using System.Linq;
+using System.Reflection;
+using NUnit.Framework;
+using TMPro;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.TestTools;
+using UnityEngine.UI;
+
+namespace AuctionGame.Auction.Tests
+{
+    public sealed class AuctionHudTests
+    {
+        [UnityTest]
+        public IEnumerator IntegratedHudTracksBidsAndPlayerPurchasesThroughRetry()
+        {
+            yield return new EnterPlayMode();
+            EditorSceneManager.LoadSceneInPlayMode("Assets/Scenes/AuctionIntegrated.unity",
+                new LoadSceneParameters(LoadSceneMode.Single));
+            yield return null;
+
+            var auction = Object.FindFirstObjectByType<AuctionManager>();
+            var level = AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>("Assets/AuctionMvp/MvpAuctionLevel.asset");
+            var settings = new SerializedObject(auction);
+            settings.FindProperty("enableAutomaticAi").boolValue = false;
+            settings.ApplyModifiedPropertiesWithoutUndo();
+            var stage = Object.FindFirstObjectByType<SceneIntroOutro>();
+            stage.SkipToEnd();
+
+            var bar = Object.FindFirstObjectByType<AuctionPurchaseBar>();
+            var dock = (RectTransform)bar.transform.parent;
+            var strip = (RectTransform)bar.transform;
+            var icons = bar.GetComponentsInChildren<Image>();
+            var timer = Label("Timer");
+            var lotName = Label("Lot Name");
+            var progress = GameObject.Find("Timer Progress").GetComponent<RectTransform>();
+            Canvas.ForceUpdateCanvases();
+            Assert.That(timer.rectTransform.TransformPoint(timer.rectTransform.rect.min).y,
+                Is.GreaterThan(lotName.rectTransform.TransformPoint(lotName.rectTransform.rect.max).y));
+            Assert.That(dock.name, Is.EqualTo("Bid Dock"));
+            Assert.That(dock.anchorMin, Is.EqualTo(Vector2.zero));
+            Assert.That(dock.anchorMax, Is.EqualTo(Vector2.right));
+            Assert.That(dock.anchoredPosition, Is.EqualTo(Vector2.zero));
+            Assert.That(dock.sizeDelta, Is.EqualTo(new Vector2(0f, 620f)));
+            AssertDockBackgroundExtendsPastSafeArea(dock);
+            Assert.That(strip.anchoredPosition.y + strip.rect.yMax, Is.LessThan(dock.rect.height));
+            Assert.That(bar.GetComponentsInChildren<Graphic>().All(graphic => !graphic.raycastTarget), Is.True);
+            Assert.That(icons, Has.Length.EqualTo(6));
+            Assert.That(icons.All(icon => icon.preserveAspect), Is.True);
+            Assert.That(GameObject.Find("Opponent Names"), Is.Null);
+            Assert.That(Camera.main.targetDisplay, Is.Zero);
+            Assert.That(Camera.main.fieldOfView, Is.EqualTo(64f));
+            AssertIcons(icons);
+
+            yield return StartFromNews(level);
+            Assert.That(auction.Opponents.Count(opponent => opponent.IsActiveForLot), Is.EqualTo(3));
+            Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(1000));
+            OpenLot(auction);
+            Assert.That(timer.text, Is.EqualTo("15s"));
+            Assert.That(progress.anchorMax.x, Is.EqualTo(1f));
+            Assert.That(lotName.text, Is.EqualTo(auction.CurrentItem.ItemName));
+            Assert.That(Label("Current Bid").text, Is.EqualTo("$0"));
+            Assert.That(Caption("+$10 Button"), Is.EqualTo("$10"));
+            Assert.That(Caption("+$25 Button"), Is.EqualTo("$25"));
+            Assert.That(Caption("+$50 Button"), Is.EqualTo("$50"));
+            auction.Tick(5f);
+            Assert.That(timer.text, Is.EqualTo("10s"));
+            Assert.That(progress.anchorMax.x, Is.EqualTo(2f / 3f).Within(0.001f));
+            Assert.That(CloseLot(auction).sold, Is.False);
+            AssertIcons(icons);
+
+            var first = auction.CurrentItem;
+            OpenLot(auction);
+            Click("+$50 Button");
+            Assert.That(Label("Current Bid").text, Is.EqualTo("$50"));
+            Assert.That(Label("Leading Bidder").text, Does.Contain(auction.GetBidderDisplayName(BidderIds.Player)));
+            Assert.That(Caption("+$10 Button"), Is.EqualTo("+$10"));
+            AssertIcons(icons);
+            Assert.That(CloseLot(auction).winnerId, Is.EqualTo(BidderIds.Player));
+            Assert.That(Label("Budget").text, Is.EqualTo("Budget  $950"));
+            AssertIcons(icons, first.Sprite);
+
+            OpenLot(auction);
+            string opponent = AuctionItemPresentationTests.FindBidderWithLimit(auction, 10).Id;
+            Assert.That(auction.TryPlaceBid(opponent, 10), Is.True);
+            Assert.That(Label("Leading Bidder").text, Does.Contain(auction.GetBidderDisplayName(opponent)));
+            Assert.That(Label("Latest Bid").text, Does.Contain("$10"));
+            Assert.That(CloseLot(auction).winnerId, Is.EqualTo(opponent));
+            AssertIcons(icons, first.Sprite);
+
+            OpenLot(auction);
+            Assert.That(CloseLot(auction).sold, Is.False);
+            AssertIcons(icons, first.Sprite);
+
+            var second = auction.CurrentItem;
+            OpenLot(auction);
+            Click("+$25 Button");
+            Assert.That(CloseLot(auction).winnerId, Is.EqualTo(BidderIds.Player));
+            Assert.That(Label("Budget").text, Is.EqualTo("Budget  $925"));
+            AssertIcons(icons, first.Sprite, second.Sprite);
+            OpenLot(auction);
+            Assert.That(CloseLot(auction).sold, Is.False);
+
+            var report = auction.GetComponent<AuctionReportUI>().Report;
+            Assert.That(report.TargetProfit, Is.EqualTo(50));
+            Assert.That(report.Succeeded, Is.False);
+            Click("Retry Button");
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Idle));
+            Assert.That(auction.Economy.Purchases, Is.Empty);
+            AssertIcons(icons);
+            Assert.That(stage.IsPlaying, Is.False);
+            Assert.That(Camera.main.transform.localPosition, Is.EqualTo(new Vector3(0f, 14.4f, 25f)));
+            Assert.That(Camera.main.fieldOfView, Is.EqualTo(64f));
+            Assert.That(GameObject.Find("Auction Result Overlay").GetComponent<Canvas>().enabled, Is.False);
+            yield return StartFromNews(level);
+            Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
+            AssertIcons(icons);
+
+            OpenLot(auction);
+            Click("+$10 Button");
+            CloseLot(auction);
+            while (auction.State == AuctionState.ItemReveal)
+            {
+                OpenLot(auction);
+                CloseLot(auction);
+            }
+            Assert.That(auction.GetComponent<AuctionReportUI>().Report.Succeeded, Is.True);
+            Click("Continue Button");
+            Assert.That(GameObject.Find("Level Completion"), Is.Not.Null);
+
+            yield return new ExitPlayMode();
+        }
+
+        private static void AssertDockBackgroundExtendsPastSafeArea(RectTransform dock)
+        {
+            var safeArea = dock.GetComponentInParent<AuctionHudSafeArea>();
+            var panel = (RectTransform)safeArea.transform.parent;
+            var background = dock.Find("Bid Dock Background").GetComponent<Image>();
+            Assert.That(background.raycastTarget, Is.False);
+
+            var screenSize = new Vector2(720f, 1280f);
+            var insets = Rect.MinMaxRect(24f, 70f, 678f, 1250f);
+            var apply = typeof(AuctionHudSafeArea).GetMethod("Apply", BindingFlags.Instance | BindingFlags.NonPublic);
+            var corners = new Vector3[4];
+            Vector2 panelSize = panel.rect.size;
+            try
+            {
+                apply.Invoke(safeArea, new object[] { insets, screenSize, panelSize });
+                Vector3 panelBottomLeft = panel.TransformPoint(panel.rect.min);
+                Vector3 panelTopRight = panel.TransformPoint(panel.rect.max);
+                dock.GetWorldCorners(corners);
+                float dockTop = corners[1].y;
+                Assert.That(corners[0].y, Is.GreaterThan(panelBottomLeft.y));
+
+                background.rectTransform.GetWorldCorners(corners);
+                Assert.That(corners[0].x, Is.EqualTo(panelBottomLeft.x).Within(0.01f));
+                Assert.That(corners[0].y, Is.EqualTo(panelBottomLeft.y).Within(0.01f));
+                Assert.That(corners[2].x, Is.EqualTo(panelTopRight.x).Within(0.01f));
+                Assert.That(corners[1].y, Is.EqualTo(dockTop).Within(0.01f));
+            }
+            finally
+            {
+                apply.Invoke(safeArea, new object[] { Screen.safeArea, new Vector2(Screen.width, Screen.height), panelSize });
+                Canvas.ForceUpdateCanvases();
+            }
+        }
+
+        private static IEnumerator StartFromNews(MvpAuctionLevel level)
+        {
+            yield return GameIntroTestDriver.OpenNewsFromIntro();
+            foreach (var entry in level.GetNewspaperEntries())
+                Click("Continue News");
+            Click("Start Auction");
+        }
+
+        private static void OpenLot(AuctionManager auction)
+        {
+            Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
+            auction.Tick(AuctionManager.RevealDuration);
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Bidding));
+        }
+
+        private static AuctionResult CloseLot(AuctionManager auction)
+        {
+            auction.Tick(auction.RemainingTime + 0.01f);
+            AuctionResult result = auction.Results.Last();
+            AuctionItemPresentationTests.AdvanceMotion(Object.FindFirstObjectByType<SceneIntroOutro>(), 3.61f);
+            auction.Tick(0.01f);
+            return result;
+        }
+
+        private static void AssertIcons(Image[] icons, params Sprite[] expected)
+        {
+            for (int index = 0; index < icons.Length; index++)
+            {
+                Sprite sprite = index < expected.Length ? expected[index] : null;
+                Assert.That(icons[index].enabled, Is.EqualTo(sprite != null));
+                Assert.That(icons[index].sprite, Is.SameAs(sprite));
+            }
+        }
+
+        private static TMP_Text Label(string name) => GameObject.Find(name).GetComponent<TMP_Text>();
+        private static string Caption(string name) => GameObject.Find(name).GetComponentInChildren<TMP_Text>().text;
+
+        private static void Click(string name)
+        {
+            var button = GameObject.Find(name)?.GetComponent<Button>();
+            Assert.That(button && button.IsInteractable(), Is.True, name);
+            button.onClick.Invoke();
+        }
+    }
+}

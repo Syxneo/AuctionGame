@@ -16,6 +16,7 @@ namespace AuctionGame.Auction
         [SerializeField] private TMP_Text highestBidder;
         [SerializeField] private TMP_Text opponentNames;
         [SerializeField] private TMP_Text timer;
+        [SerializeField] private RectTransform timerProgress;
         [SerializeField] private TMP_Text budget;
         [SerializeField] private TMP_Text history;
         [SerializeField] private TMP_Text status;
@@ -90,7 +91,10 @@ namespace AuctionGame.Auction
 
         private void UpdateClock()
         {
-            timer.SetText("{0:0}s", Mathf.CeilToInt(manager.RemainingTime));
+            float remaining = manager.RemainingTime;
+            timer.SetText("{0:0}s", Mathf.CeilToInt(remaining));
+            if (timerProgress)
+                timerProgress.anchorMax = new Vector2(Mathf.Clamp01(remaining / AuctionManager.InitialBiddingTime), 0f);
         }
 
         private void Refresh()

@@ -58,6 +58,8 @@ namespace AuctionGame.Auction
         private long auctionTick;
         private long bidSequence;
         private bool publishingBid;
+        private AuctionResult presentedResult;
+        private bool resultPresentationComplete;
         internal bool DebugLogEnabled => enableAuctionDebugLog;
         internal double DecisionInterval => aiDecisionInterval > 0 && !float.IsInfinity(aiDecisionInterval)
             ? aiDecisionInterval : 3;
@@ -179,6 +181,23 @@ namespace AuctionGame.Auction
         public string GetBidderDisplayName(string bidderId) =>
             FindOpponent(bidderId)?.Personality.Name ?? BidderIds.DisplayName(bidderId);
 
+        internal bool HoldResultForPresentation(AuctionResult result)
+        {
+            if (presentedResult != null || State is not (AuctionState.Sold or AuctionState.Unsold) ||
+                results[^1] != result)
+                return false;
+
+            presentedResult = result;
+            resultPresentationComplete = false;
+            return true;
+        }
+
+        internal void CompleteResultPresentation(AuctionResult result)
+        {
+            if (presentedResult == result)
+                resultPresentationComplete = true;
+        }
+
         private void Update() => Tick(Time.deltaTime);
 
         public void Tick(float deltaTime)
@@ -193,6 +212,17 @@ namespace AuctionGame.Auction
                 double remainingStep = deltaTime;
                 while (State != AuctionState.Finished)
                 {
+                    if (presentedResult != null)
+                    {
+                        if (resultPresentationComplete)
+                        {
+                            presentedResult = null;
+                            AdvanceItem();
+                        }
+                        // Never carry time from the result into the newly revealed lot.
+                        break;
+                    }
+
                     double boundary = State switch
                     {
                         AuctionState.ItemReveal => RevealDuration,
