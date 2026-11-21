@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AuctionGame.Auction
@@ -47,12 +47,12 @@ namespace AuctionGame.Auction
             limitToEstimate ? Math.Min(EstimatedValue, AvailableBudget) : AvailableBudget;
         private readonly bool limitToEstimate;
 
-        internal AIBidder(string id, AIPersonality personality, int seed, bool limitToEstimate)
+        internal AIBidder(string id, AIPersonality personality, int seed, bool limitToEstimate, int? dailyBudget = null)
         {
             Id = id;
             Personality = personality;
             this.limitToEstimate = limitToEstimate;
-            StartingBudget = personality.StartingBudget;
+            StartingBudget = dailyBudget ?? personality.StartingBudget;
             AvailableBudget = StartingBudget;
             Purchases = purchases.AsReadOnly();
             var seeds = new Random(seed);

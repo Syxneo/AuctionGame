@@ -45,6 +45,11 @@ namespace AuctionGame.Auction
         [SerializeField, Min(1)] private int dailyValueCap = 1300;
         [SerializeField] private NewspaperEntry[] additionalDailyNewspaperEntries = Array.Empty<NewspaperEntry>();
 
+        [SerializeField] private CampaignDay[] campaignDays = Array.Empty<CampaignDay>();
+        [SerializeField, Min(1)] private int campaignGenerationAttempts = 32;
+
+        public IReadOnlyList<CampaignDay> CampaignDays => Array.AsReadOnly(campaignDays);
+        public int CampaignGenerationAttempts => campaignGenerationAttempts;
         public int StartingBudget => startingBudget;
         public int ProfitTarget => profitTarget;
         public int AiStartingBudget => aiStartingBudget;
@@ -58,17 +63,23 @@ namespace AuctionGame.Auction
 
         public DailyRunPlan CreateDailyRun(int seed)
         {
-            var articles = GetNewspaperEntries().Concat(additionalDailyNewspaperEntries
-                .Where(entry => entry != null && entry.IsValid)).ToArray();
-            var plan = DailyItemGenerator.Generate(possibleItems, dailyValueCap, seed, articles);
+            var plan = DailyItemGenerator.Generate(possibleItems, dailyValueCap, seed, DailyArticles());
+            ValidateDailyCatalog();
+            return plan;
+        }
+
+        internal NewspaperEntry[] DailyArticles() => GetNewspaperEntries().Concat(additionalDailyNewspaperEntries
+            .Where(entry => entry != null && entry.IsValid)).ToArray();
+
+        internal void ValidateDailyCatalog()
+        {
             if (!itemDatabase)
                 throw new InvalidOperationException("Assign the full Item Database to the MVP level.");
             foreach (AuctionItem item in possibleItems)
             {
-                if (itemDatabase.GetItemById(item.ItemId) != item)
-                    throw new InvalidOperationException($"Possible Items variant '{item.ItemId}' is missing from the Item Database.");
+                if (!item || string.IsNullOrWhiteSpace(item.ItemId) || itemDatabase.GetItemById(item.ItemId) != item)
+                    throw new InvalidOperationException($"Possible Items variant '{(item ? item.ItemId : "<missing>")}' is missing from the Item Database.");
             }
-            return plan;
         }
 
         // The original authored run remains available for the fixed MVP debug scene.

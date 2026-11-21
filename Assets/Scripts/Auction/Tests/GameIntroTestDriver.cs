@@ -14,7 +14,7 @@ namespace AuctionGame.Auction.Tests
 {
     internal static class GameIntroTestDriver
     {
-        internal static void LoadIntegratedScene(int? dailySeed = null)
+        internal static void LoadIntegratedScene(int? dailySeed = null, bool campaign = false)
         {
             SceneManager.sceneLoaded += ConfigureRun;
             EditorSceneManager.LoadSceneInPlayMode(DailyItemGenerationTests.IntegratedScenePath,
@@ -27,7 +27,10 @@ namespace AuctionGame.Auction.Tests
                 var data = new SerializedObject(preparation);
                 if (!data.FindProperty("useValueCappedGeneration").boolValue)
                     throw new System.InvalidOperationException("The integrated scene must use daily generation.");
-                data.FindProperty("useValueCappedGeneration").boolValue = dailySeed.HasValue;
+                if (!data.FindProperty("useCampaign").boolValue)
+                    throw new System.InvalidOperationException("The integrated scene must enable the campaign.");
+                data.FindProperty("useCampaign").boolValue = campaign;
+                data.FindProperty("useValueCappedGeneration").boolValue = dailySeed.HasValue || campaign;
                 data.FindProperty("useFixedDailySeed").boolValue = dailySeed.HasValue;
                 data.FindProperty("fixedDailySeed").intValue = dailySeed.GetValueOrDefault();
                 data.ApplyModifiedPropertiesWithoutUndo();
@@ -67,12 +70,11 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(messages.childCount, Is.EqualTo(count));
             }
 
-            var data = new SerializedObject(intro.GetComponent<PreparationPhase>());
-            var level = (MvpAuctionLevel)data.FindProperty("level").objectReferenceValue;
+            var preparation = intro.GetComponent<PreparationPhase>();
             string finalMessage = messages.GetChild(2).GetComponentInChildren<TMP_Text>().text;
             var culture = System.Globalization.CultureInfo.GetCultureInfo("en-US");
-            Assert.That(finalMessage, Does.Contain("$" + level.StartingBudget.ToString("N0", culture)));
-            Assert.That(finalMessage, Does.Contain("$" + level.ProfitTarget.ToString("N0", culture)));
+            Assert.That(finalMessage, Does.Contain("$" + preparation.StartingBudget.ToString("N0", culture)));
+            Assert.That(finalMessage, Does.Contain("$" + preparation.ProfitTarget.ToString("N0", culture)));
             Assert.That(intro.GetComponents<AudioSource>(), Has.Length.EqualTo(1));
 
             Click("Advance Conversation");

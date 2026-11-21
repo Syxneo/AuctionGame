@@ -14,6 +14,7 @@ namespace AuctionGame.Auction
 
         [SerializeField] private GameIntroFlow intro;
         [SerializeField] private MvpAuctionLevel level;
+        [SerializeField] private bool useCampaign;
         [SerializeField] private bool useValueCappedGeneration;
         [SerializeField] private bool useFixedDailySeed;
         [SerializeField] private int fixedDailySeed;
@@ -25,6 +26,16 @@ namespace AuctionGame.Auction
         [SerializeField] private NewspaperView.Appearance newsAppearance = new();
 
         [SerializeField] private BroadcastEdition broadcastEdition = new();
+
+        private CampaignProgress campaign;
+        public int CurrentDay => campaign?.CurrentDay ?? 1;
+        public int HighestUnlockedDay => campaign?.HighestUnlockedDay ?? 1;
+        public int CampaignDayCount => campaign?.DayCount ?? 0;
+        public bool CampaignCompleted => campaign?.Completed ?? false;
+        public int StartingBudget => campaign?.Day.StartingBudget ?? level.StartingBudget;
+        public int ProfitTarget => campaign?.Day.ProfitTarget ?? level.ProfitTarget;
+        internal IReadOnlyList<string> SaleDialogue => campaign?.Day.SaleDialogue;
+        public event Action OnCampaignCompletePresented;
 
         private BreakingNewsView broadcast;
         private IReadOnlyList<NewsCard> selectedNews;
@@ -54,13 +65,27 @@ namespace AuctionGame.Auction
             BuildUi();
             try
             {
-                if (useValueCappedGeneration)
+                if (useCampaign)
+                {
+                    if (!intro)
+                        throw new InvalidOperationException("The campaign requires the game intro presentation.");
+                    campaign = new CampaignProgress(level, !useFixedDailySeed);
+                    if (CampaignCompleted)
+                    {
+                        ShowCampaignComplete();
+                        return;
+                    }
+
+                    var plan = campaign.Open(NewDailySeed(HighestUnlockedDay));
+                    ApplyCampaignDay(HighestUnlockedDay, plan, broadcastEdition.Select(plan, auction.NewsBidderPool));
+                }
+                else if (useValueCappedGeneration)
                 {
                     int seed = useFixedDailySeed ? fixedDailySeed : new System.Random().Next();
                     DailyPlan = level.CreateDailyRun(seed);
                 }
 
-                if (intro)
+                if (intro && campaign == null)
                 {
                     if (DailyPlan == null)
                         fixedRun = level.CreateRun();
@@ -73,6 +98,7 @@ namespace AuctionGame.Auction
             {
                 ShowBrief();
                 readNews.gameObject.SetActive(false);
+                status.gameObject.SetActive(true);
                 status.text = exception.Message;
                 Debug.LogError(exception.Message, this);
                 return;
@@ -88,6 +114,56 @@ namespace AuctionGame.Auction
             RestoreControls();
             if (canvasRoot)
                 Destroy(canvasRoot);
+        }
+
+        internal void RecordSuccess() => campaign?.RecordSuccess();
+
+        internal bool TryContinueCampaign(out string error)
+        {
+            error = null;
+            if (campaign == null || auction.State != AuctionState.Finished)
+                return false;
+
+            if (CampaignCompleted)
+            {
+                ShowCampaignComplete();
+                return true;
+            }
+
+            try
+            {
+                int nextDay = CurrentDay + 1;
+                if (nextDay > HighestUnlockedDay)
+                    return false;
+                var plan = campaign.Generate(nextDay, NewDailySeed(nextDay), out _);
+                var news = broadcastEdition.Select(plan, auction.NewsBidderPool);
+                return auction.ResetLevel(() => ApplyCampaignDay(nextDay, plan, news));
+            }
+            catch (InvalidOperationException exception)
+            {
+                error = exception.Message;
+                Debug.LogError(error, this);
+                return false;
+            }
+        }
+
+        private int NewDailySeed(int day) =>
+            useFixedDailySeed ? unchecked(fixedDailySeed + day - 1) : new System.Random().Next();
+
+        private void ApplyCampaignDay(int day, DailyRunPlan plan, IReadOnlyList<NewsCard> news)
+        {
+            campaign.Accept(day, plan);
+            DailyPlan = plan;
+            selectedNews = news;
+            auction.CampaignDay = campaign.Day;
+            auction.Economy.CampaignStartingBudget = StartingBudget;
+        }
+
+        private void ShowCampaignComplete()
+        {
+            CoverControls();
+            intro.ShowCampaignComplete(sortingOrder + 1);
+            OnCampaignCompletePresented?.Invoke();
         }
 
         private void BuildUi()
@@ -198,13 +274,13 @@ namespace AuctionGame.Auction
             if (stage != Stage.Ready || auction.State != AuctionState.Idle)
                 return;
 
-            if (auction.Economy.AvailableBudget != level.StartingBudget)
+            if (auction.Economy.AvailableBudget != StartingBudget)
             {
-                status.text = "Rozpočet dražby nezodpovedá úrovni MVP.";
+                status.text = "Rozpočet dražby nezodpovedá dnešnému rozpočtu.";
                 return;
             }
 
-            if (useValueCappedGeneration)
+            if (useCampaign || useValueCappedGeneration)
             {
                 if (!auction.StartDailyAuction(DailyPlan, level.Database))
                     status.text = "The auction could not start. Check the daily plan and catalog.";
@@ -218,6 +294,7 @@ namespace AuctionGame.Auction
             }
             catch (InvalidOperationException exception)
             {
+                status.gameObject.SetActive(true);
                 status.text = exception.Message;
                 return;
             }
@@ -239,7 +316,7 @@ namespace AuctionGame.Auction
                     CoverControls();
                     canvasRoot.SetActive(false);
                     Select(null);
-                    intro.ShowStart(this, level, sortingOrder + 1);
+                    intro.ShowStart(this, sortingOrder + 1);
                 }
                 else
                     ShowBrief();

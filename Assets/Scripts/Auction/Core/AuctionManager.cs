@@ -115,7 +115,11 @@ namespace AuctionGame.Auction
 
         public bool RestartAuction() => ResetLevel() && StartRun(lots, catalog, DailyPlan);
 
-        public bool ResetLevel()
+        internal CampaignDay CampaignDay { get; set; }
+
+        public bool ResetLevel() => ResetLevel(null);
+
+        internal bool ResetLevel(Action beforeIdle)
         {
             if (processingTime || State != AuctionState.Finished)
                 return false;
@@ -129,6 +133,7 @@ namespace AuctionGame.Auction
                 Opponents = Array.Empty<AIBidder>();
                 activeOpponents.Clear();
                 Economy.ResetLevel();
+                beforeIdle?.Invoke();
                 SetState(AuctionState.Idle);
                 return true;
             }
@@ -189,7 +194,8 @@ namespace AuctionGame.Auction
             {
                 AIPersonality personality = personalities[index];
                 string id = activeBidderLimit > 0 ? personality.DialogueProfileId : BidderIds.ForOpponentIndex(index);
-                opponents[index] = new AIBidder(id, personality, random.Next(), activeBidderLimit > 0);
+                opponents[index] = new AIBidder(id, personality, random.Next(), activeBidderLimit > 0,
+                    CampaignDay?.ScaleAiBudget(personality.StartingBudget));
             }
             participationRandom = new System.Random(random.Next());
             Opponents = Array.AsReadOnly(opponents);

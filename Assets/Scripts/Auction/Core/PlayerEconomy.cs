@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -12,7 +12,10 @@ namespace AuctionGame.Auction
         private readonly HashSet<string> purchasedIds = new(StringComparer.Ordinal);
         private int spent;
 
-        public int AvailableBudget => (startingBudgetLevel ? startingBudgetLevel.StartingBudget : startingBudget) - spent;
+        internal int? CampaignStartingBudget { get; set; }
+
+        public int AvailableBudget =>
+            (CampaignStartingBudget ?? (startingBudgetLevel ? startingBudgetLevel.StartingBudget : startingBudget)) - spent;
         public IReadOnlyList<PurchasedItem> Purchases => purchases.AsReadOnly();
 
         public bool CanAfford(int amount) => amount > 0 && amount <= AvailableBudget;

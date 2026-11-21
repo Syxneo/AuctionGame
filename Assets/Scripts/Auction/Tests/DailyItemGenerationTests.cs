@@ -237,10 +237,8 @@ namespace AuctionGame.Auction.Tests
         public IEnumerator IntegratedDaySurvivesRetryAndReportsEveryPurchase()
         {
             yield return new EnterPlayMode();
-            var level = LoadLevel();
-            int seed = Enumerable.Range(0, 100).Select(level.CreateDailyRun)
-                .First(plan => plan.NewspaperEntries.Count > 6 && plan.Lots.Count > plan.NewspaperEntries.Count).Seed;
-            GameIntroTestDriver.LoadIntegratedScene(seed);
+            const int seed = 123;
+            GameIntroTestDriver.LoadIntegratedScene(seed, campaign: true);
             PreparationPhase preparation = null;
             for (int frame = 0; frame < 120 && (!preparation || preparation.DailyPlan == null); frame++)
             {
@@ -263,6 +261,9 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction != null, Is.True, "The integrated scene has an active auction manager.");
             var plan = preparation.DailyPlan;
             Assert.That(plan.Seed, Is.EqualTo(seed));
+            Assert.That(preparation.CurrentDay, Is.EqualTo(1));
+            Assert.That(preparation.HighestUnlockedDay, Is.EqualTo(1));
+            Assert.That(plan.Lots.Count, Is.InRange(3, 4));
             var edition = preparation.SelectedNews;
             Assert.That(edition, Is.Not.Null, "Preparation must select news for the daily run.");
             var families = plan.Lots.Select(lot => lot.ItemType).Distinct();
@@ -294,6 +295,9 @@ namespace AuctionGame.Auction.Tests
             yield return GameIntroTestDriver.ReadBroadcast();
             Assert.That(auction.DailyPlan, Is.SameAs(plan));
             Assert.That(auction.Opponents, Has.Count.EqualTo(5));
+            foreach (var bidder in auction.Opponents)
+                Assert.That(bidder.AvailableBudget, Is.EqualTo(
+                    Math.Round(bidder.Personality.StartingBudget * 0.70m, MidpointRounding.AwayFromZero)));
             Assert.That(auction.Opponents.Count(bidder => bidder.IsActiveForLot), Is.EqualTo(3));
             auction.Tick(1000f);
             Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
@@ -304,7 +308,7 @@ namespace AuctionGame.Auction.Tests
             Click("Retry Button");
             Assert.That(preparation.SelectedNews, Is.SameAs(edition));
             Assert.That(preparation.DailyPlan, Is.SameAs(plan));
-            Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(1000));
+            Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(400));
             Assert.That(auction.Results, Is.Empty);
             settings.Update();
             settings.FindProperty("paceAiInteractions").boolValue = false;
@@ -327,17 +331,29 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction.Results.Select(result => result.itemId), Is.EqualTo(plan.Lots.Select(item => item.ItemId)));
             Assert.That(auction.Results.Select(result => result.finalPrice), Is.All.EqualTo(10));
             Assert.That(auction.Economy.Purchases.Select(purchase => purchase.Variant), Is.EqualTo(plan.Lots));
-            Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(1000 - 10 * plan.Lots.Count));
+            Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(400 - 10 * plan.Lots.Count));
             yield return GameIntroTestDriver.OpenFinalReport(true);
             Assert.That(report.Report.Purchases, Has.Count.EqualTo(plan.Lots.Count));
             Assert.That(report.Report.TotalProfit, Is.EqualTo(plan.TotalTrueValue - 10 * plan.Lots.Count));
-            Assert.That(report.Report.TargetProfit, Is.EqualTo(50));
+            Assert.That(report.Report.TargetProfit, Is.EqualTo(25));
             var bar = Object.FindFirstObjectByType<AuctionPurchaseBar>(FindObjectsInactive.Include);
             Assert.That(bar.GetComponentsInChildren<Image>(true).Where(image => image.enabled).Select(image => image.sprite),
                 Is.EqualTo(plan.Lots.Select(item => item.Sprite)));
-            Assert.That(auction.Economy.Purchases.Select(purchase => purchase.item), Is.EqualTo(plan.Lots));
-            Click("Continue Button");
-            Assert.That(GameObject.Find("Level Completion"), Is.Not.Null);
+            Assert.That(preparation.HighestUnlockedDay, Is.EqualTo(2));
+            var continueButton = GameObject.Find("Continue Button").GetComponent<Button>();
+            continueButton.onClick.Invoke();
+            continueButton.onClick.Invoke();
+            Assert.That(report.Report, Is.Null);
+            Assert.That(preparation.CurrentDay, Is.EqualTo(2));
+            Assert.That(preparation.DailyPlan, Is.Not.SameAs(plan));
+            Assert.That(preparation.DailyPlan.Lots.Count, Is.InRange(4, 6));
+            Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(500));
+            Assert.That(auction.Economy.Purchases, Is.Empty);
+            yield return GameIntroTestDriver.OpenNewsFromIntro();
+            yield return GameIntroTestDriver.ReadBroadcast();
+            foreach (var bidder in auction.Opponents)
+                Assert.That(bidder.AvailableBudget, Is.EqualTo(
+                    Math.Round(bidder.Personality.StartingBudget * 0.85m, MidpointRounding.AwayFromZero)));
             yield return new ExitPlayMode();
         }
 

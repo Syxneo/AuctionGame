@@ -29,6 +29,8 @@ namespace AuctionGame.Auction
         private RectTransform view;
         private RectTransform endReportParent;
         private bool awaitingCall;
+        private bool continuing;
+        private TMP_Text continueError;
 
         public AuctionReport Report { get; private set; }
 
@@ -55,7 +57,9 @@ namespace AuctionGame.Auction
             if (Report != null || awaitingCall)
                 return;
 
-            var snapshot = new AuctionReport(auction.Economy.Purchases, level.ProfitTarget);
+            var snapshot = new AuctionReport(auction.Economy.Purchases, preparation ? preparation.ProfitTarget : level.ProfitTarget);
+            if (snapshot.Succeeded && preparation)
+                preparation.RecordSuccess();
             auctionPanel.gameObject.SetActive(false);
             RemoveView();
             if (endPresentation && endPresentation.isActiveAndEnabled)
@@ -318,6 +322,42 @@ namespace AuctionGame.Auction
 
         private void Continue()
         {
+            if (Report == null || !Report.Succeeded || continuing)
+                return;
+
+            if (preparation && preparation.CampaignDayCount > 0)
+            {
+                continuing = true;
+                try
+                {
+                    if (!preparation.TryContinueCampaign(out string error))
+                    {
+                        if (error != null && endReportParent)
+                        {
+                            if (!continueError)
+                                continueError = PortraitLabel(Anchor("Campaign Error", view, .08f, .003f, .92f, .065f),
+                                    "", 18, Loss);
+                            continueError.text = error;
+                        }
+                        return;
+                    }
+
+                    if (!preparation.CampaignCompleted)
+                    {
+                        Report = null;
+                        auctionPanel.gameObject.SetActive(true);
+                    }
+                    RemoveView();
+                    endReportParent = null;
+                }
+                finally
+                {
+                    // Keep the final report snapshot, even after leaving its presentation.
+                    continuing = preparation.CampaignCompleted;
+                }
+                return;
+            }
+
             RemoveView();
             if (endReportParent)
             {

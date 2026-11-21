@@ -15,7 +15,7 @@ namespace AuctionGame.Auction
         public enum Stage
         {
             StartScreen, IncomingCall, SaleConversation, TransitionToNews, Completed,
-            EndIncomingCall, EndConversation, EndTransition, EndReport
+            EndIncomingCall, EndConversation, EndTransition, EndReport, CampaignComplete
         }
         private enum Speaker { Sale, Player }
 
@@ -67,7 +67,7 @@ namespace AuctionGame.Auction
         public Stage CurrentStage { get; private set; } = Stage.Completed;
 
         private PreparationPhase preparation;
-        private MvpAuctionLevel level;
+
         private AudioSource audioSource;
         private Canvas canvas;
         private RectTransform view;
@@ -205,10 +205,9 @@ namespace AuctionGame.Auction
             fade.gameObject.SetActive(false);
         }
 
-        internal void ShowStart(PreparationPhase owner, MvpAuctionLevel currentLevel, int order)
+        internal void ShowStart(PreparationPhase owner, int order)
         {
             preparation = owner;
-            level = currentLevel;
             showEndReport = null;
             StopAllCoroutines();
             if (!canvas)
@@ -217,6 +216,9 @@ namespace AuctionGame.Auction
             fade.gameObject.SetActive(false);
             canvas.gameObject.SetActive(true);
             Open(Stage.StartScreen);
+            if (owner.CampaignDayCount > 0)
+                Caption(Box("Campaign Day", safe, .08f, .12f, .92f, .18f),
+                    $"DAY {owner.CurrentDay} / {owner.CampaignDayCount}", 28);
             Art("Auction Frenzy Logo", Box("Logo", safe, .07f, .40f, .93f, .84f), logo,
                 "DRAŽOBNÁ HORÚČKA\n[zástupca loga]");
             var play = AddButton("HRAŤ!", Box("PLAY", safe, .06f, .19f, .94f, .41f), Play);
@@ -231,6 +233,18 @@ namespace AuctionGame.Auction
                 label.fontStyle = FontStyles.Bold;
                 label.fontSize = 56;
             }
+        }
+
+        internal void ShowCampaignComplete(int order)
+        {
+            StopAllCoroutines();
+            if (!canvas)
+                Build(order);
+            audioSource.Stop();
+            fade.gameObject.SetActive(false);
+            canvas.gameObject.SetActive(true);
+            Open(Stage.CampaignComplete);
+            Caption(Box("Campaign Complete", safe, .08f, .40f, .92f, .60f), "CAMPAIGN COMPLETE", 44);
         }
 
         private void Build(int order)
@@ -311,7 +325,15 @@ namespace AuctionGame.Auction
                 audioSource.PlayOneShot(pickupClick);
             Open(Stage.SaleConversation);
             next = 0;
-            messages = dialogue.OrderBy(message => message.order).ToArray();
+            var custom = preparation.SaleDialogue?.Where(line => !string.IsNullOrWhiteSpace(line)).ToArray();
+            messages = custom is { Length: > 0 }
+                ? custom.Select((line, index) => new Message(Speaker.Sale, index, line)).ToArray()
+                : dialogue.OrderBy(message => message.order).ToArray();
+            if (preparation.CampaignDayCount > 0 &&
+                !messages.Any(message => message.speaker == Speaker.Sale &&
+                    message.text.Contains("{budget}") && message.text.Contains("{profit}")))
+                messages = messages.Append(new Message(Speaker.Sale, messages.Length,
+                    "Máš {budget}. Dosiahni aspoň {profit} zisku.")).ToArray();
             var advance = AddButton("", PreparationUi.Fill("Advance Conversation", view), Advance);
             advance.targetGraphic.color = Color.clear;
             advance.transform.SetAsFirstSibling();
@@ -373,7 +395,7 @@ namespace AuctionGame.Auction
         }
 
         private string Format(string value) =>
-            value.Replace("{budget}", Dollars(level.StartingBudget)).Replace("{profit}", Dollars(level.ProfitTarget));
+            value.Replace("{budget}", Dollars(preparation.StartingBudget)).Replace("{profit}", Dollars(preparation.ProfitTarget));
 
         private static string Dollars(int value) =>
             "$" + value.ToString("N0", CultureInfo.GetCultureInfo("en-US"));

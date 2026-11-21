@@ -9,13 +9,76 @@ namespace AuctionGame.Auction
         internal const int MinLotCount = 4;
 
         internal static DailyRunPlan Generate(IReadOnlyList<AuctionItem> possibleItems, int dailyValueCap,
-            int seed, IReadOnlyList<NewspaperEntry> newspaperEntries)
+            int seed, IReadOnlyList<NewspaperEntry> newspaperEntries, int minLots = MinLotCount, int maxLots = 0)
         {
             if (dailyValueCap <= 0)
                 throw new InvalidOperationException("Daily Value Cap must be positive.");
-            if (possibleItems == null || possibleItems.Count < MinLotCount)
-                throw new InvalidOperationException($"Possible Items must contain at least {MinLotCount} unique variants.");
+            if (minLots < 1 || maxLots < 0 || (maxLots != 0 && maxLots < minLots))
+                throw new InvalidOperationException("Invalid daily lot limits.");
+            if (possibleItems == null || possibleItems.Count < minLots)
+                throw new InvalidOperationException($"Possible Items must contain at least {minLots} unique variants.");
 
+            var articles = ValidateCatalog(possibleItems, newspaperEntries);
+
+            var remaining = possibleItems.OrderBy(item => item.ItemId, StringComparer.Ordinal).ToList();
+            var byValue = remaining.OrderBy(item => item.TrueValue).ToList();
+            if (byValue.Take(minLots).Sum(item => (long)item.TrueValue) > dailyValueCap)
+                throw new InvalidOperationException($"The {minLots} cheapest variants exceed Daily Value Cap ${dailyValueCap}.");
+
+            var random = new Random(seed);
+            int lotLimit = maxLots == 0 ? possibleItems.Count :
+                random.Next(minLots, Math.Min(maxLots, possibleItems.Count) + 1);
+            var selected = new List<AuctionItem>();
+            int budget = dailyValueCap;
+            while (selected.Count < lotLimit)
+            {
+                int neededAfterPick = Math.Max(0, minLots - selected.Count - 1);
+                var fitting = remaining.Where(item => item.TrueValue <= budget && (neededAfterPick == 0 ||
+                    byValue.Where(other => other != item).Take(neededAfterPick)
+                        .Sum(other => (long)other.TrueValue) <= budget - item.TrueValue)).ToArray();
+                if (fitting.Length == 0)
+                    break;
+
+                AuctionItem pick = fitting[random.Next(fitting.Length)];
+                selected.Add(pick);
+                remaining.Remove(pick);
+                byValue.Remove(pick);
+                budget -= pick.TrueValue;
+            }
+
+            for (int index = selected.Count - 1; index > 0; index--)
+            {
+                int other = random.Next(index + 1);
+                (selected[index], selected[other]) = (selected[other], selected[index]);
+            }
+
+            return BuildPlan(seed, selected, dailyValueCap, articles);
+        }
+
+        internal static DailyRunPlan Restore(IReadOnlyList<AuctionItem> catalog, CampaignDay day, int seed,
+            IReadOnlyList<string> lotIds, IReadOnlyList<NewspaperEntry> newspaperEntries)
+        {
+            var articles = ValidateCatalog(catalog, newspaperEntries);
+            var byId = catalog.ToDictionary(item => item.ItemId, StringComparer.Ordinal);
+            var lots = new List<AuctionItem>(lotIds.Count);
+            foreach (string id in lotIds)
+            {
+                if (string.IsNullOrEmpty(id) || !byId.TryGetValue(id, out AuctionItem item))
+                    throw new InvalidOperationException($"Saved daily variant '{id}' is unavailable.");
+                lots.Add(item);
+            }
+
+            if (lots.Sum(item => (long)item.TrueValue) > day.DailyValueLimit)
+                throw new InvalidOperationException("The saved daily plan exceeds the daily value limit.");
+            var plan = BuildPlan(seed, lots, day.DailyValueLimit, articles);
+            if (!day.Accepts(plan, catalog))
+                throw new InvalidOperationException("The saved daily plan is invalid for this campaign day.");
+            return plan;
+        }
+
+        private static Dictionary<AuctionItemType, NewspaperEntry> ValidateCatalog(
+            IReadOnlyList<AuctionItem> possibleItems, IReadOnlyList<NewspaperEntry> newspaperEntries)
+        {
             var articles = new Dictionary<AuctionItemType, NewspaperEntry>();
             foreach (NewspaperEntry entry in newspaperEntries)
             {
@@ -43,36 +106,12 @@ namespace AuctionGame.Auction
                     throw new InvalidOperationException($"Missing newspaper article for '{typeId}'.");
             }
 
-            var remaining = possibleItems.OrderBy(item => item.ItemId, StringComparer.Ordinal).ToList();
-            var byValue = remaining.OrderBy(item => item.TrueValue).ToList();
-            if (byValue.Take(MinLotCount).Sum(item => (long)item.TrueValue) > dailyValueCap)
-                throw new InvalidOperationException($"The {MinLotCount} cheapest variants exceed Daily Value Cap ${dailyValueCap}.");
+            return articles;
+        }
 
-            var random = new Random(seed);
-            var selected = new List<AuctionItem>();
-            int budget = dailyValueCap;
-            while (true)
-            {
-                int neededAfterPick = Math.Max(0, MinLotCount - selected.Count - 1);
-                var fitting = remaining.Where(item => item.TrueValue <= budget && (neededAfterPick == 0 ||
-                    byValue.Where(other => other != item).Take(neededAfterPick)
-                        .Sum(other => (long)other.TrueValue) <= budget - item.TrueValue)).ToArray();
-                if (fitting.Length == 0)
-                    break;
-
-                AuctionItem pick = fitting[random.Next(fitting.Length)];
-                selected.Add(pick);
-                remaining.Remove(pick);
-                byValue.Remove(pick);
-                budget -= pick.TrueValue;
-            }
-
-            for (int index = selected.Count - 1; index > 0; index--)
-            {
-                int other = random.Next(index + 1);
-                (selected[index], selected[other]) = (selected[other], selected[index]);
-            }
-
+        private static DailyRunPlan BuildPlan(int seed, IReadOnlyList<AuctionItem> selected, int dailyValueCap,
+            IReadOnlyDictionary<AuctionItemType, NewspaperEntry> articles)
+        {
             var seenFamilies = new HashSet<AuctionItemType>();
             var edition = selected.Where(item => seenFamilies.Add(item.ItemType)).Select(item => articles[item.ItemType]);
             return new DailyRunPlan(seed, selected, dailyValueCap, edition);

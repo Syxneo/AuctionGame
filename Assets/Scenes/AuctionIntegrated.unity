@@ -4310,6 +4310,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.PreparationPhase
   intro: {fileID: 1471185899}
   level: {fileID: 11400000, guid: a9287539f8cc417e9bdda2d5b9e4f547, type: 2}
+  useCampaign: 1
   useValueCappedGeneration: 1
   useFixedDailySeed: 0
   fixedDailySeed: 0

@@ -97,3 +97,55 @@ MonoBehaviour:
     familyFallbackBody: "Divadelné múzeum vystavuje čarodejnícke plášte. Kostyméri pri prehliadke upozorňujú na farbu látky, opakujúce sa vzory a spôsob, akým je plášť zapnutý."
     headline: "Plášť dvorného čarodejníka."
     bodyText: "Z hradnej pokladnice sa stratil tmavomodrý plášť so žltými hviezdami. Patril vraj poslednému dvornému mágovi."
+  campaignGenerationAttempts: 32
+  campaignDays:
+  - title: Welcome to the Auction
+    focus: Tutorial
+    narrativeTone: Showman / Comedy
+    startingBudget: 400
+    dailyValueLimit: 600
+    profitTarget: 25
+    aiBudgetMultiplier: 0.70
+    minLots: 3
+    maxLots: 4
+    saleDialogue: []
+  - title: Learning the Market
+    focus: Item Evaluation
+    narrativeTone: Salesman / Dark Comedy
+    startingBudget: 500
+    dailyValueLimit: 900
+    profitTarget: 60
+    aiBudgetMultiplier: 0.85
+    minLots: 4
+    maxLots: 6
+    saleDialogue: []
+  - title: Know Your Rivals
+    focus: AI Competition
+    narrativeTone: Manipulator / Suspicion
+    startingBudget: 650
+    dailyValueLimit: 1200
+    profitTarget: 100
+    aiBudgetMultiplier: 1.00
+    minLots: 4
+    maxLots: 8
+    saleDialogue: []
+  - title: High Stakes
+    focus: Economic Pressure
+    narrativeTone: Owner / Psychological Unease
+    startingBudget: 800
+    dailyValueLimit: 1550
+    profitTarget: 180
+    aiBudgetMultiplier: 1.10
+    minLots: 4
+    maxLots: 0
+    saleDialogue: []
+  - title: Everything Is for Sale
+    focus: Grand Finale
+    narrativeTone: True SALE / Psychological Horror
+    startingBudget: 950
+    dailyValueLimit: 1900
+    profitTarget: 300
+    aiBudgetMultiplier: 1.20
+    minLots: 4
+    maxLots: 0
+    saleDialogue: []
