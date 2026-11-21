@@ -22,8 +22,22 @@ namespace AuctionGame.Auction
         [SerializeField] private Button tenButton;
         [SerializeField] private Button twentyFiveButton;
         [SerializeField] private Button fiftyButton;
+        [SerializeField] private bool mobileHud;
 
         private static readonly Color Placeholder = new(0.15f, 0.24f, 0.30f);
+        private TMP_Text tenCaption;
+        private TMP_Text twentyFiveCaption;
+        private TMP_Text fiftyCaption;
+
+        private void Awake()
+        {
+            if (!mobileHud)
+                return;
+
+            tenCaption = tenButton.GetComponentInChildren<TMP_Text>(true);
+            twentyFiveCaption = twentyFiveButton.GetComponentInChildren<TMP_Text>(true);
+            fiftyCaption = fiftyButton.GetComponentInChildren<TMP_Text>(true);
+        }
 
         private void OnEnable()
         {
@@ -84,7 +98,8 @@ namespace AuctionGame.Auction
             category.text = item ? string.Join(", ", item.Categories) : "";
             category.gameObject.SetActive(!itemImage.sprite && category.text.Length > 0);
             itemName.text = item ? item.ItemName : "Auction";
-            highestBid.text = item ? $"Current bid  ${manager.CurrentPrice}" : "";
+            string price = $"${manager.CurrentPrice}";
+            highestBid.text = !item ? "" : mobileHud ? price : $"Current bid  {price}";
             highestBidder.text = $"Leading bidder  {manager.GetBidderDisplayName(manager.HighestBidderId)}";
             if (opponentNames)
                 opponentNames.text = string.Join("   ·   ", manager.Opponents.Select(opponent => opponent.Personality.Name));
@@ -92,6 +107,13 @@ namespace AuctionGame.Auction
             SetButton(tenButton, item, AuctionManager.MinimumOpeningBid);
             SetButton(twentyFiveButton, item, AuctionManager.MediumIncrement);
             SetButton(fiftyButton, item, AuctionManager.HighIncrement);
+            if (mobileHud)
+            {
+                string prefix = string.IsNullOrEmpty(manager.HighestBidderId) ? "$" : "+$";
+                tenCaption.text = prefix + AuctionManager.MinimumOpeningBid;
+                twentyFiveCaption.text = prefix + AuctionManager.MediumIncrement;
+                fiftyCaption.text = prefix + AuctionManager.HighIncrement;
+            }
 
             status.text = manager.State switch
             {
@@ -105,7 +127,8 @@ namespace AuctionGame.Auction
 
             var lines = new StringBuilder();
             var bids = manager.BidHistory;
-            for (int index = bids.Count - 1; index >= Mathf.Max(0, bids.Count - 6); index--)
+            int historyLength = mobileHud ? 1 : 6;
+            for (int index = bids.Count - 1; index >= Mathf.Max(0, bids.Count - historyLength); index--)
             {
                 BidRecord bid = bids[index];
                 lines.Append($"{manager.GetBidderDisplayName(bid.bidderId)}  ${bid.amount}");
