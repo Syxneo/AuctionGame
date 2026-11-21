@@ -54,3 +54,6 @@ MonoBehaviour:
   - category: 11
     interest: 10
     accuracy: 35
+  bidComments:
+  - That’s my last bid. Probably.
+  - I wouldn’t go much higher if I were you.

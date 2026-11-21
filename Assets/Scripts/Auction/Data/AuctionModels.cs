@@ -36,15 +36,17 @@ namespace AuctionGame.Auction
         public readonly string bidderId;
         public readonly int amount;
         public readonly double biddingElapsed;
+        public readonly string comment;
         public readonly long sequence;
         public readonly int increment;
 
-        internal BidRecord(string itemId, string bidderId, int amount, double biddingElapsed, long sequence, int increment)
+        internal BidRecord(string itemId, string bidderId, int amount, double biddingElapsed, string comment, long sequence, int increment)
         {
             this.itemId = itemId;
             this.bidderId = bidderId;
             this.amount = amount;
             this.biddingElapsed = biddingElapsed;
+            this.comment = comment;
             this.sequence = sequence;
             this.increment = increment;
         }

@@ -21,12 +21,14 @@ namespace AuctionGame.Auction
         [SerializeField, Range(0, 100)] private int overestimateBias = 50;
         [SerializeField, Range(0, 100)] private int intimidationResistance = 50;
         [SerializeField] private CategoryProfile[] categoryProfiles = Array.Empty<CategoryProfile>();
+        [SerializeField] private string[] bidComments = Array.Empty<string>();
 
         public string Name => string.IsNullOrWhiteSpace(bidderName) ? name : bidderName;
         internal string DialogueProfileId => dialogueProfileId;
         public int StartingBudget => Math.Max(0, startingBudget);
         public int OverestimateBias => Math.Clamp(overestimateBias, 0, 100);
         public int IntimidationResistance => Math.Clamp(intimidationResistance, 0, 100);
+        public IReadOnlyList<string> BidComments => bidComments;
 
         internal (int interest, int accuracy) GetEffectiveProfile(IReadOnlyList<ItemCategory> categories)
         {

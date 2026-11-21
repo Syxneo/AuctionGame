@@ -24,7 +24,9 @@ namespace AuctionGame.Auction
     {
         private readonly Random interestRandom;
         private readonly Random evaluationRandom;
+        private readonly Random commentRandom;
         private readonly Random intimidationRandom;
+        private readonly Random reactionRandom;
         private readonly List<AIPurchase> purchases = new();
         private long lastHandledBidSequence;
 
@@ -35,10 +37,12 @@ namespace AuctionGame.Auction
         public int EstimatedValue { get; private set; }
         public int EffectiveInterest { get; private set; }
         public int EffectiveAccuracy { get; private set; }
+        public bool HasUsedLastBid { get; private set; }
         public bool HasChickenedOut { get; private set; }
         public IReadOnlyList<AIPurchase> Purchases { get; }
         public long TotalProfit { get; private set; }
-        internal int BidLimit => HasChickenedOut ? 0 : Math.Min(EstimatedValue, AvailableBudget);
+        internal double NextDecision { get; private set; }
+        internal int BidLimit => HasUsedLastBid || HasChickenedOut ? 0 : AvailableBudget;
 
         internal AIBidder(string id, AIPersonality personality, int seed)
         {
@@ -50,21 +54,27 @@ namespace AuctionGame.Auction
             var seeds = new Random(seed);
             evaluationRandom = new Random(seeds.Next());
             interestRandom = new Random(seeds.Next());
-            // Retain the former comment seed slot so seeded intimidation stays reproducible.
-            seeds.Next();
+            commentRandom = new Random(seeds.Next());
             intimidationRandom = new Random(seeds.Next());
+            reactionRandom = new Random(seeds.Next());
         }
 
-        internal void BeginItem(AuctionItem item)
+        internal void SchedulePlayerBidReaction(double elapsed, double minDelay, double maxDelay) =>
+            NextDecision = elapsed + minDelay + ((maxDelay - minDelay) * reactionRandom.NextDouble());
+
+        internal void BeginItem(AuctionItem item, double interval)
         {
             (EffectiveInterest, EffectiveAccuracy) = Personality.GetEffectiveProfile(item.Categories);
             EstimatedValue = AIEvaluation.Estimate(item.TrueValue, EffectiveAccuracy, Personality.OverestimateBias, evaluationRandom);
+            HasUsedLastBid = false;
             HasChickenedOut = false;
             lastHandledBidSequence = 0;
+            NextDecision = interval;
         }
 
         internal void Decide(AuctionManager auction)
         {
+            NextDecision = auction.BiddingElapsed + auction.DecisionInterval;
             int amount = auction.GetNextBidAmount();
             if (amount == 0 || !auction.CanPlaceBid(Id, amount))
             {
@@ -104,6 +114,18 @@ namespace AuctionGame.Auction
 
         internal void LogEvaluation(AuctionManager auction) =>
             auction.LogAuctionDebug($"{Personality.Name} evaluation | estimate={EstimatedValue} | Interest={EffectiveInterest}% | Accuracy={EffectiveAccuracy}% | budget={AvailableBudget}");
+
+        internal void RecordAcceptedBid(int amount)
+        {
+            if (amount > EstimatedValue)
+                HasUsedLastBid = true;
+        }
+
+        internal string GetBidComment()
+        {
+            IReadOnlyList<string> comments = Personality.BidComments;
+            return comments.Count == 0 ? "" : comments[commentRandom.Next(comments.Count)];
+        }
 
         internal void RecordWin(AuctionItem item, int price)
         {

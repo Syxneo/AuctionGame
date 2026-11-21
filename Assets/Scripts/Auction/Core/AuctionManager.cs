@@ -14,6 +14,9 @@ namespace AuctionGame.Auction
         [SerializeField] private int randomSeed = 1729;
         [SerializeField] private bool enableAutomaticAi = true;
         [SerializeField] private bool enableAuctionDebugLog;
+        [SerializeField] private bool enableAiDialogueLog = true;
+        [SerializeField, Min(0)] private float aiDialogueCooldown = 4;
+        [SerializeField] private TextAsset aiDialogueLibrary;
         [SerializeField, Min(0.01f)] private float aiDecisionInterval = 3;
         [SerializeField, Min(0.01f)] private float aiPlayerBidMinReactionDelay = 0.5f;
         [SerializeField, Min(0.01f)] private float aiPlayerBidMaxReactionDelay = 2f;
@@ -59,6 +62,7 @@ namespace AuctionGame.Auction
             ? aiDecisionInterval : 3;
         private AIBidder[] opponents = Array.Empty<AIBidder>();
         private IReadOnlyList<AuctionItem> lots;
+        private AuctionDialogue dialogue;
         private ItemDatabase catalog;
 
         public event Action<AuctionItem> OnItemChanged;
@@ -124,6 +128,10 @@ namespace AuctionGame.Auction
             catalog = fullCatalog;
             auctionTick = 0;
             bidSequence = 0;
+            dialogue = enableAiDialogueLog
+                ? new AuctionDialogue(this, aiDialogueLibrary ? aiDialogueLibrary :
+                    Resources.Load<TextAsset>("Auction/AiDialogue"), randomSeed, aiDialogueCooldown)
+                : null;
 
             var random = new System.Random(randomSeed);
             opponents = new AIBidder[personalities.Length];
@@ -216,6 +224,7 @@ namespace AuctionGame.Auction
                                 if (enableAuctionDebugLog)
                                     opponent.LogEvaluation(this);
                             }
+                            dialogue?.OpenLot(itemIndex + 1, opponents);
                             SetState(AuctionState.Bidding);
                             break;
                         case AuctionState.Bidding:
@@ -260,6 +269,7 @@ namespace AuctionGame.Auction
             publishingBid = true;
             try
             {
+                dialogue?.AcceptedBid(bid, opponents);
                 OnBidPlaced?.Invoke(bid);
             }
             finally
@@ -282,6 +292,8 @@ namespace AuctionGame.Auction
 
         internal void LogAuctionDebug(string message) =>
             Debug.Log($"[Auction Debug] lot {itemIndex + 1} ({CurrentItem.ItemId}) | tick {auctionTick} | frame {Time.frameCount} | t={BiddingElapsed:F3}s | {message}", this);
+
+        internal void NotifyChickenOut(AIBidder bidder) => dialogue?.ChickenOut(bidder, BiddingElapsed);
 
         public bool CanPlaceBid(string bidderId, int amount)
         {
@@ -357,13 +369,16 @@ namespace AuctionGame.Auction
                 return;
 
             var result = new AuctionResult(CurrentItem.ItemId, HighestBidderId, CurrentPrice);
+            AIBidder winner = FindOpponent(result.winnerId);
             if (result.winnerId == BidderIds.Player)
                 Economy.RecordPurchase(CurrentItem, result.finalPrice);
-            else if (result.sold)
-                FindOpponent(result.winnerId).RecordWin(CurrentItem, result.finalPrice);
+            else
+                winner?.RecordWin(CurrentItem, result.finalPrice);
 
             results.Add(result);
+            double settledAt = elapsed;
             SetState(result.sold ? AuctionState.Sold : AuctionState.Unsold);
+            dialogue?.EndLot(result, winner, settledAt);
             OnAuctionEnded?.Invoke(result);
         }
 

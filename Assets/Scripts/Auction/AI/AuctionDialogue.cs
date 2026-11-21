@@ -142,9 +142,9 @@ namespace AuctionGame.Auction
                     continue;
 
                 Hint hint = Classify(bidder, auction.CurrentPrice, amount);
-                // Compare the first observed bid with the opening-price state.
+                // Before the first bid, the lot is unpriced and an AI bidder can open at the minimum.
                 if (!lastHints.TryGetValue(bidder.Id, out Hint previous))
-                    previous = Classify(bidder, auction.CurrentItem.StartingPrice, auction.CurrentItem.StartingPrice);
+                    previous = Classify(bidder, 0, AuctionManager.MinimumOpeningBid);
                 lastHints[bidder.Id] = hint;
                 if (previous == hint || (lastReactions.TryGetValue(bidder.Id, out double last) &&
                     bid.biddingElapsed - last < cooldown) || FindLines(bidder.Id, ReactionKey(hint)) == null)
