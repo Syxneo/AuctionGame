@@ -1091,6 +1091,10 @@ PrefabInstance:
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5607788505613797669, guid: ce0f513917ec2654da2b6041980b46d0, type: 3}
+      propertyPath: inactiveBidderShader
+      value:
+      objectReference: {fileID: 4800000, guid: 6d837b439a034e479a7fde4e2bb4cc59, type: 3}
+    - target: {fileID: 5607788505613797669, guid: ce0f513917ec2654da2b6041980b46d0, type: 3}
       propertyPath: bidders.Array.data[0].bidderId
       value: helena
       objectReference: {fileID: 0}

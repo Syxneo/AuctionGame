@@ -35,6 +35,9 @@ namespace AuctionGame.Auction.Tests
             Assert.That(hudImage.GetComponentInParent<Canvas>(true).targetDisplay, Is.Zero);
             var bindings = presenterData.FindProperty("bidders");
             Assert.That(bindings.arraySize, Is.EqualTo(5));
+            var inactiveShader = (Shader)presenterData.FindProperty("inactiveBidderShader").objectReferenceValue;
+            Assert.That(inactiveShader, Is.Not.Null);
+            Assert.That(ShaderUtil.ShaderHasError(inactiveShader), Is.False);
             var secondaryWasActive = Display.displays.Length > 1 && Display.displays[1].active;
             var managerData = new SerializedObject(auction);
             managerData.FindProperty("enableAutomaticAi").boolValue = false;
@@ -70,7 +73,7 @@ namespace AuctionGame.Auction.Tests
                 toCamera.y = 0f;
                 Assert.That(Vector3.Dot(-visual.transform.forward, toCamera.normalized), Is.GreaterThan(0.999f));
                 AssertInPortrait(camera, visual);
-                CheckBidderOpacity(auction, bindings);
+                CheckBidderAppearance(auction, bindings, inactiveShader);
 
                 auction.Tick(AuctionManager.RevealDuration);
                 if (lot == lots[0])
@@ -80,9 +83,16 @@ namespace AuctionGame.Auction.Tests
                     Click("+$10 Button");
                     Assert.That(auction.CurrentPrice, Is.EqualTo(10));
                     var opponent = auction.Opponents.First(bidder => bidder.IsActiveForLot && bidder.EstimatedValue >= 115);
+                    var opponentSprite = GetBidderSprite(bindings, auction.Opponents.ToList().IndexOf(opponent));
+                    Vector3 restingScale = opponentSprite.transform.localScale;
                     Assert.That(auction.TryPlaceBid(opponent.Id, 20), Is.True);
+                    UpdateCharacters(presenter, 0.5);
+                    Assert.That(opponentSprite.transform.localScale.x, Is.GreaterThan(restingScale.x));
+                    Assert.That(opponentSprite.color.b, Is.LessThan(opponentSprite.color.r));
                     Click("+$25 Button");
                     Assert.That(auction.CurrentPrice, Is.EqualTo(45));
+                    UpdateCharacters(presenter, 0.5);
+                    Assert.That(opponentSprite.transform.localScale, Is.EqualTo(restingScale));
                     Assert.That(auction.TryPlaceBid(opponent.Id, 55), Is.True);
                     Click("+$50 Button");
                     Assert.That(auction.CurrentPrice, Is.EqualTo(105));
@@ -92,7 +102,22 @@ namespace AuctionGame.Auction.Tests
                     typeof(AIBidder).GetProperty(nameof(AIBidder.HasChickenedOut)).SetValue(withdrawing, true);
                     typeof(AuctionManager).GetMethod("NotifyChickenOut", BindingFlags.Instance | BindingFlags.NonPublic)
                         .Invoke(auction, new object[] { withdrawing });
-                    CheckBidderOpacity(auction, bindings);
+                    UpdateCharacters(presenter, 0.6);
+                    CheckBidderAppearance(auction, bindings, inactiveShader);
+                    var inactiveSprite = GetBidderSprite(bindings, auction.Opponents.ToList().IndexOf(withdrawing));
+                    Vector3 inactivePosition = inactiveSprite.transform.localPosition;
+                    Vector3 activePosition = opponentSprite.transform.localPosition;
+                    Quaternion activeRotation = opponentSprite.transform.localRotation;
+                    bool hopped = false;
+                    bool swayed = false;
+                    for (int sample = 1; sample <= 8; sample++)
+                    {
+                        UpdateCharacters(presenter, 0.6 + sample * 0.35);
+                        Assert.That(inactiveSprite.transform.localPosition, Is.EqualTo(inactivePosition));
+                        hopped |= opponentSprite.transform.localPosition != activePosition;
+                        swayed |= opponentSprite.transform.localRotation != activeRotation;
+                    }
+                    Assert.That(hopped && swayed, Is.True);
                 }
 
                 auction.Tick(auction.RemainingTime + 2.01f);
@@ -111,12 +136,19 @@ namespace AuctionGame.Auction.Tests
             Click("Start Auction");
             Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
             Assert.That(auction.Opponents.Select(bidder => bidder.AvailableBudget), Is.All.EqualTo(600));
-            CheckBidderOpacity(auction, bindings);
+            CheckBidderAppearance(auction, bindings, inactiveShader);
             Assert.That(Display.displays.Length > 1 && Display.displays[1].active, Is.EqualTo(secondaryWasActive));
             yield return new ExitPlayMode();
         }
 
-        private static void CheckBidderOpacity(AuctionManager auction, SerializedProperty bindings)
+        private static SpriteRenderer GetBidderSprite(SerializedProperty bindings, int index) =>
+            (SpriteRenderer)bindings.GetArrayElementAtIndex(index).FindPropertyRelative("sprite").objectReferenceValue;
+
+        private static void UpdateCharacters(BidderDialoguePresenter presenter, double time) =>
+            typeof(BidderDialoguePresenter).GetMethod("UpdateCharacters", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(presenter, new object[] { time });
+
+        private static void CheckBidderAppearance(AuctionManager auction, SerializedProperty bindings, Shader inactiveShader)
         {
             Assert.That(auction.Opponents.Count(bidder => bidder.IsActiveForLot), Is.EqualTo(3));
             for (int index = 0; index < bindings.arraySize; index++)
@@ -124,7 +156,7 @@ namespace AuctionGame.Auction.Tests
                 var binding = bindings.GetArrayElementAtIndex(index);
                 var bidder = auction.Opponents[index];
                 Assert.That(binding.FindPropertyRelative("bidderId").stringValue, Is.EqualTo(bidder.Id));
-                var sprite = (SpriteRenderer)binding.FindPropertyRelative("sprite").objectReferenceValue;
+                var sprite = GetBidderSprite(bindings, index);
                 Assert.That(sprite && sprite.sprite && sprite.enabled && sprite.gameObject.activeInHierarchy, Is.True);
                 var camera = Camera.main;
                 camera.aspect = 9f / 16f;
@@ -134,8 +166,9 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(head.z, Is.GreaterThan(camera.nearClipPlane), bidder.Id);
                 Assert.That(head.x, Is.InRange(0f, 1f), bidder.Id);
                 Assert.That(head.y, Is.InRange(0f, 1f), bidder.Id);
-                Assert.That(sprite.color.a, Is.EqualTo(bidder.IsActiveForLot && !bidder.HasChickenedOut ? 1f : 0.4f)
-                    .Within(0.001f));
+                Assert.That(sprite.color.a, Is.EqualTo(1f).Within(0.001f));
+                Assert.That(sprite.sharedMaterial.shader == inactiveShader,
+                    Is.EqualTo(!bidder.IsActiveForLot || bidder.HasChickenedOut), bidder.Id);
             }
         }
 

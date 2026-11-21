@@ -26,6 +26,12 @@ namespace AuctionGame.Auction
             public bool Replacing { get; set; }
             public Vector2 Anchor { get; set; }
             public Vector2 Destination { get; set; }
+            public AIBidder Bidder { get; set; }
+            public Material OriginalMaterial { get; set; }
+            public Color OriginalColor { get; set; }
+            public Vector3 RestPosition { get; set; }
+            public Quaternion RestRotation { get; set; }
+            public Vector3 RestScale { get; set; }
         }
 
         [SerializeField] private AuctionManager auction;
@@ -36,6 +42,11 @@ namespace AuctionGame.Auction
         [SerializeField] private Binding[] bidders = Array.Empty<Binding>();
         [SerializeField] private bool enableDialogueUi = true;
         [SerializeField] private bool showParticipation;
+        [SerializeField] private Shader inactiveBidderShader;
+        [SerializeField, Min(0)] private float swayDegrees = 2.5f;
+        [SerializeField, Min(0)] private float hopHeight = 0.08f;
+        [SerializeField, Min(1)] private float leaderScale = 1.07f;
+        [SerializeField] private Color leaderTint = new(1f, 0.89f, 0.65f);
         [SerializeField, Min(20)] private float maxWidth = 260;
         [SerializeField, Min(20)] private float minWidth = 140;
         [SerializeField, Min(0)] private float verticalOffset = 24;
@@ -60,6 +71,7 @@ namespace AuctionGame.Auction
         private readonly List<Rect> occupied = new();
         private Sprite frame;
         private Sprite arrow;
+        private Material inactiveMaterial;
 
         private void Awake()
         {
@@ -71,8 +83,19 @@ namespace AuctionGame.Auction
 
             frame = CreateSprite(true);
             arrow = CreateSprite(false);
+            if (showParticipation && inactiveBidderShader)
+                inactiveMaterial = new Material(inactiveBidderShader);
             foreach (Binding binding in bidders)
             {
+                if (showParticipation && binding.sprite)
+                {
+                    binding.OriginalMaterial = binding.sprite.sharedMaterial;
+                    binding.OriginalColor = binding.sprite.color;
+                    Transform character = binding.sprite.transform;
+                    binding.RestPosition = character.localPosition;
+                    binding.RestRotation = character.localRotation;
+                    binding.RestScale = character.localScale;
+                }
                 binding.Bubble = bubblePrefab ? Instantiate(bubblePrefab, canvas.transform, false)
                     : new GameObject(binding.bidderId + " Bubble", typeof(RectTransform), typeof(BidderSpeechBubble))
                         .GetComponent<BidderSpeechBubble>();
@@ -91,9 +114,8 @@ namespace AuctionGame.Auction
             auction.OnAuctionPhaseFinished += Clear;
             if (showParticipation)
             {
-                auction.OnStateChanged += ResetParticipation;
-                auction.OnBidderChickenedOut += DimBidder;
-                if (auction.State != AuctionState.Idle)
+                auction.OnStateChanged += ClearParticipation;
+                if (auction.CurrentItem)
                     UpdateParticipation();
             }
         }
@@ -106,8 +128,8 @@ namespace AuctionGame.Auction
             auction.OnItemChanged -= ClearForLot;
             auction.OnAuctionEnded -= EndLot;
             auction.OnAuctionPhaseFinished -= Clear;
-            auction.OnStateChanged -= ResetParticipation;
-            auction.OnBidderChickenedOut -= DimBidder;
+            auction.OnStateChanged -= ClearParticipation;
+            ClearParticipation(AuctionState.Idle);
             Clear();
         }
 
@@ -120,6 +142,8 @@ namespace AuctionGame.Auction
             }
             Release(frame);
             Release(arrow);
+            if (inactiveMaterial)
+                Destroy(inactiveMaterial);
         }
 
         private static void Release(Sprite sprite)
@@ -139,32 +163,59 @@ namespace AuctionGame.Auction
 
         private void UpdateParticipation()
         {
-            foreach (AIBidder bidder in auction.Opponents)
-                SetOpacity(bidder.Id, bidder.IsActiveForLot && !bidder.HasChickenedOut ? 1f : 0.4f);
+            foreach (Binding binding in bidders)
+            {
+                binding.Bidder = null;
+                foreach (AIBidder bidder in auction.Opponents)
+                {
+                    if (binding.bidderId == bidder.Id)
+                    {
+                        binding.Bidder = bidder;
+                        break;
+                    }
+                }
+            }
+            UpdateCharacters(Time.timeAsDouble);
         }
 
-        private void DimBidder(AIBidder bidder) => SetOpacity(bidder.Id, 0.4f);
-
-        private void ResetParticipation(AuctionState state)
+        private void ClearParticipation(AuctionState state)
         {
-            if (state != AuctionState.Idle)
+            if (!showParticipation || (state != AuctionState.Idle && state != AuctionState.Finished))
                 return;
 
             foreach (Binding binding in bidders)
-                SetOpacity(binding, 1f);
+                binding.Bidder = null;
+            UpdateCharacters(Time.timeAsDouble);
         }
 
-        private void SetOpacity(string bidderId, float opacity) =>
-            SetOpacity(Array.Find(bidders, binding => binding.bidderId == bidderId), opacity);
-
-        private static void SetOpacity(Binding binding, float opacity)
+        private void UpdateCharacters(double now)
         {
-            if (binding == null || !binding.sprite)
-                return;
+            bool animate = auction.State is AuctionState.ItemReveal or AuctionState.Bidding;
+            for (int index = 0; index < bidders.Length; index++)
+            {
+                Binding binding = bidders[index];
+                if (!binding.sprite)
+                    continue;
 
-            Color color = binding.sprite.color;
-            color.a = opacity;
-            binding.sprite.color = color;
+                bool inactive = binding.Bidder != null &&
+                    (!binding.Bidder.IsActiveForLot || binding.Bidder.HasChickenedOut);
+                bool moving = animate && binding.Bidder != null && !inactive;
+                bool leading = !inactive && binding.Bidder != null && binding.bidderId == auction.HighestBidderId;
+                Material material = inactive && inactiveMaterial ? inactiveMaterial : binding.OriginalMaterial;
+                if (binding.sprite.sharedMaterial != material)
+                    binding.sprite.sharedMaterial = material;
+                Color color = leading ? binding.OriginalColor * leaderTint : binding.OriginalColor;
+                color.a = binding.OriginalColor.a;
+                binding.sprite.color = color;
+
+                float phase = (float)(now * 2.2 + index * 1.35);
+                float sway = moving ? swayDegrees * Mathf.Sin(phase) : 0f;
+                float hop = moving ? hopHeight * Mathf.Pow(Mathf.Max(0f, Mathf.Sin(phase * 1.5f)), 2f) : 0f;
+                Transform character = binding.sprite.transform;
+                character.localPosition = binding.RestPosition + Vector3.up * hop;
+                character.localRotation = binding.RestRotation * Quaternion.Euler(0f, 0f, sway);
+                character.localScale = binding.RestScale * (leading ? leaderScale : 1f);
+            }
         }
 
         private void Clear()
@@ -259,7 +310,12 @@ namespace AuctionGame.Auction
         private void SetText(Binding binding, string line) =>
             binding.Bubble.SetText(line, Mathf.Min(minWidth, maxWidth), maxWidth, textPadding, maxTextLines);
 
-        private void LateUpdate() => Render(Time.unscaledTimeAsDouble, Time.unscaledDeltaTime);
+        private void LateUpdate()
+        {
+            if (showParticipation)
+                UpdateCharacters(Time.timeAsDouble);
+            Render(Time.unscaledTimeAsDouble, Time.unscaledDeltaTime);
+        }
 
         private void Render(double now, float delta)
         {
