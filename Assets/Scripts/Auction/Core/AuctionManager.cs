@@ -379,6 +379,7 @@ namespace AuctionGame.Auction
             }
 
             int previousPrice = CurrentPrice;
+            float previousRemainingTime = RemainingTime;
             // Only raises contribute to intimidation. An opening bid establishes the first price.
             int increment = HighestBidderId.Length == 0 ? 0 : amount - previousPrice;
             CurrentPrice = amount;
@@ -389,7 +390,7 @@ namespace AuctionGame.Auction
             AIBidder bidder = FindOpponent(bidderId);
             bidder?.RecordAcceptedBid(amount);
             var bid = new BidRecord(CurrentItem.ItemId, bidderId, amount, elapsed,
-                bidder?.GetBidComment() ?? "", ++bidSequence, increment);
+                bidder?.GetBidComment() ?? "", ++bidSequence, increment, RemainingTime > previousRemainingTime);
             bidHistory.Add(bid);
             if (paceAiInteractions)
                 ScheduleBidReactions(bidderId == BidderIds.Player);

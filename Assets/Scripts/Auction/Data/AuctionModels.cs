@@ -39,8 +39,9 @@ namespace AuctionGame.Auction
         public readonly string comment;
         public readonly long sequence;
         public readonly int increment;
+        internal readonly bool extendedTimer;
 
-        internal BidRecord(string itemId, string bidderId, int amount, double biddingElapsed, string comment, long sequence, int increment)
+        internal BidRecord(string itemId, string bidderId, int amount, double biddingElapsed, string comment, long sequence, int increment, bool extendedTimer = false)
         {
             this.itemId = itemId;
             this.bidderId = bidderId;
@@ -49,6 +50,7 @@ namespace AuctionGame.Auction
             this.comment = comment;
             this.sequence = sequence;
             this.increment = increment;
+            this.extendedTimer = extendedTimer;
         }
     }
 

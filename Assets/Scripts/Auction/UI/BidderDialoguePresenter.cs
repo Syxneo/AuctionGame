@@ -119,18 +119,25 @@ namespace AuctionGame.Auction
             return bubble;
         }
 
-        internal bool PlaceSaleBubble(BidderSpeechBubble bubble, SpriteRenderer sprite)
+        internal bool PlaceSaleBubble(BidderSpeechBubble bubble, SpriteRenderer sprite,
+            bool inFront = false, bool prioritize = false)
         {
             if (!canvas || !canvas.isActiveAndEnabled || canvas.targetDisplay != 0 || !sceneCamera)
                 return false;
 
             var canvasRect = (RectTransform)canvas.transform;
             Camera canvasCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
-            if (!TryProject(sprite, canvasRect, canvasCamera, out Vector2 anchor))
+            if (!TryProject(sprite, canvasRect, canvasCamera, out Vector2 anchor, inFront ? .45f : 1f))
                 return false;
 
             Rect safe = SafeRect(canvasRect, canvasCamera);
             Vector2 size = bubble.Rect.sizeDelta;
+            if (inFront)
+            {
+                bubble.Rect.anchoredPosition = ClampCenter(anchor + new Vector2(56f, 42f), size, safe);
+                bubble.HidePointer();
+                return true;
+            }
             Vector2 preferred = anchor + Vector2.up * (verticalOffset + size.y / 2);
             for (float lift = 0; lift <= maxVerticalShift; lift += 8f)
             {
@@ -143,7 +150,48 @@ namespace AuctionGame.Auction
                 bubble.DrawPointer(anchor);
                 return true;
             }
-            return false;
+
+            if (!prioritize)
+                return false;
+
+            bubble.Rect.anchoredPosition = ClampCenter(preferred, size, safe);
+            bubble.DrawPointer(anchor);
+            return true;
+        }
+
+        internal bool PlaceBudgetBubble(BidderSpeechBubble bubble, RectTransform dock)
+        {
+            if (!canvas || !canvas.isActiveAndEnabled || canvas.targetDisplay != 0)
+                return false;
+
+            var canvasRect = (RectTransform)canvas.transform;
+            Camera canvasCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            Vector2 dockTop = RectTransformUtility.WorldToScreenPoint(null,
+                dock.TransformPoint(new Vector3(dock.rect.xMax, dock.rect.yMax)));
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, dockTop, canvasCamera, out Vector2 top))
+                return false;
+
+            Rect safe = SafeRect(canvasRect, canvasCamera);
+            Vector2 size = bubble.Rect.sizeDelta;
+            Vector2 center = new(safe.xMax - size.x / 2, top.y - canvasRect.rect.center.y + size.y / 2 + 12f);
+            bubble.Rect.anchoredPosition = ClampCenter(center, size, safe);
+            bubble.HidePointer();
+            return true;
+        }
+
+        internal bool PlacePodiumLabel(BidderSpeechBubble bubble, Vector3 worldAnchor)
+        {
+            if (!canvas || !canvas.isActiveAndEnabled || canvas.targetDisplay != 0 || !sceneCamera)
+                return false;
+
+            var canvasRect = (RectTransform)canvas.transform;
+            Camera canvasCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            if (!TryProject(worldAnchor, canvasRect, canvasCamera, out Vector2 anchor))
+                return false;
+
+            bubble.Rect.anchoredPosition = ClampCenter(anchor, bubble.Rect.sizeDelta, SafeRect(canvasRect, canvasCamera));
+            bubble.HidePointer();
+            return true;
         }
 
         private bool OverlapsBidderBubble(Rect body)
@@ -493,14 +541,22 @@ namespace AuctionGame.Auction
                 max.x - screenEdgePadding, max.y - screenEdgePadding);
         }
 
-        private bool TryProject(SpriteRenderer sprite, RectTransform canvasRect, Camera canvasCamera, out Vector2 anchor)
+        private bool TryProject(SpriteRenderer sprite, RectTransform canvasRect, Camera canvasCamera,
+            out Vector2 anchor, float anchorHeight = 1f)
         {
             anchor = default;
             if (!sprite || !sprite.enabled || !sprite.gameObject.activeInHierarchy)
                 return false;
 
             Bounds bounds = sprite.bounds;
-            Vector3 screen = sceneCamera.WorldToScreenPoint(new Vector3(bounds.center.x, bounds.max.y, bounds.center.z));
+            float y = Mathf.Lerp(bounds.min.y, bounds.max.y, anchorHeight);
+            return TryProject(new Vector3(bounds.center.x, y, bounds.center.z), canvasRect, canvasCamera, out anchor);
+        }
+
+        private bool TryProject(Vector3 worldAnchor, RectTransform canvasRect, Camera canvasCamera, out Vector2 anchor)
+        {
+            anchor = default;
+            Vector3 screen = sceneCamera.WorldToScreenPoint(worldAnchor);
             if (!(screen.z >= sceneCamera.nearClipPlane && screen.z <= sceneCamera.farClipPlane &&
                 sceneCamera.pixelRect.Contains((Vector2)screen) &&
                 RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, canvasCamera, out anchor)))

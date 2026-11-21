@@ -49,8 +49,11 @@ namespace AuctionGame.Auction
         [SerializeField] private AnimationCurve ease = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
         public bool IsPlaying { get; private set; }
+        internal bool IsStageRevealed => curtainsOpen &&
+            (resultFinished == null || resultElapsed < curtainCloseDelay);
         internal event Action CurtainMovementStarted;
 
+        private bool curtainsOpen;
         private Camera resultCamera;
         private Pose startLocalPose;
         private Pose startWorldPose;
@@ -71,7 +74,10 @@ namespace AuctionGame.Auction
             if (playIntroOnStart)
                 PlayIntro();
             else
+            {
                 ApplyPose(1f);
+                curtainsOpen = true;
+            }
         }
 
         /// <summary>Camera pans out from cameraZStart to cameraZEnd while the curtains open.</summary>
@@ -92,6 +98,7 @@ namespace AuctionGame.Auction
             StopAllCoroutines();
             IsPlaying = false;
             ApplyPose(1f);
+            curtainsOpen = true;
         }
 
         internal bool PlayResult(Vector3 podiumPosition, Action<bool> setVisible, Action onFinished)
@@ -211,6 +218,7 @@ namespace AuctionGame.Auction
         {
             if (IsPlaying) yield break;
             IsPlaying = true;
+            curtainsOpen = false;
 
             ApplyPose(from);
             if (delay > 0f) yield return new WaitForSeconds(delay);
@@ -226,6 +234,7 @@ namespace AuctionGame.Auction
                 yield return null;
             }
             ApplyPose(to);
+            curtainsOpen = to == 1f;
 
             IsPlaying = false;
             if (!string.IsNullOrEmpty(sceneAfter))

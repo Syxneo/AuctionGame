@@ -335,6 +335,7 @@ namespace AuctionGame.Auction.Tests
             var bar = Object.FindFirstObjectByType<AuctionPurchaseBar>(FindObjectsInactive.Include);
             Assert.That(bar.GetComponentsInChildren<Image>(true).Where(image => image.enabled).Select(image => image.sprite),
                 Is.EqualTo(plan.Lots.Select(item => item.Sprite)));
+            Assert.That(auction.Economy.Purchases.Select(purchase => purchase.item), Is.EqualTo(plan.Lots));
             Click("Continue Button");
             Assert.That(GameObject.Find("Level Completion"), Is.Not.Null);
             yield return new ExitPlayMode();

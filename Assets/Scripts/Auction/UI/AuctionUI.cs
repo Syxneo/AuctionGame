@@ -18,6 +18,8 @@ namespace AuctionGame.Auction
         [SerializeField] private TMP_Text timer;
         [SerializeField] private RectTransform timerProgress;
         [SerializeField] private TMP_Text budget;
+        [SerializeField] private BidderDialoguePresenter dialogue;
+        [SerializeField] private RectTransform bidDock;
         [SerializeField] private TMP_Text history;
         [SerializeField] private TMP_Text status;
         [SerializeField] private Button tenButton;
@@ -29,9 +31,13 @@ namespace AuctionGame.Auction
         private TMP_Text tenCaption;
         private TMP_Text twentyFiveCaption;
         private TMP_Text fiftyCaption;
+        private BidderSpeechBubble budgetBubble;
+        private CanvasGroup hudGroup;
+        private int displayedBudget = -1;
 
         private void Awake()
         {
+            hudGroup = GetComponent<CanvasGroup>();
             ButtonClickAudio.Bind(tenButton);
             ButtonClickAudio.Bind(twentyFiveButton);
             ButtonClickAudio.Bind(fiftyButton);
@@ -59,6 +65,9 @@ namespace AuctionGame.Auction
 
         private void OnDisable()
         {
+            if (budgetBubble)
+                budgetBubble.Hide();
+
             if (!manager)
                 return;
 
@@ -68,6 +77,23 @@ namespace AuctionGame.Auction
             tenButton.onClick.RemoveListener(BidTen);
             twentyFiveButton.onClick.RemoveListener(BidTwentyFive);
             fiftyButton.onClick.RemoveListener(BidFifty);
+        }
+
+        private void OnDestroy()
+        {
+            if (budgetBubble)
+                Destroy(budgetBubble.gameObject);
+        }
+
+        private void LateUpdate()
+        {
+            if (!budgetBubble)
+                return;
+
+            bool visible = manager && manager.CurrentItem &&
+                manager.State is AuctionState.ItemReveal or AuctionState.Bidding or AuctionState.Sold or AuctionState.Unsold;
+            budgetBubble.gameObject.SetActive(visible && (!hudGroup || hudGroup.alpha > 0) &&
+                dialogue.PlaceBudgetBubble(budgetBubble, bidDock));
         }
 
         private void StateChanged(AuctionState state) => Refresh();
@@ -92,7 +118,8 @@ namespace AuctionGame.Auction
         private void UpdateClock()
         {
             float remaining = manager.RemainingTime;
-            timer.SetText("{0:0}s", Mathf.CeilToInt(remaining));
+            if (timer)
+                timer.SetText("{0:0}s", Mathf.CeilToInt(remaining));
             if (timerProgress)
                 timerProgress.anchorMax = new Vector2(Mathf.Clamp01(remaining / AuctionManager.InitialBiddingTime), 0f);
         }
@@ -108,7 +135,8 @@ namespace AuctionGame.Auction
             }
             category.text = item ? string.Join(", ", item.Categories.Select(category => category.DisplayName())) : "";
             category.gameObject.SetActive(!sprite && category.text.Length > 0);
-            itemName.text = item ? item.ItemName : "Dražba";
+            if (itemName)
+                itemName.text = item ? item.ItemName : "Dražba";
             string price = $"${manager.CurrentPrice}";
             if (highestBid)
                 highestBid.text = !item ? "" : mobileHud ? price : $"Aktuálna ponuka  {price}";
@@ -116,7 +144,7 @@ namespace AuctionGame.Auction
                 highestBidder.text = $"Vedúci dražiteľ  {manager.GetBidderDisplayName(manager.HighestBidderId)}";
             if (opponentNames)
                 opponentNames.text = string.Join("   ·   ", manager.Opponents.Select(opponent => opponent.Personality.Name));
-            budget.text = $"Rozpočet  ${manager.Economy.AvailableBudget}";
+            RefreshBudget();
             SetButton(tenButton, item, AuctionManager.MinimumOpeningBid);
             SetButton(twentyFiveButton, item, AuctionManager.MediumIncrement);
             SetButton(fiftyButton, item, AuctionManager.HighIncrement);
@@ -155,6 +183,25 @@ namespace AuctionGame.Auction
             }
             history.text = lines.Length == 0 ? "Zatiaľ žiadne ponuky" : lines.ToString().TrimEnd();
             UpdateClock();
+        }
+
+        private void RefreshBudget()
+        {
+            int amount = manager.Economy.AvailableBudget;
+            string caption = $"Rozpočet  ${amount}";
+            if (budget)
+                budget.text = caption;
+            if (!dialogue || !bidDock || amount == displayedBudget)
+                return;
+
+            if (!budgetBubble)
+                budgetBubble = dialogue.CreateBubble("Player Budget Bubble");
+            if (!budgetBubble)
+                return;
+
+            budgetBubble.SetSingleLine(caption, 145, 250, 12, 28f);
+            budgetBubble.Group.alpha = 1f;
+            displayedBudget = amount;
         }
 
         private static string Plural(int count, string one, string few, string many) =>

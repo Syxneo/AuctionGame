@@ -83,6 +83,16 @@ namespace AuctionGame.Auction
             label.rectTransform.sizeDelta = Rect.sizeDelta - Vector2.one * (2 * padding);
         }
 
+        internal void SetSingleLine(string text, float minWidth, float maxWidth, float padding, float fontSize)
+        {
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.enableAutoSizing = true;
+            label.fontSizeMin = 1f;
+            label.fontSizeMax = fontSize;
+            label.fontSize = fontSize;
+            SetText(text, minWidth, maxWidth, padding, 1);
+        }
+
         internal void DrawPointer(Vector2 anchor)
         {
             Vector2 toward = anchor - Rect.anchoredPosition;
@@ -95,6 +105,10 @@ namespace AuctionGame.Auction
             pointer.rectTransform.sizeDelta = new Vector2(pointerWidth, direction.magnitude);
             pointer.rectTransform.localRotation = Quaternion.Euler(0, 0, Mathf.Atan2(-direction.x, direction.y) * Mathf.Rad2Deg);
         }
+
+        internal void SetBackgroundColor(Color color) => background.color = color;
+
+        internal void HidePointer() => pointer.enabled = false;
 
         internal void Hide()
         {

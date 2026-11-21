@@ -16,6 +16,10 @@ namespace AuctionGame.Auction
 
         private SpriteRenderer sprite;
         private BidderSpeechBubble bubble;
+        private BidderSpeechBubble priceBubble;
+        private int displayedPrice = -1;
+        private int countdown;
+        private double priceAnnouncementUntil;
         private Vector3 restPosition;
         private Quaternion restRotation;
         private Vector3 restScale;
@@ -48,6 +52,7 @@ namespace AuctionGame.Auction
             auction.OnItemChanged += Introduce;
             auction.OnBidPlaced += ReactToBid;
             auction.OnAiDialogue += ReceiveResultLine;
+            auction.OnClockChanged += UpdateCountdown;
             ChangeState(auction.State);
         }
 
@@ -59,8 +64,11 @@ namespace AuctionGame.Auction
                 auction.OnItemChanged -= Introduce;
                 auction.OnBidPlaced -= ReactToBid;
                 auction.OnAiDialogue -= ReceiveResultLine;
+                auction.OnClockChanged -= UpdateCountdown;
             }
             ResetPresentation();
+            if (priceBubble)
+                priceBubble.Hide();
             sprite.enabled = false;
         }
 
@@ -68,6 +76,8 @@ namespace AuctionGame.Auction
         {
             if (bubble)
                 Destroy(bubble.gameObject);
+            if (priceBubble)
+                Destroy(priceBubble.gameObject);
         }
 
         private void ChangeState(AuctionState state)
@@ -75,6 +85,8 @@ namespace AuctionGame.Auction
             ResetPresentation();
             sprite.enabled = state is AuctionState.ItemReveal or AuctionState.Bidding
                 or AuctionState.Sold or AuctionState.Unsold;
+            if (!sprite.enabled && priceBubble)
+                priceBubble.Hide();
             if (state == AuctionState.Idle || state == AuctionState.ItemReveal)
             {
                 nextBidComment = 0;
@@ -96,11 +108,70 @@ namespace AuctionGame.Auction
             double now = Time.unscaledTimeAsDouble;
             bool player = bid.bidderId == BidderIds.Player;
             int bidsFromSide = player ? ++playerBids : ++aiBids;
-            if (bidsFromSide % 2 != 0 || now < nextBidComment || (now < ends && mandatory))
+            if (bid.extendedTimer)
+            {
+                countdown = 0;
+                priceAnnouncementUntil = auction.BiddingElapsed + 0.65;
+                Speak($"Óóó, nová cena je ${bid.amount}!", true);
+                ends = double.PositiveInfinity;
+                return;
+            }
+
+            countdown = 0;
+            UpdateCountdown();
+            if (auction.RemainingTime <= AuctionManager.AntiSnipingTime ||
+                bidsFromSide % 2 != 0 || now < nextBidComment || (now < ends && mandatory))
                 return;
 
             Speak(player ? "Odvážna ponuka! Kto sa pridá?" : "Napätie stúpa. To sa mi páči!", false);
             nextBidComment = now + bidCooldown;
+        }
+
+        private void UpdateCountdown()
+        {
+            if (auction.BiddingElapsed < priceAnnouncementUntil)
+                return;
+            priceAnnouncementUntil = 0;
+
+            float remaining = auction.RemainingTime;
+            int seconds = auction.State == AuctionState.Bidding && remaining > 0f &&
+                remaining <= AuctionManager.AntiSnipingTime ? Mathf.CeilToInt(remaining) : 0;
+            if (seconds == countdown)
+                return;
+
+            countdown = seconds;
+            if (seconds == 0)
+            {
+                ClearBubble();
+                return;
+            }
+
+            string call = seconds switch
+            {
+                3 => "po prvé",
+                2 => "po druhé",
+                _ => "po tretie"
+            };
+            Speak($"${auction.CurrentPrice} {call}!", true);
+            ends = double.PositiveInfinity;
+        }
+
+        private void ShowPrice()
+        {
+            if (!auction || !dialogue)
+                return;
+            if (!priceBubble)
+                priceBubble = dialogue.CreateBubble("SALE Price");
+            if (!priceBubble)
+                return;
+
+            if (displayedPrice != auction.CurrentPrice)
+            {
+                displayedPrice = auction.CurrentPrice;
+                priceBubble.SetText("$" + displayedPrice, 100, 155, 10, 1);
+            }
+            priceBubble.gameObject.SetActive(dialogue.PlaceSaleBubble(priceBubble, sprite, inFront: true));
+            priceBubble.Group.alpha = 1f;
         }
 
         private void ReceiveResultLine(string bidderId, string category, string line)
@@ -128,7 +199,7 @@ namespace AuctionGame.Auction
                 return;
 
             bubble.Hide();
-            bubble.SetText(line, 180, 260, 12, 5);
+            bubble.SetSingleLine(line, 150, 440, 12, 34f);
             started = Time.unscaledTimeAsDouble;
             ends = started + (required ? 2.8 : 1.5);
             mandatory = required;
@@ -146,6 +217,8 @@ namespace AuctionGame.Auction
         private void ResetPresentation()
         {
             ClearBubble();
+            countdown = 0;
+            priceAnnouncementUntil = 0;
             effectEnds = 0;
             ResultLine = null;
             CurrentPose = Pose.Idle;
@@ -163,11 +236,13 @@ namespace AuctionGame.Auction
             if (!sprite.enabled)
                 return;
 
+            ShowPrice();
             double now = Time.unscaledTimeAsDouble;
             bool speaking = false;
             if (bubble && now < ends)
             {
-                speaking = dialogue && dialogue.PlaceSaleBubble(bubble, sprite);
+                speaking = dialogue && dialogue.PlaceSaleBubble(bubble, sprite,
+                    prioritize: countdown > 0 || priceAnnouncementUntil > 0);
                 bubble.gameObject.SetActive(speaking);
                 if (speaking)
                 {

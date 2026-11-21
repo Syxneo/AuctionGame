@@ -8,10 +8,13 @@ namespace AuctionGame.Auction
     {
         [SerializeField] private AuctionManager auction;
         [SerializeField] private Camera hallCamera;
+        [SerializeField] private BidderDialoguePresenter dialogue;
+        [SerializeField] private SceneIntroOutro stage;
         [SerializeField] private Vector2 maximumSize = new(3.8f, 4.8f);
 
         private SpriteRenderer visual;
         private Vector3 bottomCenter;
+        private BidderSpeechBubble nameBubble;
 
         private void Awake() => visual = GetComponent<SpriteRenderer>();
 
@@ -35,16 +38,37 @@ namespace AuctionGame.Auction
             }
 
             visual.enabled = false;
+            if (nameBubble)
+                nameBubble.Hide();
+        }
+
+        private void OnDestroy()
+        {
+            if (nameBubble)
+                Destroy(nameBubble.gameObject);
         }
 
         private void HandleStateChanged(AuctionState state)
         {
-            if (state == AuctionState.Finished)
+            if (state is AuctionState.Idle or AuctionState.Finished)
                 ShowItem(null);
         }
 
         private void ShowItem(AuctionItem item)
         {
+            if (item && dialogue)
+            {
+                if (!nameBubble)
+                    nameBubble = dialogue.CreateBubble("Podium Item Name");
+                if (nameBubble)
+                {
+                    nameBubble.SetSingleLine(item.ItemName, 120, 270, 10, 27f);
+                    nameBubble.SetBackgroundColor(new Color32(225, 200, 146, 255));
+                }
+            }
+            else if (nameBubble)
+                nameBubble.Hide();
+
             visual.sprite = item ? item.Sprite : null;
             visual.enabled = visual.sprite != null;
             if (!visual.enabled)
@@ -76,6 +100,16 @@ namespace AuctionGame.Auction
         {
             if (visual.enabled)
                 FaceCamera();
+
+            if (!nameBubble)
+                return;
+
+            bool showName = auction && auction.CurrentItem && (!stage || stage.IsStageRevealed) &&
+                auction.State is AuctionState.ItemReveal or AuctionState.Bidding or AuctionState.Sold or AuctionState.Unsold;
+            Vector3 anchor = transform.parent.position + Vector3.down * 1.05f;
+            nameBubble.gameObject.SetActive(showName && dialogue.PlacePodiumLabel(nameBubble, anchor));
+            if (nameBubble.gameObject.activeSelf)
+                nameBubble.Group.alpha = 1f;
         }
 
         private void FaceCamera()
