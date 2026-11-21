@@ -74,6 +74,149 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction.TryPlaceBid(BidderIds.Trickster, 10), Is.True);
         }
 
+        [Test]
+        public void PoolDrawIsSeededWeightedDistinctAndRepeatsForEveryLot()
+        {
+            string Run(int seed, bool useDialogue)
+            {
+                auction = CreateAuction(count: 2, automaticAi: true);
+                ConfigurePool(seed, 600, 600, 600, 600, 600);
+                var settings = new SerializedObject(auction);
+                settings.FindProperty("aiDialogueLibrary").objectReferenceValue = useDialogue
+                    ? Resources.Load<TextAsset>("Auction/AiDialoguePool") : new TextAsset("{}");
+                if (!useDialogue)
+                    objects.Add(settings.FindProperty("aiDialogueLibrary").objectReferenceValue);
+                settings.ApplyModifiedPropertiesWithoutUndo();
+                var draws = new List<string>();
+                auction.OnItemChanged += _ =>
+                {
+                    var active = auction.Opponents.Where(bidder => bidder.IsActiveForLot).ToArray();
+                    Assert.That(auction.Opponents, Has.Count.EqualTo(5));
+                    Assert.That(active.Select(bidder => bidder.Id).Distinct().Count(), Is.EqualTo(3));
+                    var weight = typeof(AuctionManager).GetMethod("ParticipationWeight", BindingFlags.Static | BindingFlags.NonPublic);
+                    foreach (var bidder in auction.Opponents)
+                        Assert.That(weight.Invoke(null, new object[] { bidder }), Is.EqualTo(10 + bidder.EffectiveInterest));
+                    draws.Add(string.Join(",", active.Select(bidder => bidder.Id)));
+                };
+                Assert.That(auction.StartAuction(), Is.True);
+                auction.Tick(100);
+                Assert.That(draws, Has.Count.EqualTo(2));
+                return string.Join(";", draws.Concat(auction.Results.Select(result => $"{result.winnerId}:{result.finalPrice}")));
+            }
+
+            string initial = Run(1729, true);
+            Assert.That(Run(1729, true), Is.EqualTo(initial));
+            Assert.That(Run(1729, false), Is.EqualTo(initial));
+            var selections = Enumerable.Range(1, 8).Select(seed => Run(seed, true).Split(';').Take(2).ToArray())
+                .ToArray();
+            Assert.That(selections.Select(draws => draws[0]).Distinct().Count(), Is.GreaterThan(1));
+            Assert.That(selections.Any(draws => draws[0] != draws[1]), Is.True);
+        }
+
+        [Test]
+        public void PoolBudgetEligibilityPersistsAndRetryRebuildsPool()
+        {
+            auction = CreateAuction(count: 2);
+            ConfigurePool(1729, 10, 10, 9, 0, 1);
+            Assert.That(auction.StartAuction(), Is.True);
+            Assert.That(ActivePoolIds(), Is.EqualTo(new[] { "helena", "ferko" }));
+            Assert.That(auction.Opponents[0].EffectiveInterest, Is.Zero);
+            auction.Tick(AuctionManager.RevealDuration);
+            Assert.That(auction.TryPlaceBid("viktor", 10), Is.False);
+            Assert.That(auction.TryPlaceBid("helena", 10), Is.True);
+            auction.Tick(17);
+            Assert.That(auction.Opponents[0].AvailableBudget, Is.Zero);
+            Assert.That(ActivePoolIds(), Is.EqualTo(new[] { "ferko" }));
+            auction.Tick(30);
+            Assert.That(auction.RestartAuction(), Is.True);
+            Assert.That(ActivePoolIds(), Is.EqualTo(new[] { "helena", "ferko" }));
+            Assert.That(auction.Opponents[0].AvailableBudget, Is.EqualTo(10));
+
+            auction = CreateAuction();
+            ConfigurePool(1729, 0, 1, 2, 3, 9);
+            BeginBidding();
+            Assert.That(ActivePoolIds(), Is.Empty);
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 10), Is.True);
+        }
+
+        [Test]
+        public void PoolOnlyActiveBiddersSpeakAndChickenOutDoesNotSelectAReplacement()
+        {
+            auction = CreateAuction(value: 100);
+            ConfigurePool(1729, 600, 600, 600, 600, 600);
+            foreach (int index in Enumerable.Range(0, 5))
+            {
+                var profile = GetPersonalitySettings(index);
+                profile.FindProperty("intimidationResistance").intValue = 0;
+                SetProfile(profile, ItemCategory.Historical, 0, 100);
+            }
+
+            SetIntimidation("highBidIntimidation", 100);
+            var lines = new List<(string id, string group, string line)>();
+            auction.OnAiDialogue += (id, group, line) => lines.Add((id, group, line));
+            BeginBidding();
+            string[] active = ActivePoolIds();
+            Assert.That(lines.Where(line => line.group == "OPENING").Select(line => line.id), Is.EqualTo(active));
+            var suppliedLibrary = Newtonsoft.Json.Linq.JObject.Parse(Resources.Load<TextAsset>("Auction/AiDialoguePool").text);
+            foreach (var line in lines)
+            {
+                var profile = suppliedLibrary["profiles"].Single(profile => (string)profile["id"] == line.id);
+                var group = profile["groups"].Single(group => (string)group["key"] == "interest.very-low");
+                Assert.That(group["lines"].Values<string>(), Does.Contain(line.line));
+            }
+
+            Assert.That(auction.TryPlaceBid(active[0], 10), Is.True);
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 60), Is.True);
+            Assert.That(lines.Any(line => line.group == "BR-02"), Is.True);
+            AIBidder withdrawing = auction.Opponents.First(bidder => bidder.Id == active[0]);
+            Decide(withdrawing);
+            Assert.That(withdrawing.HasChickenedOut, Is.True);
+            Assert.That(ActivePoolIds(), Is.EqualTo(active));
+            Assert.That(auction.TryPlaceBid(withdrawing.Id, 70), Is.False);
+            Assert.That(lines.Where(line => line.group == "WD-01").Select(line => line.id), Is.EqualTo(new[] { withdrawing.Id }));
+            Assert.That(lines.All(line => active.Contains(line.id)), Is.True);
+        }
+
+        [Test]
+        public void PoolRejectsBidsAboveEstimateWithoutUsingLastBid()
+        {
+            auction = CreateAuction(value: 10);
+            ConfigurePool(1729, 600, 600, 600, 600, 600);
+            foreach (int index in Enumerable.Range(0, 5))
+                SetProfile(GetPersonalitySettings(index), ItemCategory.Historical, 0, 100);
+            BeginBidding();
+            var bidder = auction.Opponents.First(opponent => opponent.IsActiveForLot);
+            Assert.That(auction.TryGetMaxBid(bidder.Id, out int maxBid), Is.True);
+            Assert.That(maxBid, Is.EqualTo(10));
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 10), Is.True);
+            Assert.That(auction.TryPlaceBid(bidder.Id, 20), Is.False);
+            Assert.That(bidder.HasUsedLastBid, Is.False);
+        }
+
+        private string[] ActivePoolIds() => auction.Opponents.Where(bidder => bidder.IsActiveForLot)
+            .Select(bidder => bidder.Id).ToArray();
+
+        private void ConfigurePool(int seed, params int[] budgets)
+        {
+            var settings = new SerializedObject(auction);
+            settings.FindProperty("activeBidderLimit").intValue = 3;
+            settings.FindProperty("randomSeed").intValue = seed;
+            settings.FindProperty("aiDialogueLibrary").objectReferenceValue = Resources.Load<TextAsset>("Auction/AiDialoguePool");
+            var slots = settings.FindProperty("bidders");
+            string[] names = { "Helena", "Ferko", "Viktor", "Zuzu", "Grumblewick" };
+            slots.arraySize = names.Length;
+            for (int index = 0; index < names.Length; index++)
+                slots.GetArrayElementAtIndex(index).objectReferenceValue =
+                    Resources.Load<AIPersonality>("Auction/Personalities/" + names[index]);
+            settings.ApplyModifiedPropertiesWithoutUndo();
+            for (int index = 0; index < names.Length; index++)
+            {
+                var profile = GetPersonalitySettings(index);
+                profile.FindProperty("startingBudget").intValue = budgets[index];
+                SetProfile(profile, ItemCategory.Historical, index * 25, 100);
+            }
+        }
+
         [TestCase(10, true)]
         [TestCase(25, true)]
         [TestCase(50, true)]

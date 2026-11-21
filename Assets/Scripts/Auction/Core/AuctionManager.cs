@@ -33,6 +33,7 @@ namespace AuctionGame.Auction
         [SerializeField] private AuctionItem[] items = Array.Empty<AuctionItem>();
         [SerializeField] private ItemDatabase itemDatabase;
         [SerializeField] private AIPersonality[] bidders;
+        [SerializeField, Range(0, 3)] private int activeBidderLimit;
 
         public AuctionState State { get; private set; }
         public AuctionItem CurrentItem { get; private set; }
@@ -61,6 +62,9 @@ namespace AuctionGame.Auction
         internal double DecisionInterval => aiDecisionInterval > 0 && !float.IsInfinity(aiDecisionInterval)
             ? aiDecisionInterval : 3;
         private AIBidder[] opponents = Array.Empty<AIBidder>();
+        private readonly List<AIBidder> activeOpponents = new();
+        private readonly List<AIBidder> eligibleOpponents = new();
+        private System.Random participationRandom;
         private IReadOnlyList<AuctionItem> lots;
         private AuctionDialogue dialogue;
         private ItemDatabase catalog;
@@ -72,6 +76,7 @@ namespace AuctionGame.Auction
         public event Action OnAuctionPhaseFinished;
         public event Action OnClockChanged;
         public event Action<string, string, string> OnAiDialogue;
+        public event Action<AIBidder> OnBidderChickenedOut;
         internal bool DialogueLogEnabled => enableAiDialogueLog;
 
         internal void PublishAiDialogue(string bidderId, string category, string line) =>
@@ -96,6 +101,7 @@ namespace AuctionGame.Auction
                 results.Clear();
                 opponents = Array.Empty<AIBidder>();
                 Opponents = Array.Empty<AIBidder>();
+                activeOpponents.Clear();
                 Economy.ResetLevel();
                 SetState(AuctionState.Idle);
                 return true;
@@ -123,9 +129,11 @@ namespace AuctionGame.Auction
             }
 
             AIPersonality[] personalities = bidders ?? LoadDefaultBidders();
+            var bidderIds = new HashSet<string>(StringComparer.Ordinal) { BidderIds.Player };
             foreach (AIPersonality personality in personalities)
             {
-                if (!personality)
+                if (!personality || (activeBidderLimit > 0 &&
+                    (string.IsNullOrWhiteSpace(personality.DialogueProfileId) || !bidderIds.Add(personality.DialogueProfileId))))
                     return false;
             }
 
@@ -139,7 +147,12 @@ namespace AuctionGame.Auction
             var random = new System.Random(randomSeed);
             opponents = new AIBidder[personalities.Length];
             for (int index = 0; index < personalities.Length; index++)
-                opponents[index] = new AIBidder(BidderIds.ForOpponentIndex(index), personalities[index], random.Next());
+            {
+                AIPersonality personality = personalities[index];
+                string id = activeBidderLimit > 0 ? personality.DialogueProfileId : BidderIds.ForOpponentIndex(index);
+                opponents[index] = new AIBidder(id, personality, random.Next(), activeBidderLimit > 0);
+            }
+            participationRandom = new System.Random(random.Next());
             Opponents = Array.AsReadOnly(opponents);
 
             processingTime = true;
@@ -191,7 +204,7 @@ namespace AuctionGame.Auction
                     AIBidder nextOpponent = null;
                     if (State == AuctionState.Bidding && enableAutomaticAi)
                     {
-                        foreach (AIBidder opponent in opponents)
+                        foreach (AIBidder opponent in activeOpponents)
                         {
                             if (opponent.NextDecision >= boundary)
                                 continue;
@@ -227,7 +240,8 @@ namespace AuctionGame.Auction
                                 if (enableAuctionDebugLog)
                                     opponent.LogEvaluation(this);
                             }
-                            dialogue?.OpenLot(itemIndex + 1, opponents);
+                            if (activeBidderLimit <= 0)
+                                dialogue?.OpenLot(itemIndex + 1, activeOpponents);
                             SetState(AuctionState.Bidding);
                             break;
                         case AuctionState.Bidding:
@@ -272,7 +286,7 @@ namespace AuctionGame.Auction
             publishingBid = true;
             try
             {
-                dialogue?.AcceptedBid(bid, opponents);
+                dialogue?.AcceptedBid(bid, activeOpponents);
                 OnBidPlaced?.Invoke(bid);
             }
             finally
@@ -287,7 +301,7 @@ namespace AuctionGame.Auction
                     ? aiPlayerBidMinReactionDelay : 0.5;
                 double maxDelay = aiPlayerBidMaxReactionDelay >= minDelay && !float.IsInfinity(aiPlayerBidMaxReactionDelay)
                     ? aiPlayerBidMaxReactionDelay : Math.Max(minDelay, 2);
-                foreach (AIBidder opponent in opponents)
+                foreach (AIBidder opponent in activeOpponents)
                     opponent.SchedulePlayerBidReaction(elapsed, minDelay, maxDelay);
             }
             return true;
@@ -296,7 +310,14 @@ namespace AuctionGame.Auction
         internal void LogAuctionDebug(string message) =>
             Debug.Log($"[Auction Debug] lot {itemIndex + 1} ({CurrentItem.ItemId}) | tick {auctionTick} | frame {Time.frameCount} | t={BiddingElapsed:F3}s | {message}", this);
 
-        internal void NotifyChickenOut(AIBidder bidder) => dialogue?.ChickenOut(bidder, BiddingElapsed);
+        internal void NotifyChickenOut(AIBidder bidder)
+        {
+            if (!bidder.IsActiveForLot || !bidder.HasChickenedOut)
+                return;
+
+            dialogue?.ChickenOut(bidder, BiddingElapsed);
+            OnBidderChickenedOut?.Invoke(bidder);
+        }
 
         public bool CanPlaceBid(string bidderId, int amount)
         {
@@ -401,8 +422,51 @@ namespace AuctionGame.Auction
             }
 
             CurrentItem = lots[itemIndex];
+            SelectParticipants();
             SetState(AuctionState.ItemReveal);
             OnItemChanged?.Invoke(CurrentItem);
+            if (activeBidderLimit > 0)
+                dialogue?.OpenLot(itemIndex + 1, activeOpponents);
+        }
+
+        internal static int ParticipationWeight(AIBidder bidder) => 10 + bidder.EffectiveInterest;
+
+        private void SelectParticipants()
+        {
+            activeOpponents.Clear();
+            eligibleOpponents.Clear();
+            int openingBid = GetNextBidAmount();
+            foreach (AIBidder opponent in opponents)
+            {
+                opponent.PrepareItem(CurrentItem);
+                if (activeBidderLimit <= 0)
+                    opponent.IsActiveForLot = true;
+                else if (opponent.AvailableBudget >= openingBid && IsLegalAmount(opponent.Id, openingBid))
+                    eligibleOpponents.Add(opponent);
+            }
+
+            int count = Math.Min(Math.Clamp(activeBidderLimit, 0, 3), eligibleOpponents.Count);
+            for (int draw = 0; draw < count; draw++)
+            {
+                int totalWeight = 0;
+                foreach (AIBidder opponent in eligibleOpponents)
+                    totalWeight += ParticipationWeight(opponent);
+
+                int roll = participationRandom.Next(totalWeight);
+                int selected = 0;
+                while (roll >= ParticipationWeight(eligibleOpponents[selected]))
+                    roll -= ParticipationWeight(eligibleOpponents[selected++]);
+
+                eligibleOpponents[selected].IsActiveForLot = true;
+                eligibleOpponents.RemoveAt(selected);
+            }
+
+            // Retain the existing order for simultaneous AI decisions and dialogue priority.
+            foreach (AIBidder opponent in opponents)
+            {
+                if (opponent.IsActiveForLot)
+                    activeOpponents.Add(opponent);
+            }
         }
 
         private void SetState(AuctionState state)

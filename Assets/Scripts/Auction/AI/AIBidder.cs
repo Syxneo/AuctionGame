@@ -39,15 +39,19 @@ namespace AuctionGame.Auction
         public int EffectiveAccuracy { get; private set; }
         public bool HasUsedLastBid { get; private set; }
         public bool HasChickenedOut { get; private set; }
+        public bool IsActiveForLot { get; internal set; }
         public IReadOnlyList<AIPurchase> Purchases { get; }
         public long TotalProfit { get; private set; }
         internal double NextDecision { get; private set; }
-        internal int BidLimit => HasUsedLastBid || HasChickenedOut ? 0 : AvailableBudget;
+        internal int BidLimit => !IsActiveForLot || HasUsedLastBid || HasChickenedOut ? 0 :
+            limitToEstimate ? Math.Min(EstimatedValue, AvailableBudget) : AvailableBudget;
+        private readonly bool limitToEstimate;
 
-        internal AIBidder(string id, AIPersonality personality, int seed)
+        internal AIBidder(string id, AIPersonality personality, int seed, bool limitToEstimate)
         {
             Id = id;
             Personality = personality;
+            this.limitToEstimate = limitToEstimate;
             StartingBudget = personality.StartingBudget;
             AvailableBudget = StartingBudget;
             Purchases = purchases.AsReadOnly();
@@ -62,13 +66,18 @@ namespace AuctionGame.Auction
         internal void SchedulePlayerBidReaction(double elapsed, double minDelay, double maxDelay) =>
             NextDecision = elapsed + minDelay + ((maxDelay - minDelay) * reactionRandom.NextDouble());
 
-        internal void BeginItem(AuctionItem item, double interval)
+        internal void PrepareItem(AuctionItem item)
         {
             (EffectiveInterest, EffectiveAccuracy) = Personality.GetEffectiveProfile(item.Categories);
-            EstimatedValue = AIEvaluation.Estimate(item.TrueValue, EffectiveAccuracy, Personality.OverestimateBias, evaluationRandom);
+            IsActiveForLot = false;
             HasUsedLastBid = false;
             HasChickenedOut = false;
             lastHandledBidSequence = 0;
+        }
+
+        internal void BeginItem(AuctionItem item, double interval)
+        {
+            EstimatedValue = AIEvaluation.Estimate(item.TrueValue, EffectiveAccuracy, Personality.OverestimateBias, evaluationRandom);
             NextDecision = interval;
         }
 
@@ -117,7 +126,7 @@ namespace AuctionGame.Auction
 
         internal void RecordAcceptedBid(int amount)
         {
-            if (amount > EstimatedValue)
+            if (!limitToEstimate && amount > EstimatedValue)
                 HasUsedLastBid = true;
         }
 

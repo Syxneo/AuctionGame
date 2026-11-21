@@ -35,6 +35,7 @@ namespace AuctionGame.Auction
         [SerializeField] private TMP_FontAsset font;
         [SerializeField] private Binding[] bidders = Array.Empty<Binding>();
         [SerializeField] private bool enableDialogueUi = true;
+        [SerializeField] private bool showParticipation;
         [SerializeField, Min(20)] private float maxWidth = 260;
         [SerializeField, Min(20)] private float minWidth = 140;
         [SerializeField, Min(0)] private float verticalOffset = 24;
@@ -88,6 +89,13 @@ namespace AuctionGame.Auction
             auction.OnItemChanged += ClearForLot;
             auction.OnAuctionEnded += EndLot;
             auction.OnAuctionPhaseFinished += Clear;
+            if (showParticipation)
+            {
+                auction.OnStateChanged += ResetParticipation;
+                auction.OnBidderChickenedOut += DimBidder;
+                if (auction.State != AuctionState.Idle)
+                    UpdateParticipation();
+            }
         }
 
         private void OnDisable()
@@ -98,6 +106,8 @@ namespace AuctionGame.Auction
             auction.OnItemChanged -= ClearForLot;
             auction.OnAuctionEnded -= EndLot;
             auction.OnAuctionPhaseFinished -= Clear;
+            auction.OnStateChanged -= ResetParticipation;
+            auction.OnBidderChickenedOut -= DimBidder;
             Clear();
         }
 
@@ -120,7 +130,42 @@ namespace AuctionGame.Auction
             Destroy(sprite);
         }
 
-        private void ClearForLot(AuctionItem _) => Clear();
+        private void ClearForLot(AuctionItem _)
+        {
+            Clear();
+            if (showParticipation)
+                UpdateParticipation();
+        }
+
+        private void UpdateParticipation()
+        {
+            foreach (AIBidder bidder in auction.Opponents)
+                SetOpacity(bidder.Id, bidder.IsActiveForLot && !bidder.HasChickenedOut ? 1f : 0.4f);
+        }
+
+        private void DimBidder(AIBidder bidder) => SetOpacity(bidder.Id, 0.4f);
+
+        private void ResetParticipation(AuctionState state)
+        {
+            if (state != AuctionState.Idle)
+                return;
+
+            foreach (Binding binding in bidders)
+                SetOpacity(binding, 1f);
+        }
+
+        private void SetOpacity(string bidderId, float opacity) =>
+            SetOpacity(Array.Find(bidders, binding => binding.bidderId == bidderId), opacity);
+
+        private static void SetOpacity(Binding binding, float opacity)
+        {
+            if (binding == null || !binding.sprite)
+                return;
+
+            Color color = binding.sprite.color;
+            color.a = opacity;
+            binding.sprite.color = color;
+        }
 
         private void Clear()
         {

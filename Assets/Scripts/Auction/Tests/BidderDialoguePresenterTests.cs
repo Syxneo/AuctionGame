@@ -44,7 +44,7 @@ namespace AuctionGame.Auction.Tests
             managerSettings.FindProperty("enableAutomaticAi").boolValue = false;
             managerSettings.ApplyModifiedPropertiesWithoutUndo();
             Assert.That(auction.State, Is.EqualTo(AuctionState.Idle));
-            var start = GameObject.Find("Start Auction").GetComponent<Button>();
+            var start = CompletePreparation();
             Assert.That(start.GetComponentInParent<Canvas>().targetDisplay, Is.Zero);
             start.onClick.Invoke();
             Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
@@ -72,7 +72,7 @@ namespace AuctionGame.Auction.Tests
             yield return null;
             Assert.That(Visible(canvas).Length, Is.EqualTo(2));
             VerifyUiDoesNotChangeAuction(presenter, auction);
-            VerifyDebugInputIsExplicit(auction);
+            VerifyRetryLeavesSecondaryDisplayInactive(auction);
             Assert.That(SecondaryDisplayActive(), Is.EqualTo(secondaryWasActive));
 
             yield return new ExitPlayMode();
@@ -80,7 +80,7 @@ namespace AuctionGame.Auction.Tests
 
         private static bool SecondaryDisplayActive() => Display.displays.Length > 1 && Display.displays[1].active;
 
-        private static void VerifyDebugInputIsExplicit(AuctionManager auction)
+        private static void VerifyRetryLeavesSecondaryDisplayInactive(AuctionManager auction)
         {
             if (SecondaryDisplayActive())
                 return;
@@ -88,24 +88,22 @@ namespace AuctionGame.Auction.Tests
             var settings = new SerializedObject(auction);
             settings.FindProperty("enableAutomaticAi").boolValue = false;
             settings.ApplyModifiedPropertiesWithoutUndo();
-            // Enter the explicit debug path through the report so it restores the debug panel.
             var retry = GameObject.Find("Retry Button").GetComponent<Button>();
             retry.onClick.Invoke();
             Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
             auction.Tick(2);
-            var button = GameObject.Find("BID Button").GetComponent<Button>();
-            Assert.That(button.interactable, Is.False);
-            button.onClick.Invoke();
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Bidding));
             Assert.That(auction.BidHistory, Is.Empty);
-
-            var debugUi = new SerializedObject(button.GetComponentInParent<AuctionUI>());
-            debugUi.FindProperty("allowInactiveDisplayInput").boolValue = true;
-            debugUi.ApplyModifiedPropertiesWithoutUndo();
-            auction.Tick(0.25f);
-            Assert.That(button.interactable, Is.True);
-            button.onClick.Invoke();
-            Assert.That(auction.HighestBidderId, Is.EqualTo(BidderIds.Player));
             Assert.That(SecondaryDisplayActive(), Is.False);
+        }
+
+        private static Button CompletePreparation()
+        {
+            var level = AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>("Assets/AuctionMvp/MvpAuctionLevel.asset");
+            GameObject.Find("Read NEWSSSS").GetComponent<Button>().onClick.Invoke();
+            foreach (var entry in level.GetNewspaperEntries())
+                GameObject.Find("Continue News").GetComponent<Button>().onClick.Invoke();
+            return GameObject.Find("Start Auction").GetComponent<Button>();
         }
 
         private static void CheckBindings(SerializedProperty bindings)

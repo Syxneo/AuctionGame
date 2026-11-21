@@ -1,0 +1,779 @@
+{
+  "durationSeconds": {
+    "opening": 3,
+    "ordinaryReaction": 2.5,
+    "nearLimit": 3,
+    "withdrawal": 3.5,
+    "winnerOrSale": 4
+  },
+  "profiles": [
+    {
+      "id": "helena",
+      "groups": [
+        {
+          "key": "interest.very-low",
+          "lines": [
+            "Toto nie je umenie. Nechám to iným.",
+            "Na tento predmet nemám odborný názor.",
+            "Toto posúdiť neviem. A ani nechcem."
+          ]
+        },
+        {
+          "key": "interest.low",
+          "lines": [
+            "Zaujímavé, no nie pre mňa.",
+            "Pozriem sa, ale dlho tu nezostanem.",
+            "Má to isté kvality. Nie dosť na boj."
+          ]
+        },
+        {
+          "key": "interest.high",
+          "lines": [
+            "Toto je umenie. Budem prihadzovať.",
+            "Konečne niečo, čo stojí za môj čas.",
+            "Tento kus si zaslúži pozornosť. Moju má."
+          ]
+        },
+        {
+          "key": "interest.very-high",
+          "lines": [
+            "Tento kus odtiaľto odíde so mnou.",
+            "Na toto som čakala roky. Nevzdám sa ľahko.",
+            "Môj otec by tento kus spoznal. Ja tiež."
+          ]
+        },
+        {
+          "key": "BR-01",
+          "lines": [
+            "Cena je stále hlboko pod hodnotou.",
+            "Za túto sumu je to dar.",
+            "Stále lacné. Pokračujem."
+          ]
+        },
+        {
+          "key": "BR-02",
+          "lines": [
+            "Cena sa blíži k skutočnej hodnote.",
+            "Ešte je to rozumné. Už nie výhodné.",
+            "Opatrne. Rezerva sa zmenšuje."
+          ]
+        },
+        {
+          "key": "BR-03",
+          "lines": [
+            "Ešte jeden krok a cena prekročí hodnotu.",
+            "Sme takmer na hranici.",
+            "Toto je skoro presne toľko, koľko to stojí."
+          ]
+        },
+        {
+          "key": "BR-04",
+          "lines": [
+            "Ďalšia ponuka by bola nad hodnotou.",
+            "Viac to nestojí. Neprihodím.",
+            "Nad skutočnú hodnotu nejdem."
+          ]
+        },
+        {
+          "key": "BR-05",
+          "lines": [
+            "Hodnota je vyššia. Môj rozpočet nie.",
+            "Stálo by to za to, ale nemám na to.",
+            "Ďalší príhoz moje prostriedky nepokryjú."
+          ]
+        },
+        {
+          "key": "BR-04/05",
+          "lines": [
+            "Ďalšia suma je nad hodnotou aj nad mojím rozpočtom.",
+            "Ani hodnota, ani rozpočet. Nie.",
+            "Obe hranice sú za nami."
+          ]
+        },
+        {
+          "key": "WD-01",
+          "lines": [
+            "Nebudem sa s vami preťahovať. Končím.",
+            "Dôstojnosť je cennejšia. Odstupujem.",
+            "Nechám to tak. Dnes nie."
+          ]
+        },
+        {
+          "key": "WD-02",
+          "lines": [
+            "Nie za túto cenu. Odstupujem.",
+            "Nad hodnotu neplatím. Končím.",
+            "Táto cena už nie je o umení. Odchádzam."
+          ]
+        },
+        {
+          "key": "WD-03",
+          "lines": [
+            "Stojí to viac, než mám. Odstupujem.",
+            "Rozpočet rozhodol za mňa. Končím.",
+            "Škoda. Na ďalší príhoz nemám prostriedky."
+          ]
+        },
+        {
+          "key": "WD-04",
+          "lines": [
+            "Nad hodnotou aj nad rozpočtom. Končím.",
+            "Obe hranice prekročené. Odstupujem.",
+            "Ani hodnota, ani peniaze. Dosť."
+          ]
+        },
+        {
+          "key": "WIN-01",
+          "lines": [
+            "Tam, kam patrí. A rozpočet si to sotva všimol.",
+            "Výborná kúpa. Rezervy mám dosť.",
+            "Otec by bol hrdý. A účet je stále plný."
+          ]
+        },
+        {
+          "key": "WIN-02",
+          "lines": [
+            "Je môj. Na ďalší kus ešte mám.",
+            "Dobrá kúpa. Rezerva zostáva.",
+            "Tam, kam patrí. Rozpočet to unesie."
+          ]
+        },
+        {
+          "key": "WIN-03",
+          "lines": [
+            "Je môj. Teraz musím byť opatrná.",
+            "Stálo to veľa. Rezerva je tenká.",
+            "Krásny kus. Ďalšie nákupy budú ťažšie."
+          ]
+        },
+        {
+          "key": "WIN-04",
+          "lines": [
+            "Je môj. A som takmer na nule.",
+            "Umenie má svoju cenu. Zaplatila som takmer všetko.",
+            "Tam, kam patrí. Moje úspory už nie."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ferko",
+      "groups": [
+        {
+          "key": "interest.very-low",
+          "lines": [
+            "Nuda! Žiadna sranda.",
+            "Fuj, to je vážne. Pas!",
+            "Zobuďte ma, keď príde niečo čudné."
+          ]
+        },
+        {
+          "key": "interest.low",
+          "lines": [
+            "Hmm, trochu vtipné. Ale len trochu.",
+            "Možno raz prihodím. Možno.",
+            "Skoro zábavné. Skoro."
+          ]
+        },
+        {
+          "key": "interest.high",
+          "lines": [
+            "Ooo, toto je čudné! Páči sa mi!",
+            "Hehe, toto chcem do zbierky!",
+            "Tak toto je moja liga!"
+          ]
+        },
+        {
+          "key": "interest.very-high",
+          "lines": [
+            "Jéé! Toto musí byť moje!",
+            "Bez tohto dnes neodídem!",
+            "Toto je poklad! Bijem sa o to!"
+          ]
+        },
+        {
+          "key": "BR-01",
+          "lines": [
+            "Lacné! Je to lacné!",
+            "Hehe, za toto? To je zlodejina!",
+            "Stále málo! Prihadzujem!"
+          ]
+        },
+        {
+          "key": "BR-02",
+          "lines": [
+            "Uf, už to stúpa...",
+            "Ešte dobre, ale už nie super.",
+            "Pozor, pozor, cena rastie!"
+          ]
+        },
+        {
+          "key": "BR-03",
+          "lines": [
+            "Ešte kúsok a je to priveľa!",
+            "Už je to skoro toľko, koľko to stojí!",
+            "Juj, sme tesne pri hranici!"
+          ]
+        },
+        {
+          "key": "BR-04",
+          "lines": [
+            "Ďalšie by už bolo priveľa!",
+            "Viac to nestojí, ani pre mňa!",
+            "Stop! Nad hodnotu nejdem!"
+          ]
+        },
+        {
+          "key": "BR-05",
+          "lines": [
+            "Stojí to viac, ale ja nemám!",
+            "Moja peňaženka hovorí nie!",
+            "Prasiatko je prázdne!"
+          ]
+        },
+        {
+          "key": "BR-04/05",
+          "lines": [
+            "Priveľa a ešte aj nemám!",
+            "Ani to toľko nestojí, ani na to nemám!",
+            "Dvojité nie! Hehe."
+          ]
+        },
+        {
+          "key": "WD-01",
+          "lines": [
+            "Ups, prestalo ma to baviť. Končím!",
+            "Uf, to je na mňa moc stresu. Pas!",
+            "Hm, idem si radšej pozrieť ďalší kúsok."
+          ]
+        },
+        {
+          "key": "WD-02",
+          "lines": [
+            "Hola, hola! Až toľko to nestojí! Končím!",
+            "Preplácať nebudem! Som vonku!",
+            "Priveľa! Aj na mňa!"
+          ]
+        },
+        {
+          "key": "WD-03",
+          "lines": [
+            "Nemám ani euro! Končím!",
+            "Peňaženka povedala nie. Som vonku.",
+            "Prasiatko je prázdne. Pas!"
+          ]
+        },
+        {
+          "key": "WD-04",
+          "lines": [
+            "Priveľa a ešte aj nemám! Končím!",
+            "Dvojité nie! Som vonku!",
+            "Ani hodnota, ani peniaze. Pas!"
+          ]
+        },
+        {
+          "key": "WIN-01",
+          "lines": [
+            "Jupí! Do zbierky! A peňazí ešte kopa!",
+            "Moje! A prasiatko je stále tučné!",
+            "Mám to! A môžem nakupovať ďalej!"
+          ]
+        },
+        {
+          "key": "WIN-02",
+          "lines": [
+            "Moje! Ešte mi niečo zostalo!",
+            "Jupí! Prasiatko trochu schudlo.",
+            "Mám to! Ešte na jednu blbosť mám!"
+          ]
+        },
+        {
+          "key": "WIN-03",
+          "lines": [
+            "Moje! Ale peňaženka plače.",
+            "Mám to! Teraz už len rožky a voda.",
+            "Hehe, vyhral som. Šetrím od zajtra."
+          ]
+        },
+        {
+          "key": "WIN-04",
+          "lines": [
+            "Moje! A som úplne švorc!",
+            "Mám to! Požičia mi niekto na električenku?",
+            "Prasiatko je prázdne. Ale zbierka je plná!"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "viktor",
+      "groups": [
+        {
+          "key": "interest.very-low",
+          "lines": [
+            "Príliš nové. Zavolajte ma o tisíc rokov.",
+            "Žiadny prach, žiadny záujem.",
+            "Toto nie je moja éra."
+          ]
+        },
+        {
+          "key": "interest.low",
+          "lines": [
+            "Pekné, ale žiadne múzeum by to nechcelo.",
+            "Možno raz prihodím. Kvôli starým časom.",
+            "Vykopal som už aj zaujímavejšie veci."
+          ]
+        },
+        {
+          "key": "interest.high",
+          "lines": [
+            "Toto je skutočný nález. Prihodím.",
+            "Tento kus má príbeh. Chcem ho počuť.",
+            "Kvôli tomuto sa oplatí vykopať peňaženku."
+          ]
+        },
+        {
+          "key": "interest.very-high",
+          "lines": [
+            "Pre takéto kusy som prešiel púšťou.",
+            "Tento patrí za sklo múzea. Nevzdám sa.",
+            "Na toto som čakal od detstva."
+          ]
+        },
+        {
+          "key": "BR-01",
+          "lines": [
+            "Táto cena uráža históriu.",
+            "Stále lacné, priateľu.",
+            "Cena je hlboko pod hodnotou."
+          ]
+        },
+        {
+          "key": "BR-02",
+          "lines": [
+            "Cena stúpa. Ešte je to rozumné.",
+            "Pomaly. Blížime sa k hodnote.",
+            "Stále v poriadku, ale už opatrne."
+          ]
+        },
+        {
+          "key": "BR-03",
+          "lines": [
+            "Ešte kúsok a prestrelíme hodnotu.",
+            "Sme na okraji výkopu. Opatrne.",
+            "Takmer presne toľko, koľko to stojí."
+          ]
+        },
+        {
+          "key": "BR-04",
+          "lines": [
+            "Ďalšia ponuka by bola nad hodnotou.",
+            "Viac to nestojí. Ani pre múzeum.",
+            "Tu kopať prestávam."
+          ]
+        },
+        {
+          "key": "BR-05",
+          "lines": [
+            "Stojí to viac, než mám v batohu.",
+            "Hodnota áno, peniaze nie.",
+            "Na ďalší príhoz mi rozpočet nestačí."
+          ]
+        },
+        {
+          "key": "BR-04/05",
+          "lines": [
+            "Nad hodnotou aj nad mojím rozpočtom.",
+            "Nepustí to ani hodnota, ani peniaze.",
+            "Obe hranice sú pochované."
+          ]
+        },
+        {
+          "key": "WD-01",
+          "lines": [
+            "Toto nie je moja chvíľa. Nechám to tak.",
+            "Počkám si na lepší nález. Končím.",
+            "Niektoré poklady treba nechať v zemi. Odstupujem."
+          ]
+        },
+        {
+          "key": "WD-02",
+          "lines": [
+            "Príliš drahé pre starého kopáča. Odstupujem.",
+            "To sú peniaze pre turistov. Som vonku.",
+            "Kto zaplatí toľko, kope si vlastnú jamu. Končím."
+          ]
+        },
+        {
+          "key": "WD-03",
+          "lines": [
+            "Batoh je prázdny. Končím.",
+            "Na ďalší príhoz nemám. Odstupujem.",
+            "Rozpočet ma zastavil. Škoda."
+          ]
+        },
+        {
+          "key": "WD-04",
+          "lines": [
+            "Nad hodnotou aj nad rozpočtom. Končím.",
+            "Ani hodnota, ani peniaze. Odstupujem.",
+            "Obe hranice prekročené. Vraciam sa na výkop."
+          ]
+        },
+        {
+          "key": "WIN-01",
+          "lines": [
+            "Tento ide do múzea. A rozpočet je stále plný.",
+            "Výborný nález. Na ďalšie mám dosť.",
+            "Mám ho. Výprava pokračuje s plným batohom."
+          ]
+        },
+        {
+          "key": "WIN-02",
+          "lines": [
+            "Mám ho. Na ďalšiu výpravu ešte zostalo.",
+            "Dobrý nález. Rezerva drží.",
+            "Tento ide za sklo. Rozpočet to znesie."
+          ]
+        },
+        {
+          "key": "WIN-03",
+          "lines": [
+            "Mám ho. Teraz už len chlieb a voda.",
+            "Drahý nález. Batoh je ľahší.",
+            "Do múzea. Ďalšia výprava bude skromnejšia."
+          ]
+        },
+        {
+          "key": "WIN-04",
+          "lines": [
+            "Mám ho. A som švorc ako po zlej sezóne.",
+            "Nález ide do múzea. Ja idem do práce.",
+            "Nález je môj. Na lopatu už nemám."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "zuzu",
+      "groups": [
+        {
+          "key": "interest.very-low",
+          "lines": [
+            "Toto nie je môj žáner, zlato.",
+            "Zobuďte ma, keď príde hviezda.",
+            "Bez fanúšikov, bezo mňa."
+          ]
+        },
+        {
+          "key": "interest.low",
+          "lines": [
+            "Hm, B-strana. Možno jeden príhoz.",
+            "Milé, ale žiadny hit.",
+            "Chvíľu počkám, ale nečakajte veľa."
+          ]
+        },
+        {
+          "key": "interest.high",
+          "lines": [
+            "Toto je klasika! Idem do toho.",
+            "Zlato, toto znie ako hit.",
+            "Tento kúsok poznám. Prihadzujem."
+          ]
+        },
+        {
+          "key": "interest.very-high",
+          "lines": [
+            "Toto pôjde na moju stenu. Bodka.",
+            "Môj hit roka! Nevzdám sa.",
+            "Kvôli tomuto som vyrastala v zákulisí."
+          ]
+        },
+        {
+          "key": "BR-01",
+          "lines": [
+            "Zlato, to je kradnutie!",
+            "Stále lacné. Prídavok!",
+            "Za túto cenu? To je bonusová skladba."
+          ]
+        },
+        {
+          "key": "BR-02",
+          "lines": [
+            "Hm, cena stúpa v rebríčku.",
+            "Ešte v pohode, ale už nie vo výpredaji.",
+            "Opatrne, miláčik. Blížime sa."
+          ]
+        },
+        {
+          "key": "BR-03",
+          "lines": [
+            "Ešte jeden skok a je to priveľa.",
+            "Sme tesne pred poslednou slohou.",
+            "Takmer presne toľko, koľko to stojí."
+          ]
+        },
+        {
+          "key": "BR-04",
+          "lines": [
+            "Ďalší skok by bol nad hodnotou.",
+            "Viac to nestojí, zlato.",
+            "Tu končí refrén."
+          ]
+        },
+        {
+          "key": "BR-05",
+          "lines": [
+            "Stojí to viac, ale moja kabelka nie.",
+            "Hodnota áno, rozpočet nie.",
+            "Na ďalší skok mi chýbajú peniaze."
+          ]
+        },
+        {
+          "key": "BR-04/05",
+          "lines": [
+            "Priveľa a ešte aj nemám, zlato.",
+            "Ani hodnota, ani kabelka.",
+            "Dvojité nie. Žiadny prídavok."
+          ]
+        },
+        {
+          "key": "WD-01",
+          "lines": [
+            "Ugh, toľko drámy? Som preč.",
+            "Nechám vám pódium. Dnes nie.",
+            "Táto pieseň už nie je moja. Končím."
+          ]
+        },
+        {
+          "key": "WD-02",
+          "lines": [
+            "Zlato, až toľko to nestojí. Som vonku.",
+            "To je cena za hit jedného leta. Odstupujem.",
+            "Platiť toľko? Ste fanúšik, nie zberateľ. Čau."
+          ]
+        },
+        {
+          "key": "WD-03",
+          "lines": [
+            "Kabelka je prázdna. Končím.",
+            "Na ďalší skok nemám. Odstupujem.",
+            "Rozpočet spustil oponu. Som vonku."
+          ]
+        },
+        {
+          "key": "WD-04",
+          "lines": [
+            "Priveľa a ešte aj nemám. Končím.",
+            "Ani hodnota, ani peniaze. Opona.",
+            "Obe hranice sú za mnou. Som preč."
+          ]
+        },
+        {
+          "key": "WIN-01",
+          "lines": [
+            "Ide na moju stenu! A peňazí mám ešte dosť.",
+            "Môj! A kabelka je stále plná.",
+            "Hit! A rozpočet ani nemrkol."
+          ]
+        },
+        {
+          "key": "WIN-02",
+          "lines": [
+            "Môj! Na ďalší hit ešte zostalo.",
+            "Ide na stenu. Rezerva stále drží.",
+            "Výborne! Kabelka trochu schudla."
+          ]
+        },
+        {
+          "key": "WIN-03",
+          "lines": [
+            "Môj! Ale odteraz už len výpredaje.",
+            "Stálo to veľa. Šetrím, zlato.",
+            "Ide na stenu. Kabelka plače."
+          ]
+        },
+        {
+          "key": "WIN-04",
+          "lines": [
+            "Môj! A som švorc, zlato.",
+            "Ide na stenu. Ja idem šetriť.",
+            "Hit roka. Konto na nule."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grumblewick",
+      "groups": [
+        {
+          "key": "interest.very-low",
+          "lines": [
+            "Zzz... zobuďte ma pri mágii.",
+            "Žiadna mágia, žiadny záujem.",
+            "Smrteľnícke veci. Neposúdim."
+          ]
+        },
+        {
+          "key": "interest.low",
+          "lines": [
+            "Slabá iskra. Možno jeden príhoz.",
+            "Hmpf. Trochu kúzla, veľa nudy.",
+            "Pozriem sa. Jedným okom."
+          ]
+        },
+        {
+          "key": "interest.high",
+          "lines": [
+            "Hm. Toto má skutočnú mágiu.",
+            "Hviezdy hovoria áno. Prihodím.",
+            "Kvôli tomuto sa oplatí zobudiť."
+          ]
+        },
+        {
+          "key": "interest.very-high",
+          "lines": [
+            "Toto patrilo mne. A zase bude.",
+            "Kvôli tomuto som nespal dvesto rokov.",
+            "Toto mi nevezmete. Ani drak by to nedokázal."
+          ]
+        },
+        {
+          "key": "BR-01",
+          "lines": [
+            "Blázni. Skutočná mágia za pár drobných.",
+            "Hviezdy sa na mňa usmievajú. Stále lacné.",
+            "Predali by ste draka za kozu."
+          ]
+        },
+        {
+          "key": "BR-02",
+          "lines": [
+            "Hmpf. Cena sa prebúdza.",
+            "Ešte rozumné. Zatiaľ.",
+            "Pomaly. Kúzlo sa začína predražovať."
+          ]
+        },
+        {
+          "key": "BR-03",
+          "lines": [
+            "Ešte kúsok a cena bude ilúzia.",
+            "Sme na okraji kúzla.",
+            "Takmer presne toľko, koľko to stojí."
+          ]
+        },
+        {
+          "key": "BR-04",
+          "lines": [
+            "Ďalšia ponuka by bola čistá ilúzia.",
+            "Viac to nestojí. Ani pre draka.",
+            "Nad hodnotu nečarujem."
+          ]
+        },
+        {
+          "key": "BR-05",
+          "lines": [
+            "Stojí to viac, ale klobúk je prázdny.",
+            "Hodnota áno, zlato nie.",
+            "V klobúku už nič nezostalo."
+          ]
+        },
+        {
+          "key": "BR-04/05",
+          "lines": [
+            "Priveľa a v klobúku prázdno.",
+            "Ani hodnota, ani zlato.",
+            "Dvojitá kliatba. Nie."
+          ]
+        },
+        {
+          "key": "WD-01",
+          "lines": [
+            "Zzz... príliš veľa kriku. Idem si zdriemnuť.",
+            "Hmpf. Nemám na vás náladu. Končím.",
+            "Som unavený. Štyristo rokov unavený. Odstupujem."
+          ]
+        },
+        {
+          "key": "WD-02",
+          "lines": [
+            "Toľko by nezaplatil ani drak. Som vonku.",
+            "Tá cena je čistá ilúzia. Odstupujem.",
+            "Kto zaplatí toľko, je očarovaný. Ja končím."
+          ]
+        },
+        {
+          "key": "WD-03",
+          "lines": [
+            "Klobúk je prázdny. Končím.",
+            "Na ďalší príhoz nemám zlato. Odstupujem.",
+            "Kúzlo peňazí sa minulo. Som vonku."
+          ]
+        },
+        {
+          "key": "WD-04",
+          "lines": [
+            "Priveľa a ešte aj nemám. Idem spať.",
+            "Ani hodnota, ani zlato. Končím.",
+            "Obe hranice prekročené. Dobrú noc."
+          ]
+        },
+        {
+          "key": "WIN-01",
+          "lines": [
+            "Do klobúka s ním. A zlata mám ešte dosť.",
+            "Moje, ako kedysi. A pokladnica je plná.",
+            "Vrátilo sa domov. Zlato zostáva."
+          ]
+        },
+        {
+          "key": "WIN-02",
+          "lines": [
+            "Do klobúka. Ešte mi zostalo zlata.",
+            "Moje. Rezerva drží.",
+            "Vrátilo sa. Na ďalšie kúzlo mám."
+          ]
+        },
+        {
+          "key": "WIN-03",
+          "lines": [
+            "Moje. Ale klobúk je ľahší.",
+            "Drahé kúzlo. Odteraz šetrím.",
+            "Do klobúka. Zlata zostáva málo."
+          ]
+        },
+        {
+          "key": "WIN-04",
+          "lines": [
+            "Moje. A klobúk je prázdny.",
+            "Prvýkrát za štyristo rokov som chudobný.",
+            "Moje. Teraz si musím ísť zarobiť."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sale",
+      "groups": [
+        {
+          "key": "SALE-01",
+          "lines": [
+            "Predané! Gratulujem. Dúfam, že viete, čo ste si práve kúpili.",
+            "Predané! Nový majiteľ, nové starosti.",
+            "Gratulujem k nákupu. Reklamácie neprijímame.",
+            "Predané! Niektoré veci je lepšie nevlastniť. Ale už je neskoro."
+          ]
+        },
+        {
+          "key": "SALE-02",
+          "lines": [
+            "Nepredané. Zdá sa, že dnes má každý aspoň trochu rozumu.",
+            "Nikto? Výborne. Predmet zostáva tam, kde môže ďalej spôsobovať problémy.",
+            "Nepredané. Ani peniaze nedokážu vyriešiť všetko.",
+            "Žiadny záujemca. To je možno prvé dobré rozhodnutie dneška."
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: af7b7a576b6247838b25f9275ead5f2a, type: 3}
+  m_Name: Viktor
+  m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AIPersonality
+  bidderName: Viktor
+  dialogueProfileId: viktor
+  startingBudget: 600
+  overestimateBias: 55
+  intimidationResistance: 70
+  categoryProfiles:
+  - category: 0
+    interest: 80
+    accuracy: 80
+  - category: 1
+    interest: 70
+    accuracy: 75
+  - category: 2
+    interest: 40
+    accuracy: 50
+  - category: 3
+    interest: 5
+    accuracy: 15
+  - category: 4
+    interest: 5
+    accuracy: 15
+  - category: 5
+    interest: 15
+    accuracy: 25
+  - category: 6
+    interest: 35
+    accuracy: 45
+  - category: 7
+    interest: 65
+    accuracy: 70
+  - category: 8
+    interest: 35
+    accuracy: 50
+  - category: 9
+    interest: 5
+    accuracy: 15
+  - category: 10
+    interest: 65
+    accuracy: 70
+  - category: 11
+    interest: 80
+    accuracy: 80
+  - category: 12
+    interest: 0
+    accuracy: 10
+  - category: 13
+    interest: 85
+    accuracy: 80
+  - category: 14
+    interest: 5
+    accuracy: 15
+  - category: 15
+    interest: 30
+    accuracy: 20
