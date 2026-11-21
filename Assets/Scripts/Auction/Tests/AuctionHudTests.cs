@@ -93,7 +93,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(dock.anchorMin, Is.EqualTo(Vector2.zero));
             Assert.That(dock.anchorMax, Is.EqualTo(Vector2.right));
             Assert.That(dock.anchoredPosition, Is.EqualTo(Vector2.zero));
-            Assert.That(dock.sizeDelta, Is.EqualTo(new Vector2(0f, 329f)));
+            Assert.That(dock.sizeDelta, Is.EqualTo(new Vector2(0f, 347f)));
             Assert.That(GameObject.Find("Opponent Names"), Is.Null);
             Assert.That(Camera.main.targetDisplay, Is.Zero);
             Assert.That(Camera.main.fieldOfView, Is.EqualTo(64f));
@@ -105,9 +105,16 @@ namespace AuctionGame.Auction.Tests
             yield return null;
             var podiumBubble = GameObject.Find("DialogueCanvas").transform.Find("Podium Item Name");
             Assert.That(dock.Cast<Transform>().Where(child => child.gameObject.activeSelf)
-                .Select(child => child.name), Is.EquivalentTo(new[] { "+$10 Button", "+$25 Button", "+$50 Button", "Purchased Items" }));
+                .Select(child => child.name), Is.EquivalentTo(new[] { "+$10 Button", "+$25 Button", "+$50 Button", "Purchased Items", "Player Budget" }));
             Assert.That(podiumBubble, Is.Not.Null);
             Assert.That(podiumBubble.GetComponentInChildren<TMP_Text>(true).text, Is.EqualTo(auction.CurrentItem.ItemName));
+            foreach (var bidder in auction.Opponents)
+            {
+                var bidderBubble = podiumBubble.parent.Find(bidder.Id + " Bubble");
+                Assert.That(bidderBubble, Is.Not.Null);
+                Assert.That(bidderBubble.GetSiblingIndex(), Is.GreaterThan(podiumBubble.GetSiblingIndex()));
+                Assert.That(bidderBubble.GetComponentInChildren<Canvas>(true), Is.Null);
+            }
             Assert.That(GameObject.Find("Current Bid"), Is.Null);
             Assert.That(GameObject.Find("Leading Bidder"), Is.Null);
             Assert.That(GameObject.Find("Latest Bid"), Is.Null);
@@ -126,8 +133,8 @@ namespace AuctionGame.Auction.Tests
             Assert.That(Caption("+$10 Button"), Is.EqualTo("+$10"));
             Assert.That(CloseLot(auction).winnerId, Is.EqualTo(BidderIds.Player));
             Assert.That(hands.Count(hand => hand.enabled), Is.Zero);
-            var budgetBubble = GameObject.Find("DialogueCanvas").transform.Find("Player Budget Bubble");
-            Assert.That(budgetBubble.GetComponentInChildren<TMP_Text>(true).text, Is.EqualTo("Rozpočet  $950"));
+            var budgetLabel = dock.Find("Player Budget").GetComponent<TMP_Text>();
+            Assert.That(budgetLabel.text, Is.EqualTo("Rozpočet  $950"));
             var purchaseBar = dock.Find("Purchased Items");
             Assert.That(purchaseBar.GetComponentsInChildren<Image>().Where(icon => icon.enabled).Select(icon => icon.sprite),
                 Is.EqualTo(new[] { first.Sprite }));
@@ -149,7 +156,7 @@ namespace AuctionGame.Auction.Tests
             OpenLot(auction);
             Click("+$25 Button");
             Assert.That(CloseLot(auction).winnerId, Is.EqualTo(BidderIds.Player));
-            Assert.That(budgetBubble.GetComponentInChildren<TMP_Text>(true).text, Is.EqualTo("Rozpočet  $925"));
+            Assert.That(budgetLabel.text, Is.EqualTo("Rozpočet  $925"));
             Assert.That(auction.Economy.Purchases.Select(purchase => purchase.item), Is.EqualTo(new[] { first, second }));
             OpenLot(auction);
             Assert.That(CloseLot(auction).sold, Is.False);

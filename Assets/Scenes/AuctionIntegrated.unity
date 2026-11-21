@@ -2560,7 +2560,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.33333334, y: 0}
   m_AnchorMax: {x: 0.6666667, y: 0}
-  m_AnchoredPosition: {x: 0, y: 194}
+  m_AnchoredPosition: {x: 0, y: 222}
   m_SizeDelta: {x: -16, y: 240}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &762834472
@@ -3836,7 +3836,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0.33333334, y: 0}
-  m_AnchoredPosition: {x: 7, y: 194}
+  m_AnchoredPosition: {x: 7, y: 222}
   m_SizeDelta: {x: -30, y: 240}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1324400529
@@ -4725,9 +4725,7 @@ MonoBehaviour:
   opponentNames: {fileID: 0}
   timer: {fileID: 0}
   timerProgress: {fileID: 0}
-  budget: {fileID: 0}
-  dialogue: {fileID: 2161300005}
-  bidDock: {fileID: 2098221985}
+  budget: {fileID: 2161100010}
   history: {fileID: 1154325412}
   status: {fileID: 325196262}
   tenButton: {fileID: 1324400529}
@@ -5943,12 +5941,13 @@ RectTransform:
   - {fileID: 762834471}
   - {fileID: 2146731055}
   - {fileID: 2161100002}
+  - {fileID: 2161100009}
   m_Father: {fileID: 958584275}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 329}
+  m_SizeDelta: {x: 0, y: 347}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!1001 &2111907916
 PrefabInstance:
@@ -6490,7 +6489,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.6666667, y: 0}
   m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: -7, y: 194}
+  m_AnchoredPosition: {x: -7, y: 222}
   m_SizeDelta: {x: -30, y: 240}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2146731056
@@ -6759,14 +6758,13 @@ RectTransform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 2161100009}
+  m_Children: []
   m_Father: {fileID: 2098221985}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: 0, y: 34}
-  m_SizeDelta: {x: -44, y: 66}
+  m_AnchoredPosition: {x: -115, y: 48}
+  m_SizeDelta: {x: -250, y: 96}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2161100003
 MonoBehaviour:
@@ -6793,7 +6791,7 @@ GameObject:
   - component: {fileID: 2161100011}
   - component: {fileID: 2161100010}
   m_Layer: 0
-  m_Name: Purchased Items Caption
+  m_Name: Player Budget
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6811,13 +6809,13 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 2161100002}
+  m_Father: {fileID: 2098221985}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -12}
-  m_SizeDelta: {x: 0, y: 24}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_AnchorMin: {x: 1, y: 0}
+  m_AnchorMax: {x: 1, y: 0}
+  m_AnchoredPosition: {x: -16, y: 8}
+  m_SizeDelta: {x: 210, y: 48}
+  m_Pivot: {x: 1, y: 0}
 --- !u!114 &2161100010
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6838,7 +6836,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "Vlastn\xED\u0161"
+  m_text: ""
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 08a7c03935a3fea4b88d65127c00d588, type: 2}
   m_sharedMaterial: {fileID: -1696924849662945064, guid: 08a7c03935a3fea4b88d65127c00d588, type: 2}
@@ -6865,14 +6863,14 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 20
-  m_fontSizeBase: 20
+  m_fontSize: 28
+  m_fontSizeBase: 28
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 27
   m_fontSizeMax: 52
   m_fontStyle: 0
-  m_HorizontalAlignment: 2
+  m_HorizontalAlignment: 4
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0

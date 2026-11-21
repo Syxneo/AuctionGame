@@ -68,7 +68,7 @@ namespace AuctionGame.Auction
                 rect.anchorMax = new Vector2((firstSlot + index + 1f) / columns, 1f);
                 float inset = 6f * DefaultLayoutColumns / columns;
                 rect.offsetMin = new Vector2(inset, 0f);
-                rect.offsetMax = new Vector2(-inset, -24f);
+                rect.offsetMax = new Vector2(-inset, 0f);
             }
         }
     }

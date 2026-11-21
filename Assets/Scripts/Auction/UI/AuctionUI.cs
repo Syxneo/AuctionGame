@@ -18,8 +18,6 @@ namespace AuctionGame.Auction
         [SerializeField] private TMP_Text timer;
         [SerializeField] private RectTransform timerProgress;
         [SerializeField] private TMP_Text budget;
-        [SerializeField] private BidderDialoguePresenter dialogue;
-        [SerializeField] private RectTransform bidDock;
         [SerializeField] private TMP_Text history;
         [SerializeField] private TMP_Text status;
         [SerializeField] private Button tenButton;
@@ -31,13 +29,9 @@ namespace AuctionGame.Auction
         private TMP_Text tenCaption;
         private TMP_Text twentyFiveCaption;
         private TMP_Text fiftyCaption;
-        private BidderSpeechBubble budgetBubble;
-        private CanvasGroup hudGroup;
-        private int displayedBudget = -1;
 
         private void Awake()
         {
-            hudGroup = GetComponent<CanvasGroup>();
             ButtonClickAudio.Bind(tenButton);
             ButtonClickAudio.Bind(twentyFiveButton);
             ButtonClickAudio.Bind(fiftyButton);
@@ -65,9 +59,6 @@ namespace AuctionGame.Auction
 
         private void OnDisable()
         {
-            if (budgetBubble)
-                budgetBubble.Hide();
-
             if (!manager)
                 return;
 
@@ -77,23 +68,6 @@ namespace AuctionGame.Auction
             tenButton.onClick.RemoveListener(BidTen);
             twentyFiveButton.onClick.RemoveListener(BidTwentyFive);
             fiftyButton.onClick.RemoveListener(BidFifty);
-        }
-
-        private void OnDestroy()
-        {
-            if (budgetBubble)
-                Destroy(budgetBubble.gameObject);
-        }
-
-        private void LateUpdate()
-        {
-            if (!budgetBubble)
-                return;
-
-            bool visible = manager && manager.CurrentItem &&
-                manager.State is AuctionState.ItemReveal or AuctionState.Bidding or AuctionState.Sold or AuctionState.Unsold;
-            budgetBubble.gameObject.SetActive(visible && (!hudGroup || hudGroup.alpha > 0) &&
-                dialogue.PlaceBudgetBubble(budgetBubble, bidDock));
         }
 
         private void StateChanged(AuctionState state) => Refresh();
@@ -144,7 +118,8 @@ namespace AuctionGame.Auction
                 highestBidder.text = $"Vedúci dražiteľ  {manager.GetBidderDisplayName(manager.HighestBidderId)}";
             if (opponentNames)
                 opponentNames.text = string.Join("   ·   ", manager.Opponents.Select(opponent => opponent.Personality.Name));
-            RefreshBudget();
+            if (budget)
+                budget.text = $"Rozpočet  ${manager.Economy.AvailableBudget}";
             bool showBidButtons = item && manager.State != AuctionState.Opening;
             SetButton(tenButton, showBidButtons, AuctionManager.MinimumOpeningBid);
             SetButton(twentyFiveButton, showBidButtons, AuctionManager.MediumIncrement);
@@ -184,25 +159,6 @@ namespace AuctionGame.Auction
             }
             history.text = lines.Length == 0 ? "Zatiaľ žiadne ponuky" : lines.ToString().TrimEnd();
             UpdateClock();
-        }
-
-        private void RefreshBudget()
-        {
-            int amount = manager.Economy.AvailableBudget;
-            string caption = $"Rozpočet  ${amount}";
-            if (budget)
-                budget.text = caption;
-            if (!dialogue || !bidDock || amount == displayedBudget)
-                return;
-
-            if (!budgetBubble)
-                budgetBubble = dialogue.CreateBubble("Player Budget Bubble");
-            if (!budgetBubble)
-                return;
-
-            budgetBubble.SetSingleLine(caption, 145, 250, 12, 28f);
-            budgetBubble.Group.alpha = 1f;
-            displayedBudget = amount;
         }
 
         private static string Plural(int count, string one, string few, string many) =>

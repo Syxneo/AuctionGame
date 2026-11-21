@@ -159,26 +159,6 @@ namespace AuctionGame.Auction
             return true;
         }
 
-        internal bool PlaceBudgetBubble(BidderSpeechBubble bubble, RectTransform dock)
-        {
-            if (!canvas || !canvas.isActiveAndEnabled || canvas.targetDisplay != 0)
-                return false;
-
-            var canvasRect = (RectTransform)canvas.transform;
-            Camera canvasCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
-            Vector2 dockTop = RectTransformUtility.WorldToScreenPoint(null,
-                dock.TransformPoint(new Vector3(dock.rect.xMax, dock.rect.yMax)));
-            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, dockTop, canvasCamera, out Vector2 top))
-                return false;
-
-            Rect safe = SafeRect(canvasRect, canvasCamera);
-            Vector2 size = bubble.Rect.sizeDelta;
-            Vector2 center = new(safe.xMax - size.x / 2, top.y - canvasRect.rect.center.y + size.y / 2 + 12f);
-            bubble.Rect.anchoredPosition = ClampCenter(center, size, safe);
-            bubble.HidePointer();
-            return true;
-        }
-
         internal bool PlacePodiumLabel(BidderSpeechBubble bubble, Vector3 worldAnchor)
         {
             if (!canvas || !canvas.isActiveAndEnabled || canvas.targetDisplay != 0 || !sceneCamera)

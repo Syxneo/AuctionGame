@@ -61,7 +61,11 @@ namespace AuctionGame.Auction
             if (item && dialogue)
             {
                 if (!nameBubble)
+                {
                     nameBubble = dialogue.CreateBubble("Podium Item Name");
+                    if (nameBubble)
+                        nameBubble.transform.SetAsFirstSibling();
+                }
                 if (nameBubble)
                 {
                     nameBubble.SetSingleLine(item.ItemName, 120, 270, 10, 27f);
