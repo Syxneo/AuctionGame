@@ -113,6 +113,25 @@ namespace AuctionGame.Auction
         public bool StartDailyAuction(DailyRunPlan plan, ItemDatabase fullCatalog) =>
             plan != null && fullCatalog && StartRun(plan.Lots, fullCatalog, plan);
 
+        internal bool PrepareOpening(IReadOnlyList<AuctionItem> run, ItemDatabase fullCatalog, DailyRunPlan plan) =>
+            fullCatalog && run != null && run.Count > 0 && StartRun(run, fullCatalog, plan, true);
+
+        internal void CompleteOpening()
+        {
+            if (State != AuctionState.Opening || processingTime)
+                return;
+
+            processingTime = true;
+            try
+            {
+                IntroduceItem();
+            }
+            finally
+            {
+                processingTime = false;
+            }
+        }
+
         public bool RestartAuction() => ResetLevel() && StartRun(lots, catalog, DailyPlan);
 
         internal CampaignDay CampaignDay { get; set; }
@@ -143,7 +162,8 @@ namespace AuctionGame.Auction
             }
         }
 
-        private bool StartRun(IReadOnlyList<AuctionItem> run, ItemDatabase fullCatalog, DailyRunPlan plan = null)
+        private bool StartRun(IReadOnlyList<AuctionItem> run, ItemDatabase fullCatalog,
+            DailyRunPlan plan = null, bool holdOpening = false)
         {
             if (processingTime || State != AuctionState.Idle || run == null)
                 return false;
@@ -206,7 +226,7 @@ namespace AuctionGame.Auction
             processingTime = true;
             try
             {
-                AdvanceItem();
+                AdvanceItem(holdOpening);
                 return true;
             }
             finally
@@ -252,7 +272,8 @@ namespace AuctionGame.Auction
 
         public void Tick(float deltaTime)
         {
-            if (processingTime || State == AuctionState.Idle || State == AuctionState.Finished || deltaTime <= 0 || float.IsNaN(deltaTime) || float.IsInfinity(deltaTime))
+            if (processingTime || State is AuctionState.Idle or AuctionState.Finished or AuctionState.Opening ||
+                deltaTime <= 0 || float.IsNaN(deltaTime) || float.IsInfinity(deltaTime))
                 return;
 
             auctionTick++;
@@ -377,6 +398,9 @@ namespace AuctionGame.Auction
 
         public bool TryPlaceBid(string bidderId, int amount)
         {
+            if (State == AuctionState.Opening)
+                return false;
+
             if (publishingBid || !CanPlaceBid(bidderId, amount))
             {
                 if (bidderId == BidderIds.Player)
@@ -480,6 +504,9 @@ namespace AuctionGame.Auction
 
         internal void RequestAiAction(AIBidder bidder, int amount)
         {
+            if (State != AuctionState.Bidding)
+                return;
+
             if (paceAiInteractions && (!AiSlotAvailable || !BidReactionReady || pendingActions.Count > 0))
                 pendingActions.Add((bidder, amount, bidSequence));
             else
@@ -605,7 +632,7 @@ namespace AuctionGame.Auction
             dialogue?.EndLot(results[^1], winner, elapsed);
         }
 
-        private void AdvanceItem()
+        private void AdvanceItem(bool holdOpening = false)
         {
             itemIndex++;
             bidHistory.Clear();
@@ -622,6 +649,14 @@ namespace AuctionGame.Auction
 
             CurrentItem = lots[itemIndex];
             SelectParticipants();
+            if (holdOpening)
+                SetState(AuctionState.Opening);
+            else
+                IntroduceItem();
+        }
+
+        private void IntroduceItem()
+        {
             SetState(AuctionState.ItemReveal);
             OnItemChanged?.Invoke(CurrentItem);
             if (paceAiInteractions)

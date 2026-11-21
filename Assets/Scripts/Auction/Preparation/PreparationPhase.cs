@@ -10,9 +10,10 @@ namespace AuctionGame.Auction
 {
     public sealed class PreparationPhase : MonoBehaviour
     {
-        private enum Stage { Auction, Intro, Brief, News, Ready }
+        private enum Stage { Auction, Intro, Brief, News, Ready, Opening }
 
         [SerializeField] private GameIntroFlow intro;
+        [SerializeField] private SceneIntroOutro openingStage;
         [SerializeField] private MvpAuctionLevel level;
         [SerializeField] private bool useCampaign;
         [SerializeField] private bool useValueCappedGeneration;
@@ -46,12 +47,14 @@ namespace AuctionGame.Auction
         private GameObject briefing;
         private Button readNews;
         private Button startAuction;
+        private Button openingPrompt;
         private NewspaperView newspaper;
         private TMP_Text status;
         private Stage stage;
         private bool controlsCovered;
         private bool previousRaycasts;
         private bool previousInteraction;
+        private float? coveredHudAlpha;
         public DailyRunPlan DailyPlan { get; private set; }
 
         private void Start()
@@ -225,6 +228,31 @@ namespace AuctionGame.Auction
                 newspaper = PreparationUi.Fill("NEWSSSS presentation", root).gameObject.AddComponent<NewspaperView>();
                 newspaper.Initialize(newsAppearance);
             }
+            if (openingStage)
+            {
+                openingPrompt = PreparationUi.Button(PreparationUi.Fill("Start Auction", root), "");
+                var hitArea = (RectTransform)openingPrompt.transform;
+                openingPrompt.targetGraphic.color = Color.clear;
+                openingPrompt.targetGraphic.canvasRenderer.cullTransparentMesh = false;
+                openingPrompt.transition = Selectable.Transition.None;
+                openingPrompt.onClick.AddListener(RequestStart);
+
+                var paper = PreparationUi.Rect("Start Auction Parchment", hitArea,
+                    new Vector2(.5f, .24f), new Vector2(.5f, .24f),
+                    new Vector2(-210, -54), new Vector2(210, 54));
+                Sprite sprite = intro ? intro.ReportButton : null;
+                var image = PreparationUi.Surface(paper, sprite ? Color.white : PreparationUi.Paper);
+                image.sprite = sprite;
+                image.raycastTarget = false;
+                PreparationUi.Label(PreparationUi.Fill("Caption", paper), "START AUCTION", 38,
+                    PreparationUi.Ink, FontStyles.Bold).alignment = TextAlignmentOptions.Center;
+                var hint = PreparationUi.Rect("Tap hint", paper, Vector2.zero, Vector2.right,
+                    new Vector2(0, -44), new Vector2(0, -4));
+                var hintLabel = PreparationUi.Label(hint, "klepni pre pokračovanie", 25, Color.white);
+                hintLabel.alignment = TextAlignmentOptions.Center;
+                hintLabel.gameObject.AddComponent<Shadow>().effectDistance = new Vector2(1, -2);
+                openingPrompt.gameObject.SetActive(false);
+            }
             canvasRoot.SetActive(false);
         }
 
@@ -262,6 +290,23 @@ namespace AuctionGame.Auction
             if (stage != Stage.News || auction.State != AuctionState.Idle)
                 return;
 
+            if (openingStage && auction.Economy.AvailableBudget == StartingBudget && openingStage.PrepareOpening())
+            {
+                if (auction.PrepareOpening(DailyPlan?.Lots ?? fixedRun, level.Database, DailyPlan))
+                {
+                    if (auctionControls)
+                    {
+                        coveredHudAlpha = auctionControls.alpha;
+                        auctionControls.alpha = 0f;
+                    }
+                    stage = Stage.Ready;
+                    openingPrompt.gameObject.SetActive(true);
+                    Select(openingPrompt.gameObject);
+                    return;
+                }
+                openingStage.SkipToEnd();
+            }
+
             stage = Stage.Ready;
             readNews.gameObject.SetActive(false);
             startAuction.gameObject.SetActive(true);
@@ -271,7 +316,21 @@ namespace AuctionGame.Auction
 
         public void RequestStart()
         {
-            if (stage != Stage.Ready || auction.State != AuctionState.Idle)
+            if (stage != Stage.Ready)
+                return;
+
+            if (auction.State == AuctionState.Opening)
+            {
+                stage = Stage.Opening;
+                openingPrompt.gameObject.SetActive(false);
+                canvasRoot.SetActive(false);
+                Select(null);
+                if (!openingStage || !openingStage.PlayOpening(auction.CompleteOpening))
+                    auction.CompleteOpening();
+                return;
+            }
+
+            if (auction.State != AuctionState.Idle)
                 return;
 
             if (auction.Economy.AvailableBudget != StartingBudget)
@@ -305,6 +364,9 @@ namespace AuctionGame.Auction
 
         private void AuctionStateChanged(AuctionState state)
         {
+            if (state == AuctionState.Opening)
+                return;
+
             if (state == AuctionState.Idle)
             {
                 if (intro)
@@ -371,6 +433,11 @@ namespace AuctionGame.Auction
 
             auctionControls.blocksRaycasts = previousRaycasts;
             auctionControls.interactable = previousInteraction;
+            if (coveredHudAlpha.HasValue)
+            {
+                auctionControls.alpha = coveredHudAlpha.Value;
+                coveredHudAlpha = null;
+            }
             controlsCovered = false;
         }
 

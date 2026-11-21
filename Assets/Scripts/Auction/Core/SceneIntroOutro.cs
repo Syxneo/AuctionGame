@@ -35,6 +35,13 @@ namespace AuctionGame.Auction
         [SerializeField] private float curtainClosedX = 2f;
         [SerializeField] private float curtainOpenX = 8f;
 
+        [Header("Auction Opening")]
+        [SerializeField] private Transform openingTarget;
+        [SerializeField] private Vector3 openingCameraOffset = new(0f, 6.8f, 11f);
+        [SerializeField] private Vector3 openingLookOffset = new(0f, 1f, 0f);
+        [SerializeField, Range(1, 179)] private float openingFieldOfView = 48f;
+        [SerializeField, Min(0)] private float openingDuration = 2f;
+
         [Header("Auction Result")]
         [SerializeField] private Vector3 closeUpOffset = new(0f, 6.8f, 11f);
         [SerializeField] private Vector3 closeUpLookOffset = new(0f, 1f, 0f);
@@ -52,9 +59,14 @@ namespace AuctionGame.Auction
         internal bool IsStageRevealed => curtainsOpen &&
             (resultFinished == null || resultElapsed < curtainCloseDelay);
         internal event Action CurtainMovementStarted;
+        internal bool OpeningItemVisible => !openingPrepared || openingElapsed > 0f;
 
         private bool curtainsOpen;
-        private Camera resultCamera;
+        private bool openingPrepared;
+        private double openingStartedAt;
+        private float openingElapsed;
+        private Action openingFinished;
+        private Camera stageCamera;
         private Pose startLocalPose;
         private Pose startWorldPose;
         private Pose closeUpPose;
@@ -89,6 +101,12 @@ namespace AuctionGame.Auction
         /// <summary>Jumps straight to the end pose (open curtains, camera pulled back).</summary>
         public void SkipToEnd()
         {
+            if (openingPrepared)
+            {
+                FinishOpening();
+                return;
+            }
+
             if (resultFinished != null)
             {
                 FinishResult();
@@ -103,23 +121,14 @@ namespace AuctionGame.Auction
 
         internal bool PlayResult(Vector3 podiumPosition, Action<bool> setVisible, Action onFinished)
         {
-            if (!isActiveAndEnabled || resultFinished != null || !cameraTransform ||
-                !cameraTransform.TryGetComponent(out resultCamera) || !leftCurtain || !rightCurtain)
+            if (openingPrepared || resultFinished != null || !CanAnimateStage())
                 return false;
 
             // A result reached during the intro settles the stage at its gameplay pose first.
             if (IsPlaying)
                 SkipToEnd();
 
-            startLocalPose = new Pose(cameraTransform.localPosition, cameraTransform.localRotation);
-            startWorldPose = new Pose(cameraTransform.position, cameraTransform.rotation);
-            startFieldOfView = resultCamera.fieldOfView;
-            startLeftCurtain = leftCurtain.localPosition;
-            startRightCurtain = rightCurtain.localPosition;
-            Vector3 position = podiumPosition + closeUpOffset;
-            Vector3 aim = podiumPosition + closeUpLookOffset - position;
-            closeUpPose = new Pose(position, aim.sqrMagnitude > 0.0001f
-                ? Quaternion.LookRotation(aim) : startWorldPose.rotation);
+            CaptureStage(podiumPosition, closeUpOffset, closeUpLookOffset);
             resultElapsed = 0f;
             resultConfirmed = false;
             setResultVisible = setVisible;
@@ -133,6 +142,85 @@ namespace AuctionGame.Auction
         internal void ConfirmResult() => resultConfirmed = true;
 
         private void Update() => AdvanceResultMotion(Time.deltaTime);
+
+        internal bool PrepareOpening()
+        {
+            if (!openingTarget || openingPrepared || resultFinished != null || !CanAnimateStage())
+                return false;
+
+            if (IsPlaying)
+                SkipToEnd();
+
+            CaptureStage(openingTarget.position, openingCameraOffset, openingLookOffset);
+            openingPrepared = true;
+            openingElapsed = 0f;
+            IsPlaying = true;
+            curtainsOpen = false;
+            ApplyStageMotion(1f, 0f, openingFieldOfView);
+            return true;
+        }
+
+        internal bool PlayOpening(Action onFinished)
+        {
+            if (!openingPrepared || openingFinished != null)
+                return false;
+
+            openingFinished = onFinished;
+            openingStartedAt = Time.realtimeSinceStartupAsDouble;
+            CurtainMovementStarted?.Invoke();
+            return true;
+        }
+
+        private void LateUpdate()
+        {
+            if (openingFinished == null)
+                return;
+
+            openingElapsed = (float)(Time.realtimeSinceStartupAsDouble - openingStartedAt);
+            if (openingElapsed >= openingDuration)
+            {
+                FinishOpening();
+                return;
+            }
+
+            float open = EasedProgress(openingElapsed, openingDuration);
+            ApplyStageMotion(1f - open, open, openingFieldOfView);
+        }
+
+        private void FinishOpening()
+        {
+            Action finished = openingFinished;
+            openingFinished = null;
+            openingPrepared = false;
+            curtainsOpen = true;
+            RestoreStage();
+            finished?.Invoke();
+        }
+
+        private bool CanAnimateStage() => isActiveAndEnabled && cameraTransform &&
+            cameraTransform.TryGetComponent(out stageCamera) && leftCurtain && rightCurtain;
+
+        private void CaptureStage(Vector3 target, Vector3 cameraOffset, Vector3 lookOffset)
+        {
+            startLocalPose = new Pose(cameraTransform.localPosition, cameraTransform.localRotation);
+            startWorldPose = new Pose(cameraTransform.position, cameraTransform.rotation);
+            startFieldOfView = stageCamera.fieldOfView;
+            startLeftCurtain = leftCurtain.localPosition;
+            startRightCurtain = rightCurtain.localPosition;
+            Vector3 position = target + cameraOffset;
+            Vector3 aim = target + lookOffset - position;
+            closeUpPose = new Pose(position, aim.sqrMagnitude > 0.0001f
+                ? Quaternion.LookRotation(aim) : startWorldPose.rotation);
+        }
+
+        private void ApplyStageMotion(float cameraClose, float curtainOpen, float fieldOfView)
+        {
+            cameraTransform.SetPositionAndRotation(
+                Vector3.Lerp(startWorldPose.position, closeUpPose.position, cameraClose),
+                Quaternion.Slerp(startWorldPose.rotation, closeUpPose.rotation, cameraClose));
+            stageCamera.fieldOfView = Mathf.Lerp(startFieldOfView, fieldOfView, cameraClose);
+            ApplyCurtains(curtainOpen, startLeftCurtain.x, startRightCurtain.x);
+        }
 
         private void AdvanceResultMotion(float deltaTime)
         {
@@ -169,11 +257,7 @@ namespace AuctionGame.Auction
                 cameraClose = 1f - curtainOpen;
             }
 
-            cameraTransform.SetPositionAndRotation(
-                Vector3.Lerp(startWorldPose.position, closeUpPose.position, cameraClose),
-                Quaternion.Slerp(startWorldPose.rotation, closeUpPose.rotation, cameraClose));
-            resultCamera.fieldOfView = Mathf.Lerp(startFieldOfView, closeUpFieldOfView, cameraClose);
-            ApplyCurtains(curtainOpen, startLeftCurtain.x, startRightCurtain.x);
+            ApplyStageMotion(cameraClose, curtainOpen, closeUpFieldOfView);
             setResultVisible(resultElapsed >= closedAt && (!resultConfirmed || resultElapsed < reopenAt));
         }
 
@@ -194,21 +278,28 @@ namespace AuctionGame.Auction
             Action finished = resultFinished;
             resultFinished = null;
             setResultVisible = null;
+            RestoreStage();
+            finished();
+        }
+
+        private void RestoreStage()
+        {
             IsPlaying = false;
             if (cameraTransform)
                 cameraTransform.SetLocalPositionAndRotation(startLocalPose.position, startLocalPose.rotation);
-            if (resultCamera)
-                resultCamera.fieldOfView = startFieldOfView;
+            if (stageCamera)
+                stageCamera.fieldOfView = startFieldOfView;
             if (leftCurtain)
                 leftCurtain.localPosition = startLeftCurtain;
             if (rightCurtain)
                 rightCurtain.localPosition = startRightCurtain;
-            finished();
         }
 
         private void OnDisable()
         {
-            if (resultFinished != null)
+            if (openingPrepared)
+                FinishOpening();
+            else if (resultFinished != null)
                 FinishResult();
             else if (IsPlaying)
                 SkipToEnd();

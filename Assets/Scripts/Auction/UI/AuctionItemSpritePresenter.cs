@@ -52,6 +52,8 @@ namespace AuctionGame.Auction
         {
             if (state is AuctionState.Idle or AuctionState.Finished)
                 ShowItem(null);
+            else if (state == AuctionState.Opening)
+                ShowItem(auction.CurrentItem);
         }
 
         private void ShowItem(AuctionItem item)
@@ -69,6 +71,7 @@ namespace AuctionGame.Auction
             else if (nameBubble)
                 nameBubble.Hide();
 
+            visual.forceRenderingOff = stage && !stage.OpeningItemVisible;
             visual.sprite = item ? item.Sprite : null;
             visual.enabled = visual.sprite != null;
             if (!visual.enabled)
@@ -98,6 +101,7 @@ namespace AuctionGame.Auction
 
         private void LateUpdate()
         {
+            visual.forceRenderingOff = stage && !stage.OpeningItemVisible;
             if (visual.enabled)
                 FaceCamera();
 

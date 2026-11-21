@@ -93,6 +93,15 @@ namespace AuctionGame.Auction.Tests
         internal static IEnumerator ReadBroadcast()
         {
             var preparation = Object.FindFirstObjectByType<PreparationPhase>();
+            var auction = preparation.GetComponent<AuctionManager>();
+            var stage = Object.FindFirstObjectByType<SceneIntroOutro>();
+            var camera = Camera.main;
+            var position = camera.transform.localPosition;
+            var rotation = camera.transform.localRotation;
+            float fov = camera.fieldOfView;
+            var stageSettings = new SerializedObject(stage);
+            var curtain = (Transform)stageSettings.FindProperty("leftCurtain").objectReferenceValue;
+            var curtainPosition = curtain.localPosition;
             var cards = preparation.SelectedNews;
             Assert.That(cards.Count, Is.EqualTo(cards.Count(card => card.Type == NewsType.Item) + 3));
             var view = preparation.GetComponentInChildren<BreakingNewsView>();
@@ -138,12 +147,74 @@ namespace AuctionGame.Auction.Tests
             }
 
             yield return null;
+            int introductions = 0;
+            int dialogueLines = 0;
+            auction.OnItemChanged += CountIntroduction;
+            auction.OnAiDialogue += CountDialogue;
             tap.onClick.Invoke();
             Assert.That(GameObject.Find("Continue News"), Is.Null);
-            Click("Start Auction");
+            var start = GameObject.Find("Start Auction").GetComponent<Button>();
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Opening));
+            Assert.That(auction.RemainingTime, Is.Zero);
+            Assert.That(introductions, Is.Zero);
+            Assert.That(dialogueLines, Is.Zero);
+            var hud = GameObject.Find("AuctionPanel").GetComponent<CanvasGroup>();
+            Assert.That(hud.alpha, Is.Zero);
+            Assert.That(hud.interactable, Is.False);
+            Assert.That(hud.blocksRaycasts, Is.False);
+            var visual = GameObject.Find("AuctionItemVisual").GetComponent<SpriteRenderer>();
+            Assert.That(visual.sprite, Is.SameAs(auction.CurrentItem.Sprite));
+            Assert.That(visual.forceRenderingOff, Is.True);
+            Assert.That(curtain.localPosition.x, Is.EqualTo(stageSettings.FindProperty("curtainClosedX").floatValue));
+            var closePosition = camera.transform.localPosition;
+            Assert.That(closePosition, Is.Not.EqualTo(position));
+
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+            var corner = new PointerEventData(EventSystem.current)
+            {
+                button = PointerEventData.InputButton.Left,
+                position = new Vector2(Screen.width * .03f, Screen.height * .94f)
+            };
+            var cornerHits = new List<RaycastResult>();
+            EventSystem.current.RaycastAll(corner, cornerHits);
+            Assert.That(cornerHits, Is.Not.Empty);
+            Assert.That(cornerHits[0].gameObject, Is.SameAs(start.gameObject));
+            ExecuteEvents.Execute(start.gameObject, corner, ExecuteEvents.pointerClickHandler);
+            start.onClick.Invoke();
             Assert.That(GameObject.Find("BreakingNewsCanvas"), Is.Null);
+            auction.Tick(60f);
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Opening));
+            Assert.That(auction.BidHistory, Is.Empty);
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 10), Is.False);
+            Assert.That(auction.TryPlaceBid(auction.Opponents[0].Id, 10), Is.False);
+            yield return null;
+            yield return null;
+            Assert.That(visual.forceRenderingOff, Is.False);
+            Assert.That(camera.transform.localPosition, Is.Not.EqualTo(closePosition));
+            Assert.That(curtain.localPosition.x, Is.GreaterThan(stageSettings.FindProperty("curtainClosedX").floatValue));
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Opening));
+            Assert.That(introductions, Is.Zero);
+            Assert.That(dialogueLines, Is.Zero);
+            Assert.That(auction.RemainingTime, Is.Zero);
+            Assert.That(hud.alpha, Is.Zero);
+
+            float deadline = Time.realtimeSinceStartup + 5f;
+            while (auction.State == AuctionState.Opening && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
+            Assert.That(introductions, Is.EqualTo(1));
+            Assert.That(camera.transform.localPosition, Is.EqualTo(position));
+            Assert.That(camera.transform.localRotation, Is.EqualTo(rotation));
+            Assert.That(camera.fieldOfView, Is.EqualTo(fov));
+            Assert.That(curtain.localPosition, Is.EqualTo(curtainPosition));
+            auction.OnItemChanged -= CountIntroduction;
+            auction.OnAiDialogue -= CountDialogue;
             tap.onClick.Invoke();
             Assert.That(view.CurrentCard, Is.Null);
+
+            void CountIntroduction(AuctionItem _) => introductions++;
+            void CountDialogue(string bidder, string category, string line) => dialogueLines++;
         }
 
         private static void AssertSprite(string name)

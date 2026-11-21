@@ -145,9 +145,10 @@ namespace AuctionGame.Auction
             if (opponentNames)
                 opponentNames.text = string.Join("   ·   ", manager.Opponents.Select(opponent => opponent.Personality.Name));
             RefreshBudget();
-            SetButton(tenButton, item, AuctionManager.MinimumOpeningBid);
-            SetButton(twentyFiveButton, item, AuctionManager.MediumIncrement);
-            SetButton(fiftyButton, item, AuctionManager.HighIncrement);
+            bool showBidButtons = item && manager.State != AuctionState.Opening;
+            SetButton(tenButton, showBidButtons, AuctionManager.MinimumOpeningBid);
+            SetButton(twentyFiveButton, showBidButtons, AuctionManager.MediumIncrement);
+            SetButton(fiftyButton, showBidButtons, AuctionManager.HighIncrement);
             if (mobileHud)
             {
                 string prefix = string.IsNullOrEmpty(manager.HighestBidderId) ? "$" : "+$";

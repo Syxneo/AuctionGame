@@ -2,7 +2,7 @@
 
 namespace AuctionGame.Auction
 {
-    public enum AuctionState { Idle, ItemReveal, Bidding, Sold, Unsold, Finished }
+    public enum AuctionState { Idle, ItemReveal, Bidding, Sold, Unsold, Finished, Opening }
 
     public static class BidderIds
     {

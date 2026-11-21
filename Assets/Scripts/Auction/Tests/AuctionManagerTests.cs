@@ -26,6 +26,32 @@ namespace AuctionGame.Auction.Tests
         }
 
         [Test]
+        public void PreparedOpeningHoldsFirstLotAndIntroducesItOnce()
+        {
+            var level = AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>("Assets/AuctionMvp/MvpAuctionLevel.asset");
+            var run = level.CreateRun();
+            var introductions = new List<AuctionItem>();
+            auction.OnItemChanged += introductions.Add;
+
+            Assert.That(auction.PrepareOpening(run, level.Database, null), Is.True);
+            Assert.That(auction.CurrentItem, Is.SameAs(run[0]));
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Opening));
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 10), Is.False);
+            Assert.That(auction.TryPlaceBid(auction.Opponents[0].Id, 10), Is.False);
+            auction.Tick(60f);
+            Assert.That(auction.RemainingTime, Is.Zero);
+            Assert.That(auction.AuctionElapsed, Is.Zero);
+            Assert.That(introductions, Is.Empty);
+
+            auction.CompleteOpening();
+            auction.CompleteOpening();
+            Assert.That(introductions, Is.EqualTo(new[] { run[0] }));
+            Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
+            auction.Tick(AuctionManager.RevealDuration);
+            Assert.That(auction.RemainingTime, Is.EqualTo(AuctionManager.InitialBiddingTime));
+        }
+
+        [Test]
         public void StartRevealsItemOnceAndRejectsBidsUntilTwoSeconds()
         {
             int reveals = 0;

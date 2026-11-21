@@ -4309,6 +4309,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.PreparationPhase
   intro: {fileID: 1471185899}
+  openingStage: {fileID: 1516133340}
   level: {fileID: 11400000, guid: a9287539f8cc417e9bdda2d5b9e4f547, type: 2}
   useCampaign: 1
   useValueCappedGeneration: 1
@@ -4528,7 +4529,7 @@ MonoBehaviour:
   cameraTransform: {fileID: 1078266369}
   leftCurtain: {fileID: 2111907919}
   rightCurtain: {fileID: 2111907917}
-  playIntroOnStart: 1
+  playIntroOnStart: 0
   introDelay: 0.5
   introDuration: 4
   outroDuration: 3
@@ -4537,6 +4538,11 @@ MonoBehaviour:
   cameraZEnd: 25
   curtainClosedX: 2
   curtainOpenX: 8
+  openingTarget: {fileID: 2161000002}
+  openingCameraOffset: {x: 0, y: 6.8, z: 11}
+  openingLookOffset: {x: 0, y: 1, z: 0}
+  openingFieldOfView: 48
+  openingDuration: 2
   closeUpOffset: {x: 0, y: 6.8, z: 11}
   closeUpLookOffset: {x: 0, y: 1, z: 0}
   closeUpFieldOfView: 48
