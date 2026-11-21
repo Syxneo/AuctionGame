@@ -4287,10 +4287,10 @@ MonoBehaviour:
   auctionPanel: {fileID: 1547383900}
   level: {fileID: 11400000, guid: a9287539f8cc417e9bdda2d5b9e4f547, type: 2}
   preparation: {fileID: 1471185885}
-  endPresentation: {fileID: 0}
-  reportParchment: {fileID: 0}
-  reportOutline: {fileID: 0}
-  reportButton: {fileID: 0}
+  endPresentation: {fileID: 1471185899}
+  reportParchment: {fileID: 21300000, guid: aeda47e2bca04a5c8757e3f00ae69bd5, type: 3}
+  reportOutline: {fileID: 21300000, guid: 357f927e455849bdaae6ef818a9d48bc, type: 3}
+  reportButton: {fileID: 21300000, guid: ebc896a428aa4f41999af8b4216599db, type: 3}
   successDialogue: "V\xFDborne. Dosiahol si po\u017Eadovan\xFD zisk. Zd\xE1 sa, \u017Ee
     m\xE1\u0161 na obchod dobr\xFD nos."
   failureDialogue: "Nesplnil si po\u017Eadovan\xFD zisk. V tomto biznise sa za chyby
