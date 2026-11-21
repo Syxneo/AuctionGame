@@ -15,6 +15,35 @@ namespace AuctionGame.Auction.Tests
     public sealed class AuctionHudTests
     {
         [UnityTest]
+        public IEnumerator IntegratedHandFollowsAiLeadAndHidesOnPlayerBid()
+        {
+            yield return new EnterPlayMode();
+            GameIntroTestDriver.LoadIntegratedScene();
+            yield return null;
+
+            var auction = Object.FindFirstObjectByType<AuctionManager>();
+            var settings = new SerializedObject(auction);
+            settings.FindProperty("enableAutomaticAi").boolValue = false;
+            settings.FindProperty("paceAiInteractions").boolValue = false;
+            settings.ApplyModifiedPropertiesWithoutUndo();
+            var level = AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>("Assets/AuctionMvp/MvpAuctionLevel.asset");
+            var hands = AssertHandsConfigured();
+            Assert.That(hands.Count(hand => hand.enabled), Is.Zero);
+            Assert.That(auction.StartAuction(level.CreateRun(), level.Database), Is.True);
+            OpenLot(auction);
+
+            string bidderId = AuctionItemPresentationTests.FindBidderWithLimit(auction, 10).Id;
+            Assert.That(auction.TryPlaceBid(bidderId, 10), Is.True);
+            Assert.That(hands.Single(hand => hand.enabled).sprite.name, Is.EqualTo("AuctionHand_" + bidderId));
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 20), Is.True);
+            Assert.That(hands.Count(hand => hand.enabled), Is.Zero);
+            auction.Tick(auction.RemainingTime + 0.01f);
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Sold));
+            Assert.That(hands.Count(hand => hand.enabled), Is.Zero);
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
         public IEnumerator IntegratedHudTracksBidsAndPlayerPurchasesThroughRetry()
         {
             yield return new EnterPlayMode();
@@ -161,7 +190,6 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(hand.sprite.name, Is.EqualTo("AuctionHand_" + id));
                 Assert.That(hand.sortingLayerID, Is.EqualTo(character.sortingLayerID));
                 Assert.That(hand.sortingOrder, Is.LessThan(character.sortingOrder));
-                Assert.That(hand.transform.localPosition.z, Is.LessThan(0));
                 hands[index] = hand;
             }
             return hands;

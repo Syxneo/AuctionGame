@@ -4724,6 +4724,7 @@ GameObject:
   - component: {fileID: 1471185885}
   - component: {fileID: 1471185899}
   - component: {fileID: 1471185886}
+  - component: {fileID: 1471185897}
   m_Layer: 0
   m_Name: AuctionSystem
   m_TagString: Untagged
@@ -4731,6 +4732,30 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!114 &1471185897
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1471185879}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cc48efe044d5438f84d4353cd9d70675, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionBidPaddle
+  auction: {fileID: 1471185880}
+  bidderHands:
+  - bidderId: helena
+    character: {fileID: 1999000030}
+  - bidderId: ferko
+    character: {fileID: 1999000031}
+  - bidderId: viktor
+    character: {fileID: 1999000032}
+  - bidderId: zuzu
+    character: {fileID: 1999000033}
+  - bidderId: grumblewick
+    character: {fileID: 1999000034}
 --- !u!114 &1471185880
 MonoBehaviour:
   m_ObjectHideFlags: 0
