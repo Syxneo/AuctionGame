@@ -16,6 +16,16 @@ namespace AuctionGame.Auction.Tests
 {
     public sealed class BidderDialoguePresenterTests
     {
+        [Test]
+        public void DrybrushSupportsEverySlovakAccentedLetterWithoutFallback()
+        {
+            const string letters = "áäčďéíĺľňóôŕšťúýžÁÄČĎÉÍĹĽŇÓÔŔŠŤÚÝŽ";
+            var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/Art/Font/Drybrush SDF.asset");
+            Assert.That(font, Is.Not.Null);
+            Assert.That(font.HasCharacters(letters, out uint[] missing, searchFallbacks: false, tryAddCharacter: true),
+                Is.True, string.Join(", ", missing ?? System.Array.Empty<uint>()));
+        }
+
         [UnityTest]
         public IEnumerator HallBindsRealSpritesAndPresentsOpeningAndPriorities()
         {
