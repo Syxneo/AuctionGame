@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 7298740039711827766}
   - component: {fileID: 7995249605545419828}
   m_Layer: 0
-  m_Name: Character3
+  m_Name: Grumblewick
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -81,7 +81,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: 1591c09b2f6c14526a395de834656625, type: 3}
+  m_Sprite: {fileID: 21300000, guid: ee0d1f1839593ff43a8a82e0058a19e2, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -102,7 +102,7 @@ GameObject:
   - component: {fileID: 32803588991827970}
   - component: {fileID: 2532218343254757371}
   m_Layer: 0
-  m_Name: Character5
+  m_Name: Zuzu
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -172,7 +172,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: 9fb0a597c14c74f5f98efd7b41267423, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d6620c85c276e044ca8951ddcb0fdbf9, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -193,7 +193,7 @@ GameObject:
   - component: {fileID: 6993209884794717581}
   - component: {fileID: 5147706256552939156}
   m_Layer: 0
-  m_Name: Character2
+  m_Name: Helena
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -263,7 +263,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: e28f243eaa96f47448287ca224baf0b4, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 676a9b3b4e6a7b244bd6e9061bf1b8ae, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -284,7 +284,7 @@ GameObject:
   - component: {fileID: 2684586512097247742}
   - component: {fileID: 8691156689885306271}
   m_Layer: 0
-  m_Name: Character1
+  m_Name: Viktor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -354,7 +354,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: db8ff9ad08fd3460ab7257a050f83867, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 3344d79f461df74438055ac10b5344f3, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -375,7 +375,7 @@ GameObject:
   - component: {fileID: 7626024656647184463}
   - component: {fileID: 7689245043996910616}
   m_Layer: 0
-  m_Name: Character4
+  m_Name: Ferko
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -445,7 +445,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: db7ed753f114b4e4ea87196254cf166b, type: 3}
+  m_Sprite: {fileID: 21300000, guid: a84f2370e5bfc4546a4a4ce3ae6b21c2, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -555,6 +555,8 @@ MonoBehaviour:
   sceneCamera: {fileID: 0}
   canvas: {fileID: 4703517140127037247}
   bubblePrefab: {fileID: 5826550855767299657, guid: f564888266e09c345b2fd1999d6ce698, type: 3}
+  dialogueAudio: {fileID: 0}
+  dialogueCue: {fileID: 0}
   font: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   bidders:
   - bidderId: collector
@@ -564,12 +566,18 @@ MonoBehaviour:
   - bidderId: analyst
     sprite: {fileID: 8691156689885306271}
   enableDialogueUi: 1
-  maxWidth: 260
-  minWidth: 140
+  showParticipation: 0
+  inactiveBidderShader: {fileID: 0}
+  swayDegrees: 2.5
+  hopHeight: 0.08
+  leaderScale: 1.07
+  leaderTint: {r: 1, g: 0.89, b: 0.65, a: 1}
+  maxWidth: 460
+  minWidth: 210
   verticalOffset: 24
   screenEdgePadding: 16
-  textPadding: 12
-  maxTextLines: 4
+  textPadding: 18
+  maxTextLines: 5
   horizontalPadding: 12
   verticalPadding: 8
   maxHorizontalShift: 100

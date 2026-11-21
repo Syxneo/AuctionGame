@@ -78,7 +78,8 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(Vector3.Dot(-visual.transform.forward, toCamera.normalized), Is.GreaterThan(0.999f));
                 AssertInPortrait(camera, vertices);
 
-                auction.Tick(AuctionManager.RevealDuration);
+                int openingCount = auction.Opponents.Count(opponent => opponent.IsActiveForLot);
+                auction.Tick(Mathf.Max(AuctionManager.RevealDuration, (openingCount - 1) * auction.AiInteractionInterval));
                 bool sold = lot != lots[1];
                 if (sold)
                     Click("+$10 Button");
@@ -87,13 +88,16 @@ namespace AuctionGame.Auction.Tests
                 if (lot == lots[0])
                 {
                     string opponent = FindBidderWithLimit(auction, 55).Id;
+                    auction.Tick(2.5f);
                     Assert.That(auction.TryPlaceBid(opponent, 20), Is.True);
                     Click("+$25 Button");
                     Assert.That(auction.CurrentPrice, Is.EqualTo(45));
+                    auction.Tick(2.5f);
                     Assert.That(auction.TryPlaceBid(opponent, 55), Is.True);
                     Click("+$50 Button");
                     Assert.That(auction.CurrentPrice, Is.EqualTo(105));
                     Assert.That(auction.HighestBidderId, Is.EqualTo(BidderIds.Player));
+                    AssertWithdrawalPreservesSprite(auction);
                 }
 
                 auction.Tick(auction.RemainingTime + 1000f);
@@ -184,6 +188,30 @@ namespace AuctionGame.Auction.Tests
             Assert.That(Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
             Assert.That(Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
             yield return new ExitPlayMode();
+        }
+
+        private static void AssertWithdrawalPreservesSprite(AuctionManager auction)
+        {
+            var bidder = auction.Opponents.First(opponent => opponent.IsActiveForLot);
+            var presenter = Object.FindFirstObjectByType<BidderDialoguePresenter>();
+            var bindings = new SerializedObject(presenter).FindProperty("bidders");
+            var binding = Enumerable.Range(0, bindings.arraySize).Select(bindings.GetArrayElementAtIndex).First(entry =>
+                entry.FindPropertyRelative("bidderId").stringValue == bidder.Id);
+            var sprite = (SpriteRenderer)binding.FindPropertyRelative("sprite").objectReferenceValue;
+            var update = typeof(BidderDialoguePresenter).GetMethod("UpdateCharacters",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            object[] time = { 0.75d };
+            update.Invoke(presenter, time);
+            var material = sprite.sharedMaterial;
+            var color = sprite.color;
+            var position = sprite.transform.localPosition;
+            var rotation = sprite.transform.localRotation;
+            typeof(AIBidder).GetProperty(nameof(AIBidder.HasChickenedOut)).SetValue(bidder, true);
+            update.Invoke(presenter, time);
+            Assert.That(sprite.sharedMaterial, Is.SameAs(material));
+            Assert.That(sprite.color, Is.EqualTo(color));
+            Assert.That(sprite.transform.localPosition, Is.EqualTo(position));
+            Assert.That(sprite.transform.localRotation, Is.EqualTo(rotation));
         }
 
         internal static void AdvanceMotion(SceneIntroOutro stage, float seconds)

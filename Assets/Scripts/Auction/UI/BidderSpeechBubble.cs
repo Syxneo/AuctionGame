@@ -42,9 +42,9 @@ namespace AuctionGame.Auction
                 label = Child<TextMeshProUGUI>("Dialogue");
                 label.rectTransform.anchorMin = label.rectTransform.anchorMax = label.rectTransform.pivot = Vector2.one * 0.5f;
                 label.rectTransform.anchoredPosition = Vector2.zero;
-                label.fontSize = 22;
-                label.fontSizeMin = 12;
-                label.fontSizeMax = 22;
+                label.fontSize = 34;
+                label.fontSizeMin = 28;
+                label.fontSizeMax = 34;
                 label.enableAutoSizing = true;
                 label.alignment = TextAlignmentOptions.Center;
                 label.textWrappingMode = TextWrappingModes.Normal;
@@ -78,8 +78,8 @@ namespace AuctionGame.Auction
             float width = Mathf.Clamp(label.GetPreferredValues(text).x + 2 * padding, minWidth, maxWidth);
             padding = Mathf.Min(padding, (width - 1) / 2);
             float height = Mathf.Min(label.GetPreferredValues(text, width - 2 * padding, 0).y * 1.1f,
-                maxLines * 26) + 2 * padding;
-            Rect.sizeDelta = new Vector2(width, Mathf.Max(44, height));
+                maxLines * label.fontSizeMax * 1.2f) + 2 * padding;
+            Rect.sizeDelta = new Vector2(width, Mathf.Max(60, height));
             label.rectTransform.sizeDelta = Rect.sizeDelta - Vector2.one * (2 * padding);
         }
 

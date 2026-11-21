@@ -50,12 +50,12 @@ namespace AuctionGame.Auction
         [SerializeField, Min(0)] private float hopHeight = 0.08f;
         [SerializeField, Min(1)] private float leaderScale = 1.07f;
         [SerializeField] private Color leaderTint = new(1f, 0.89f, 0.65f);
-        [SerializeField, Min(20)] private float maxWidth = 260;
-        [SerializeField, Min(20)] private float minWidth = 140;
+        [SerializeField, Min(20)] private float maxWidth = 460;
+        [SerializeField, Min(20)] private float minWidth = 210;
         [SerializeField, Min(0)] private float verticalOffset = 24;
         [SerializeField, Min(0)] private float screenEdgePadding = 16;
-        [SerializeField, Min(0)] private float textPadding = 12;
-        [SerializeField, Min(1)] private int maxTextLines = 4;
+        [SerializeField, Min(0)] private float textPadding = 18;
+        [SerializeField, Min(1)] private int maxTextLines = 5;
         [SerializeField, Min(0)] private float horizontalPadding = 12;
         [SerializeField, Min(0)] private float verticalPadding = 8;
         [SerializeField, Min(0)] private float maxHorizontalShift = 100;
@@ -204,16 +204,14 @@ namespace AuctionGame.Auction
                 if (!binding.sprite)
                     continue;
 
-                bool inactive = binding.Bidder != null &&
-                    (!binding.Bidder.IsActiveForLot || binding.Bidder.HasChickenedOut);
+                bool inactive = binding.Bidder != null && !binding.Bidder.IsActiveForLot;
                 bool moving = animate && binding.Bidder != null && !inactive;
                 bool leading = !inactive && binding.Bidder != null && binding.bidderId == auction.HighestBidderId;
                 Material material = inactive && inactiveMaterial ? inactiveMaterial : binding.OriginalMaterial;
                 if (binding.sprite.sharedMaterial != material)
                     binding.sprite.sharedMaterial = material;
                 Color color = leading ? binding.OriginalColor * leaderTint : binding.OriginalColor;
-                color.a = binding.OriginalColor.a *
-                    (auction.PacesAiInteractions && binding.Bidder?.HasChickenedOut == true ? 0.4f : 1f);
+                color.a = binding.OriginalColor.a;
                 binding.sprite.color = color;
 
                 float phase = (float)(now * 2.2 + index * 1.35);

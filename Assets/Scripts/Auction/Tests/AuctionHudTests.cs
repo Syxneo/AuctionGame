@@ -87,6 +87,7 @@ namespace AuctionGame.Auction.Tests
 
             OpenLot(auction);
             string opponent = AuctionItemPresentationTests.FindBidderWithLimit(auction, 10).Id;
+            auction.Tick(auction.AiInteractionInterval);
             Assert.That(auction.TryPlaceBid(opponent, 10), Is.True);
             Assert.That(Label("Leading Bidder").text, Does.Contain(auction.GetBidderDisplayName(opponent)));
             Assert.That(Label("Latest Bid").text, Does.Contain("$10"));
@@ -181,7 +182,10 @@ namespace AuctionGame.Auction.Tests
         private static void OpenLot(AuctionManager auction)
         {
             Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
-            auction.Tick(AuctionManager.RevealDuration);
+            int openingCount = auction.Opponents.Count(opponent => opponent.IsActiveForLot);
+            auction.Tick(Mathf.Max(AuctionManager.RevealDuration, (openingCount - 1) * auction.AiInteractionInterval));
+            if (auction.State == AuctionState.ItemReveal)
+                auction.Tick(auction.AiInteractionInterval);
             Assert.That(auction.State, Is.EqualTo(AuctionState.Bidding));
         }
 

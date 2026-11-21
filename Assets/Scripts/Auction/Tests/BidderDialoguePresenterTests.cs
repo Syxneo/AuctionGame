@@ -109,7 +109,7 @@ namespace AuctionGame.Auction.Tests
         private static void CheckBindings(SerializedProperty bindings)
         {
             string[] ids = { "collector", "trickster", "analyst" };
-            string[] sprites = { "Character4", "Character3", "Character1" };
+            string[] sprites = { "Ferko", "Grumblewick", "Viktor" };
             for (int index = 0; index < ids.Length; index++)
             {
                 var entry = bindings.GetArrayElementAtIndex(index);

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -12,8 +12,8 @@ namespace AuctionGame.Auction
         public const float AntiSnipingTime = 3f;
         public const float MaximumBiddingDuration = 30f;
         private const float MinimumAiInteractionInterval = 2f;
-        private const double NormalPlayerReactionDelay = 2d;
-        private const double FinalPlayerReactionDelay = 0.5d;
+        private const double NormalBidReactionDelay = 2.5d;
+        private const double FinalBidReactionDelay = 0.5d;
         [SerializeField] private int randomSeed = 1729;
         [SerializeField] private bool enableAutomaticAi = true;
         [SerializeField] private bool paceAiInteractions;
@@ -65,7 +65,7 @@ namespace AuctionGame.Auction
         private double resultEndsAt;
         private readonly List<(AIBidder bidder, int amount, long sequence)> pendingActions = new();
         private double bidDeadline;
-        private double playerReactionAt;
+        private double bidReactionAt;
         private bool processingTime;
         private long auctionTick;
         private long bidSequence;
@@ -78,7 +78,7 @@ namespace AuctionGame.Auction
             ? Math.Max(MinimumAiInteractionInterval, aiInteractionInterval) : MinimumAiInteractionInterval;
         internal double AuctionElapsed => stateStartedAt + elapsed;
         private bool AiSlotAvailable => AuctionElapsed + 1e-8 >= nextAiInteraction;
-        private bool PlayerReactionReady => elapsed >= playerReactionAt;
+        private bool BidReactionReady => elapsed >= bidReactionAt;
         internal double DecisionInterval => aiDecisionInterval > 0 && !float.IsInfinity(aiDecisionInterval)
             ? aiDecisionInterval : 3;
         private AIBidder[] opponents = Array.Empty<AIBidder>();
@@ -272,9 +272,9 @@ namespace AuctionGame.Auction
                     if (openingDue || winnerDue)
                         boundary = dialogueDueAt;
                     bool actionDue = State == AuctionState.Bidding && pendingActions.Count > 0 &&
-                        Math.Max(dialogueDueAt, playerReactionAt) < boundary;
+                        Math.Max(dialogueDueAt, bidReactionAt) < boundary;
                     if (actionDue)
-                        boundary = Math.Max(dialogueDueAt, playerReactionAt);
+                        boundary = Math.Max(dialogueDueAt, bidReactionAt);
 
                     // Expiration wins ties. Equal AI decision times retain opponent order.
                     AIBidder nextOpponent = null;
@@ -282,7 +282,7 @@ namespace AuctionGame.Auction
                     {
                         foreach (AIBidder opponent in activeOpponents)
                         {
-                            double readyAt = Math.Max(elapsed, Math.Max(playerReactionAt, opponent.NextDecision));
+                            double readyAt = Math.Max(elapsed, Math.Max(bidReactionAt, opponent.NextDecision));
                             if ((paceAiInteractions && (opponent.HasChickenedOut ||
                                 pendingActions.Exists(action => action.bidder == opponent))) || readyAt >= boundary)
                                 continue;
@@ -330,7 +330,7 @@ namespace AuctionGame.Auction
                     {
                         case AuctionState.ItemReveal:
                             bidDeadline = InitialBiddingTime;
-                            playerReactionAt = 0;
+                            bidReactionAt = 0;
                             if (enableAuctionDebugLog)
                                 LogAuctionDebug($"Bidding opened | true value=${CurrentItem.TrueValue} | opening=${CurrentPrice}");
                             foreach (AIBidder opponent in opponents)
@@ -378,8 +378,8 @@ namespace AuctionGame.Auction
             var bid = new BidRecord(CurrentItem.ItemId, bidderId, amount, elapsed,
                 bidder?.GetBidComment() ?? "", ++bidSequence, increment);
             bidHistory.Add(bid);
-            if (paceAiInteractions && bidderId == BidderIds.Player)
-                ScheduleDynamicPlayerReaction();
+            if (paceAiInteractions)
+                ScheduleBidReactions(bidderId == BidderIds.Player);
             if (enableAuctionDebugLog)
                 LogAuctionDebug($"Bid accepted | {GetBidderDisplayName(bidderId)} | ${previousPrice} → ${amount} | remaining={RemainingTime:F3}s");
             bool wasProcessing = processingTime;
@@ -391,7 +391,7 @@ namespace AuctionGame.Auction
                     dialogue?.AcceptedBid(bid, activeOpponents);
                 else if (bidder != null)
                 {
-                    ReserveAiInteraction();
+                    nextAiInteraction = stateStartedAt + bidReactionAt;
                     dialogue?.Bid(bidder, amount, elapsed);
                 }
                 OnBidPlaced?.Invoke(bid);
@@ -414,15 +414,16 @@ namespace AuctionGame.Auction
             return true;
         }
 
-        private void ScheduleDynamicPlayerReaction()
+        private void ScheduleBidReactions(bool playerBid)
         {
             double remaining = Math.Min(bidDeadline, MaximumBiddingDuration) - elapsed;
-            playerReactionAt = elapsed + (remaining > AntiSnipingTime ? NormalPlayerReactionDelay : FinalPlayerReactionDelay);
+            bidReactionAt = elapsed + (playerBid && remaining <= AntiSnipingTime
+                ? FinalBidReactionDelay : NormalBidReactionDelay);
 
-            // Any earlier AI minimum raise or withdrawal refers to the price before this player bid.
+            // Earlier AI minimum raises and withdrawals refer to the previous bid.
             pendingActions.Clear();
             foreach (AIBidder opponent in activeOpponents)
-                opponent.SchedulePlayerBidReaction(playerReactionAt);
+                opponent.ScheduleBidReaction(bidReactionAt);
         }
 
         internal void LogAuctionDebug(string message) =>
@@ -441,7 +442,7 @@ namespace AuctionGame.Auction
 
         public bool CanPlaceBid(string bidderId, int amount)
             => CanEvaluateBid(bidderId, amount) &&
-                (!paceAiInteractions || bidderId == BidderIds.Player || (AiSlotAvailable && PlayerReactionReady));
+                (!paceAiInteractions || bidderId == BidderIds.Player || (AiSlotAvailable && BidReactionReady));
 
         internal bool CanEvaluateBid(string bidderId, int amount)
         {
@@ -459,7 +460,7 @@ namespace AuctionGame.Auction
 
         internal void RequestAiAction(AIBidder bidder, int amount)
         {
-            if (paceAiInteractions && (!AiSlotAvailable || !PlayerReactionReady || pendingActions.Count > 0))
+            if (paceAiInteractions && (!AiSlotAvailable || !BidReactionReady || pendingActions.Count > 0))
                 pendingActions.Add((bidder, amount, bidSequence));
             else
                 ExecuteAiAction(bidder, amount, bidSequence);

@@ -15,8 +15,8 @@ MonoBehaviour:
   bidderName: Helena
   dialogueProfileId: helena
   startingBudget: 600
-  overestimateBias: 55
-  intimidationResistance: 70
+  overestimateBias: 35
+  intimidationResistance: 40
   categoryProfiles:
   - category: 0
     interest: 65
@@ -66,3 +66,4 @@ MonoBehaviour:
   - category: 15
     interest: 0
     accuracy: 10
+  bidComments: []

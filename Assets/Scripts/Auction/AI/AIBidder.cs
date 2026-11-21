@@ -66,7 +66,7 @@ namespace AuctionGame.Auction
         internal void SchedulePlayerBidReaction(double elapsed, double minDelay, double maxDelay) =>
             NextDecision = elapsed + minDelay + ((maxDelay - minDelay) * reactionRandom.NextDouble());
 
-        internal void SchedulePlayerBidReaction(double readyAt) => NextDecision = readyAt;
+        internal void ScheduleBidReaction(double readyAt) => NextDecision = readyAt;
 
         internal void PrepareItem(AuctionItem item)
         {

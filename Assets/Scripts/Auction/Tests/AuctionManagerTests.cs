@@ -226,6 +226,7 @@ namespace AuctionGame.Auction.Tests
             auction.Tick(1000);
             Assert.That(auction.Results, Has.Count.EqualTo(6));
             Assert.That(interactions.Zip(interactions.Skip(1), (a, b) => b.time - a.time), Is.All.GreaterThanOrEqualTo(2d));
+            Assert.That(bids.Zip(bids.Skip(1), (a, b) => b.time - a.time), Is.All.GreaterThanOrEqualTo(2.5d));
             Assert.That(interactions.Where(entry => entry.group.StartsWith("BR-")).Select(entry => (entry.time, entry.id)),
                 Is.EqualTo(bids));
             Assert.That(interactions.Count(entry => entry.group.StartsWith("WIN-")), Is.EqualTo(6));
@@ -262,10 +263,12 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction.BidHistory.Single(bid => bid.amount == 20).bidderId, Is.EqualTo(BidderIds.Player));
         }
 
-        [TestCase(2f, 13f, 2f)]
-        [TestCase(12.5f, 3f, 0.5f)]
-        [TestCase(28f, 2f, 0.5f)]
-        public void PacedPlayerReactionUsesAdjustedRemainingTime(float bidAt, float adjustedRemaining, float delay)
+        [TestCase(true, 2f, 13f, 2.5f)]
+        [TestCase(true, 12.5f, 3f, 0.5f)]
+        [TestCase(true, 28f, 2f, 0.5f)]
+        [TestCase(false, 2f, 13f, 2.5f)]
+        [TestCase(false, 12.5f, 3f, 2.5f)]
+        public void PacedReactionUsesAdjustedRemainingTime(bool playerFirst, float bidAt, float adjustedRemaining, float delay)
         {
             ConfigurePacedPool(100);
             Assert.That(auction.StartAuction(), Is.True);
@@ -287,15 +290,40 @@ namespace AuctionGame.Auction.Tests
                 if (group.StartsWith("BR-"))
                     comments.Add(id);
             };
-            Assert.That(auction.TryPlaceBid(BidderIds.Player, 10), Is.True);
+            string firstBidder = playerFirst ? BidderIds.Player : ActivePoolIds()[0];
+            Assert.That(auction.TryPlaceBid(firstBidder, 10), Is.True);
+            comments.Clear();
             Assert.That(auction.RemainingTime, Is.EqualTo(adjustedRemaining));
             auction.Tick(delay - 0.125f);
             Assert.That(auction.BidHistory, Has.Count.EqualTo(1));
             auction.Tick(0.125f);
             Assert.That(auction.BidHistory, Has.Count.EqualTo(2));
             var reaction = auction.BidHistory.Last();
+            Assert.That(reaction.bidderId, Is.Not.EqualTo(firstBidder));
             Assert.That(reaction.biddingElapsed, Is.EqualTo((double)bidAt + delay));
             Assert.That(comments, Is.EqualTo(new[] { reaction.bidderId }));
+        }
+
+        [Test]
+        public void LatePlayerRaiseDoesNotShortenSpacingBetweenAiBids()
+        {
+            ConfigurePacedPool(100);
+            Assert.That(auction.StartAuction(), Is.True);
+            auction.Tick(4);
+            typeof(AuctionManager).GetField("bidDeadline", BindingFlags.Instance | BindingFlags.NonPublic)
+                .SetValue(auction, 31d);
+            auction.Tick(28);
+            string openingBidder = ActivePoolIds()[0];
+            Assert.That(auction.TryPlaceBid(openingBidder, 10), Is.True);
+            var settings = new SerializedObject(auction);
+            settings.FindProperty("enableAutomaticAi").boolValue = true;
+            settings.ApplyModifiedPropertiesWithoutUndo();
+            auction.Tick(0.25f);
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 20), Is.True);
+            auction.Tick(1.75f);
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Sold));
+            Assert.That(auction.BidHistory, Has.Count.EqualTo(2));
+            Assert.That(auction.Results.Single().winnerId, Is.EqualTo(BidderIds.Player));
         }
 
         [Test]
@@ -306,17 +334,17 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction.StartAuction(), Is.True);
             auction.Tick(6);
             Assert.That(auction.TryPlaceBid(BidderIds.Player, 10), Is.True);
-            auction.Tick(2);
-            Assert.That(auction.BidHistory.Last().biddingElapsed, Is.EqualTo(4d));
+            auction.Tick(2.5f);
+            Assert.That(auction.BidHistory.Last().biddingElapsed, Is.EqualTo(4.5d));
             Assert.That(auction.BidHistory.Last().bidderId, Is.Not.EqualTo(BidderIds.Player));
             auction.Tick(1);
             Assert.That(auction.TryPlaceBid(BidderIds.Player, 30), Is.True);
-            auction.Tick(1);
+            auction.Tick(1.5f);
             Assert.That(auction.BidHistory, Has.Count.EqualTo(3), "The AI cooldown is over but the new player delay is not.");
             Assert.That(auction.TryPlaceBid(BidderIds.Player, 40), Is.False);
             auction.Tick(1);
             Assert.That(auction.BidHistory, Has.Count.EqualTo(4));
-            Assert.That(auction.BidHistory.Last().biddingElapsed, Is.EqualTo(7d));
+            Assert.That(auction.BidHistory.Last().biddingElapsed, Is.EqualTo(8d));
             Assert.That(auction.BidHistory.Last().bidderId, Is.Not.EqualTo(BidderIds.Player));
         }
 
@@ -339,7 +367,7 @@ namespace AuctionGame.Auction.Tests
             var bidder = auction.Opponents.Single(opponent => opponent.Id == active[1]);
             Decide(bidder);
             Assert.That(bidder.HasChickenedOut, Is.False);
-            auction.Tick(2);
+            auction.Tick(2.5f);
             Assert.That(bidder.HasChickenedOut, Is.True);
             Assert.That(withdrawals, Is.EqualTo(new[] { bidder.Id }));
             Assert.That(auction.TryPlaceBid(bidder.Id, 70), Is.False);
@@ -366,12 +394,12 @@ namespace AuctionGame.Auction.Tests
                 string bidderId = step % 2 == 0 ? BidderIds.Player : active[0];
                 Assert.That(auction.TryPlaceBid(bidderId, 10 * (step + 1)), Is.True);
             }
-            auction.Tick(1.5f);
-            Assert.That(auction.BiddingElapsed, Is.EqualTo(29d));
+            auction.Tick(2.25f);
+            Assert.That(auction.BiddingElapsed, Is.EqualTo(29.75d));
             Assert.That(auction.TryPlaceBid(active[0], 80), Is.True);
             Decide(auction.Opponents.Single(bidder => bidder.Id == active[1]));
             int count = reactions.Count;
-            auction.Tick(1);
+            auction.Tick(0.25f);
             Assert.That(auction.State, Is.EqualTo(AuctionState.Sold));
             Assert.That(auction.Results.Single().finalPrice, Is.EqualTo(80));
             auction.Tick(100);
