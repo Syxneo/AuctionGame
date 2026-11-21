@@ -35,6 +35,8 @@ namespace AuctionGame.Auction
         private float hudAlpha;
         private bool hudInteractable;
         private bool hudBlocksRaycasts;
+        private bool resultConfirmed;
+        private bool presentationCompleted;
 
         private void OnEnable()
         {
@@ -82,6 +84,8 @@ namespace AuctionGame.Auction
 
             activeResult = result;
             waitingForDialogue = true;
+            resultConfirmed = false;
+            presentationCompleted = false;
             TryStartResult();
         }
 
@@ -135,6 +139,8 @@ namespace AuctionGame.Auction
             if (auction && activeResult != null)
                 auction.CompleteResultPresentation(activeResult);
             activeResult = null;
+            resultConfirmed = false;
+            presentationCompleted = false;
         }
 
         private void HideHud()
@@ -171,7 +177,23 @@ namespace AuctionGame.Auction
             {
                 overlay.enabled = visible;
                 continueButton.interactable = visible;
+                // The overlay hides exactly when the curtains start reopening after the
+                // player confirmed the result. Complete the presentation right away so
+                // the auction swaps in the next lot while the intro reveal is running,
+                // instead of only after the whole cinematic has finished.
+                if (!visible && resultConfirmed && activeResult != null && auction && !presentationCompleted)
+                {
+                    presentationCompleted = true;
+                    auction.CompleteResultPresentation(activeResult);
+                }
             }
+        }
+
+        private void ConfirmResult()
+        {
+            resultConfirmed = true;
+            if (stage)
+                stage.ConfirmResult();
         }
 
         private void CreateOverlay()
@@ -194,7 +216,7 @@ namespace AuctionGame.Auction
             continueButton.targetGraphic = target;
             continueButton.transition = Selectable.Transition.None;
             continueButton.interactable = false;
-            continueButton.onClick.AddListener(stage.ConfirmResult);
+            continueButton.onClick.AddListener(ConfirmResult);
             root.gameObject.AddComponent<GraphicRaycaster>();
 
             RectTransform safeArea = Box("Result Safe Area", root, Vector2.zero, Vector2.one);

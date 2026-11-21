@@ -56,8 +56,9 @@ namespace AuctionGame.Auction.Tests
             yield return GameIntroTestDriver.ReadBroadcast();
 
             var lots = level.CreateRun();
-            foreach (AuctionItem lot in lots)
+            for (int lotIndex = 0; lotIndex < lots.Count; lotIndex++)
             {
+                AuctionItem lot = lots[lotIndex];
                 Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
                 Assert.That(auction.CurrentItem, Is.SameAs(lot));
                 Assert.That(visual.sprite, Is.SameAs(lot.Sprite));
@@ -159,6 +160,10 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(left.localPosition.x, Is.InRange(closedX + 0.01f, leftOpen.x - 0.01f));
                 Assert.That(right.localPosition.x, Is.InRange(rightOpen.x + 0.01f, -closedX - 0.01f));
                 Assert.That(camera.fieldOfView, Is.InRange(45f, 63f));
+                // The next lot is swapped in the moment the curtain reopen (intro) starts,
+                // not only after the whole result cinematic has finished.
+                auction.Tick(0.01f);
+                Assert.That(auction.CurrentItem, lotIndex + 1 < lots.Count ? Is.SameAs(lots[lotIndex + 1]) : Is.Null);
                 if (lot == lots[1])
                     stage.enabled = false;
                 else
@@ -173,8 +178,7 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(hudGroup.interactable, Is.True);
                 Assert.That(hudGroup.blocksRaycasts, Is.True);
                 stage.enabled = true;
-                Assert.That(auction.CurrentItem, Is.SameAs(lot));
-                auction.Tick(1000f);
+                Assert.That(auction.CurrentItem, lotIndex + 1 < lots.Count ? Is.SameAs(lots[lotIndex + 1]) : Is.Null);
             }
 
             Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
