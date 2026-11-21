@@ -1,0 +1,395 @@
+using System;
+using System.Collections.Generic;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace AuctionGame.Auction
+{
+    [DefaultExecutionOrder(100)]
+    public sealed class BidderDialoguePresenter : MonoBehaviour
+    {
+        [Serializable]
+        private sealed class Binding
+        {
+            public string bidderId;
+            public SpriteRenderer sprite;
+            public BidderSpeechBubble Bubble { get; set; }
+            public int Priority { get; set; }
+            public bool Opening { get; set; }
+            public double Started { get; set; }
+            public double Ends { get; set; }
+            public float AppearFor { get; set; }
+            public float StartAlpha { get; set; }
+            public float StartScale { get; set; }
+            public string PendingText { get; set; }
+            public bool Replacing { get; set; }
+            public Vector2 Anchor { get; set; }
+            public Vector2 Destination { get; set; }
+        }
+
+        [SerializeField] private AuctionManager auction;
+        [SerializeField] private Camera sceneCamera;
+        [SerializeField] private Canvas canvas;
+        [SerializeField] private BidderSpeechBubble bubblePrefab;
+        [SerializeField] private TMP_FontAsset font;
+        [SerializeField] private Binding[] bidders = Array.Empty<Binding>();
+        [SerializeField] private bool enableDialogueUi = true;
+        [SerializeField, Min(20)] private float maxWidth = 260;
+        [SerializeField, Min(20)] private float minWidth = 140;
+        [SerializeField, Min(0)] private float verticalOffset = 24;
+        [SerializeField, Min(0)] private float screenEdgePadding = 16;
+        [SerializeField, Min(0)] private float textPadding = 12;
+        [SerializeField, Min(1)] private int maxTextLines = 4;
+        [SerializeField, Min(0)] private float horizontalPadding = 12;
+        [SerializeField, Min(0)] private float verticalPadding = 8;
+        [SerializeField, Min(0)] private float maxHorizontalShift = 100;
+        [SerializeField, Min(0)] private float maxVerticalShift = 60;
+        [SerializeField, Min(0.01f)] private float positionSmoothing = 0.12f;
+        [SerializeField, Min(0.01f)] private float showDuration = 0.20f;
+        [SerializeField, Min(0.01f)] private float hideDuration = 0.15f;
+        [SerializeField, Min(0.01f)] private float replaceDuration = 0.15f;
+        [SerializeField, Min(0.01f)] private float openingDuration = 3;
+        [SerializeField, Min(0.01f)] private float ordinaryDuration = 2.5f;
+        [SerializeField, Min(0.01f)] private float limitDuration = 3;
+        [SerializeField, Min(0.01f)] private float withdrawalDuration = 3.5f;
+        [SerializeField, Min(0.01f)] private float winnerDuration = 4;
+
+        private readonly List<Binding> visible = new();
+        private readonly List<Rect> occupied = new();
+        private Sprite frame;
+        private Sprite arrow;
+
+        private void Awake()
+        {
+            if (!auction || !sceneCamera || !canvas)
+            {
+                enabled = false;
+                return;
+            }
+
+            frame = CreateSprite(true);
+            arrow = CreateSprite(false);
+            foreach (Binding binding in bidders)
+            {
+                binding.Bubble = bubblePrefab ? Instantiate(bubblePrefab, canvas.transform, false)
+                    : new GameObject(binding.bidderId + " Bubble", typeof(RectTransform), typeof(BidderSpeechBubble))
+                        .GetComponent<BidderSpeechBubble>();
+                binding.Bubble.transform.SetParent(canvas.transform, false);
+                binding.Bubble.Initialize(font ? font : TMP_Settings.defaultFontAsset, frame, arrow);
+            }
+        }
+
+        private void OnEnable()
+        {
+            if (!auction || !sceneCamera || !canvas)
+                return;
+            auction.OnAiDialogue += Show;
+            auction.OnItemChanged += ClearForLot;
+            auction.OnAuctionEnded += EndLot;
+            auction.OnAuctionPhaseFinished += Clear;
+        }
+
+        private void OnDisable()
+        {
+            if (!auction)
+                return;
+            auction.OnAiDialogue -= Show;
+            auction.OnItemChanged -= ClearForLot;
+            auction.OnAuctionEnded -= EndLot;
+            auction.OnAuctionPhaseFinished -= Clear;
+            Clear();
+        }
+
+        private void OnDestroy()
+        {
+            foreach (Binding binding in bidders)
+            {
+                if (binding.Bubble)
+                    Destroy(binding.Bubble.gameObject);
+            }
+            Release(frame);
+            Release(arrow);
+        }
+
+        private static void Release(Sprite sprite)
+        {
+            if (!sprite)
+                return;
+            Destroy(sprite.texture);
+            Destroy(sprite);
+        }
+
+        private void ClearForLot(AuctionItem _) => Clear();
+
+        private void Clear()
+        {
+            foreach (Binding binding in bidders)
+                Hide(binding);
+        }
+
+        private void EndLot(AuctionResult result)
+        {
+            foreach (Binding binding in bidders)
+            {
+                if (binding.Priority != 5 || binding.bidderId != result.winnerId)
+                    Hide(binding);
+            }
+        }
+
+        private static void Hide(Binding binding)
+        {
+            binding.Ends = 0;
+            binding.PendingText = null;
+            if (binding.Bubble)
+                binding.Bubble.Hide();
+        }
+
+        private void Show(string bidderId, string category, string line)
+        {
+            if (!enableDialogueUi || category.StartsWith("SALE-", StringComparison.Ordinal))
+                return;
+
+            Binding target = Array.Find(bidders, binding => binding.bidderId == bidderId);
+            if (target == null || !target.sprite)
+                return;
+
+            bool opening = category == "OPENING";
+            int priority = category switch
+            {
+                "OPENING" => 0,
+                "BR-01" or "BR-02" => 1,
+                "BR-03" => 2,
+                _ when category.StartsWith("BR-", StringComparison.Ordinal) => 3,
+                _ when category.StartsWith("WD-", StringComparison.Ordinal) => 4,
+                _ when category.StartsWith("WIN-", StringComparison.Ordinal) => 5,
+                _ => -1
+            };
+            double now = Time.unscaledTimeAsDouble;
+            bool replacing = target.Ends > now;
+            if (priority < 0 || replacing && target.Priority > priority)
+                return;
+
+            if (priority is >= 1 and <= 3)
+            {
+                int count = 0;
+                Binding lowest = null;
+                foreach (Binding binding in bidders)
+                {
+                    if (binding == target || binding.Ends <= now || binding.Opening || binding.Priority > 3)
+                        continue;
+                    count++;
+                    if (lowest == null || binding.Priority < lowest.Priority)
+                        lowest = binding;
+                }
+                if (count >= 2)
+                {
+                    if (lowest.Priority > priority)
+                        return;
+                    Hide(lowest);
+                }
+            }
+
+            float duration = priority switch
+            {
+                0 => openingDuration,
+                1 => ordinaryDuration,
+                4 => withdrawalDuration,
+                5 => winnerDuration,
+                _ => limitDuration
+            };
+            target.Priority = priority;
+            target.Opening = opening;
+            target.Started = now;
+            target.Ends = now + duration;
+            target.AppearFor = replacing ? replaceDuration : showDuration;
+            target.StartAlpha = replacing ? target.Bubble.Group.alpha : 0;
+            target.StartScale = replacing ? target.Bubble.Rect.localScale.x : 0.9f;
+            target.PendingText = replacing && target.Bubble.gameObject.activeSelf ? line : null;
+            target.Replacing = target.PendingText != null;
+            if (target.PendingText == null)
+                SetText(target, line);
+        }
+
+        private void SetText(Binding binding, string line) =>
+            binding.Bubble.SetText(line, Mathf.Min(minWidth, maxWidth), maxWidth, textPadding, maxTextLines);
+
+        private void LateUpdate() => Render(Time.unscaledTimeAsDouble, Time.unscaledDeltaTime);
+
+        private void Render(double now, float delta)
+        {
+            if (!enableDialogueUi)
+            {
+                Clear();
+                return;
+            }
+
+            var canvasRect = (RectTransform)canvas.transform;
+            Camera canvasCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            Rect safe = SafeRect(canvasRect, canvasCamera);
+            visible.Clear();
+            foreach (Binding binding in bidders)
+            {
+                if (binding.Ends <= now)
+                {
+                    Hide(binding);
+                    continue;
+                }
+
+                if (!TryProject(binding.sprite, canvasRect, canvasCamera, out Vector2 anchor))
+                {
+                    binding.Bubble.Hide();
+                    continue;
+                }
+
+                binding.Anchor = anchor;
+                if (binding.PendingText != null && now - binding.Started >= binding.AppearFor / 2)
+                {
+                    SetText(binding, binding.PendingText);
+                    binding.PendingText = null;
+                    binding.StartAlpha = 0;
+                }
+                int index = 0;
+                while (index < visible.Count && visible[index].Priority >= binding.Priority)
+                    index++;
+                visible.Insert(index, binding);
+            }
+
+            Layout(safe);
+            foreach (Binding binding in visible)
+            {
+                var bubble = binding.Bubble;
+                bubble.gameObject.SetActive(true);
+                bubble.Rect.anchoredPosition = bubble.Positioned
+                    ? Vector2.SmoothDamp(bubble.Rect.anchoredPosition, binding.Destination, ref bubble.Velocity,
+                        positionSmoothing, Mathf.Infinity, delta)
+                    : binding.Destination;
+                bubble.Positioned = true;
+                bubble.DrawPointer(binding.Anchor);
+                float show = Mathf.Clamp01((float)(now - binding.Started) / binding.AppearFor);
+                float fade = Mathf.Clamp01((float)(binding.Ends - now) / hideDuration);
+                float fadeIn = binding.Replacing ? Mathf.Clamp01(2 * show - 1) : show;
+                float easeOut = fadeIn * (2 - fadeIn);
+                float alpha = binding.PendingText != null ? binding.StartAlpha * (1 - 2 * show)
+                    : Mathf.Lerp(binding.StartAlpha, 1, easeOut);
+                bubble.Group.alpha = alpha * (fade * (2 - fade));
+                bubble.Rect.localScale = Vector3.one * Mathf.Lerp(binding.StartScale, 1, show * (2 - show));
+            }
+        }
+
+        private Rect SafeRect(RectTransform canvasRect, Camera canvasCamera)
+        {
+            Rect screen = Screen.safeArea;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen.min, canvasCamera, out Vector2 min);
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen.max, canvasCamera, out Vector2 max);
+            min -= canvasRect.rect.center;
+            max -= canvasRect.rect.center;
+            return Rect.MinMaxRect(min.x + screenEdgePadding, min.y + screenEdgePadding,
+                max.x - screenEdgePadding, max.y - screenEdgePadding);
+        }
+
+        private bool TryProject(SpriteRenderer sprite, RectTransform canvasRect, Camera canvasCamera, out Vector2 anchor)
+        {
+            anchor = default;
+            if (!sprite || !sprite.enabled || !sprite.gameObject.activeInHierarchy)
+                return false;
+
+            Bounds bounds = sprite.bounds;
+            Vector3 screen = sceneCamera.WorldToScreenPoint(new Vector3(bounds.center.x, bounds.max.y, bounds.center.z));
+            if (!(screen.z >= sceneCamera.nearClipPlane && screen.z <= sceneCamera.farClipPlane &&
+                sceneCamera.pixelRect.Contains((Vector2)screen) &&
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, canvasCamera, out anchor)))
+                return false;
+            anchor -= canvasRect.rect.center;
+            return true;
+        }
+
+        private void Layout(Rect safe)
+        {
+            occupied.Clear();
+            foreach (Binding binding in visible)
+            {
+                Vector2 size = binding.Bubble.Rect.sizeDelta;
+                Vector2 preferred = binding.Anchor + Vector2.up * (verticalOffset + size.y / 2);
+                if (!TryPlace(preferred, size, safe, out Vector2 center))
+                {
+                    // Keep a deterministic stack when the local displacement budget is insufficient.
+                    float top = safe.yMax;
+                    foreach (Binding fallback in visible)
+                    {
+                        Vector2 dimensions = fallback.Bubble.Rect.sizeDelta;
+                        fallback.Destination = ClampCenter(new Vector2(fallback.Anchor.x, top - dimensions.y / 2), dimensions, safe);
+                        top -= dimensions.y + verticalPadding;
+                    }
+                    return;
+                }
+                binding.Destination = center;
+                occupied.Add(new Rect(center - size / 2 - new Vector2(horizontalPadding, verticalPadding) / 2,
+                    size + new Vector2(horizontalPadding, verticalPadding)));
+            }
+        }
+
+        private bool TryPlace(Vector2 preferred, Vector2 size, Rect safe, out Vector2 center)
+        {
+            const float step = 4;
+            for (float vertical = 0; vertical <= maxVerticalShift; vertical += step)
+            {
+                for (float horizontal = 0; horizontal <= maxHorizontalShift; horizontal += step)
+                {
+                    for (int side = 0; side < 4; side++)
+                    {
+                        center = ClampCenter(preferred + new Vector2(side % 2 == 0 ? horizontal : -horizontal,
+                            side < 2 ? vertical : -vertical), size, safe);
+                        var bounds = new Rect(center - size / 2, size);
+                        bool overlaps = false;
+                        foreach (Rect other in occupied)
+                            overlaps |= other.Overlaps(bounds);
+                        if (!overlaps)
+                            return true;
+                    }
+                }
+            }
+            center = default;
+            return false;
+        }
+
+        private static Vector2 ClampCenter(Vector2 center, Vector2 size, Rect safe)
+        {
+            Vector2 half = size * 0.5f;
+            return new Vector2(Mathf.Clamp(center.x, safe.xMin + half.x, safe.xMax - half.x),
+                Mathf.Clamp(center.y, safe.yMin + half.y, safe.yMax - half.y));
+        }
+
+        private static Sprite CreateSprite(bool rounded)
+        {
+            const int size = 32;
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            var pixels = new Color32[size * size];
+            var fill = new Color32(247, 240, 223, 255);
+            var border = new Color32(185, 168, 137, 255);
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float side = Mathf.Abs(x + 0.5f - size / 2);
+                    if (rounded)
+                    {
+                        Vector2 corner = new(Mathf.Max(0, side - 7), Mathf.Max(0, Mathf.Abs(y + 0.5f - size / 2) - 7));
+                        if (corner.magnitude < 9)
+                            pixels[y * size + x] = corner.magnitude > 7.5f ? border : fill;
+                    }
+                    else
+                    {
+                        float width = (size - y) / 2f;
+                        if (side < width)
+                            pixels[y * size + x] = width - side < 2 ? border : fill;
+                    }
+                }
+            }
+            texture.SetPixels32(pixels);
+            texture.Apply();
+            return Sprite.Create(texture, new Rect(0, 0, size, size), Vector2.one / 2, 100, 0,
+                SpriteMeshType.FullRect, rounded ? Vector4.one * 10 : Vector4.zero);
+        }
+    }
+}

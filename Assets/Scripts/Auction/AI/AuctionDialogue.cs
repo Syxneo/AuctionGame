@@ -253,13 +253,15 @@ namespace AuctionGame.Auction
         private void Emit(string bidder, string speaker, string category, string key, double elapsed)
         {
             if (FindLines(bidder, key) != null)
-                Write(speaker, category, elapsed, Take(bidder, key));
+                Write(bidder, speaker, category, elapsed, Take(bidder, key));
         }
 
-        private void Write(string speaker, string category, double elapsed, string text)
+        private void Write(string bidder, string speaker, string category, double elapsed, string text)
         {
             int seconds = (int)elapsed;
-            Debug.Log($"[AI Dialogue] [Lot {lot:00}] [{seconds / 60:00}:{seconds % 60:00}] [{speaker}] [{category}] „{text}“", auction);
+            if (auction.DialogueLogEnabled)
+                Debug.Log($"[AI Dialogue] [Lot {lot:00}] [{seconds / 60:00}:{seconds % 60:00}] [{speaker}] [{category}] „{text}“", auction);
+            auction.PublishAiDialogue(bidder, category, text);
         }
     }
 }

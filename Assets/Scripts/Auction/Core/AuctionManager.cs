@@ -71,6 +71,11 @@ namespace AuctionGame.Auction
         public event Action<AuctionState> OnStateChanged;
         public event Action OnAuctionPhaseFinished;
         public event Action OnClockChanged;
+        public event Action<string, string, string> OnAiDialogue;
+        internal bool DialogueLogEnabled => enableAiDialogueLog;
+
+        internal void PublishAiDialogue(string bidderId, string category, string line) =>
+            OnAiDialogue?.Invoke(bidderId, category, line);
 
         public bool StartAuction() => StartRun(items, itemDatabase);
 
@@ -128,10 +133,8 @@ namespace AuctionGame.Auction
             catalog = fullCatalog;
             auctionTick = 0;
             bidSequence = 0;
-            dialogue = enableAiDialogueLog
-                ? new AuctionDialogue(this, aiDialogueLibrary ? aiDialogueLibrary :
-                    Resources.Load<TextAsset>("Auction/AiDialogue"), randomSeed, aiDialogueCooldown)
-                : null;
+            dialogue = new AuctionDialogue(this, aiDialogueLibrary ? aiDialogueLibrary :
+                Resources.Load<TextAsset>("Auction/AiDialogue"), randomSeed, aiDialogueCooldown);
 
             var random = new System.Random(randomSeed);
             opponents = new AIBidder[personalities.Length];
