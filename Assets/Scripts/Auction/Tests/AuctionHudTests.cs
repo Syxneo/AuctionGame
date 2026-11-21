@@ -27,6 +27,8 @@ namespace AuctionGame.Auction.Tests
             settings.FindProperty("paceAiInteractions").boolValue = false;
             settings.ApplyModifiedPropertiesWithoutUndo();
             var level = AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>("Assets/AuctionMvp/MvpAuctionLevel.asset");
+            var dialogueScaler = GameObject.Find("DialogueCanvas").GetComponent<CanvasScaler>();
+            Assert.That(dialogueScaler.referenceResolution, Is.EqualTo(new Vector2(480, 300)));
             var hands = AssertHandsConfigured();
             Assert.That(hands.Count(hand => hand.enabled), Is.Zero);
             Assert.That(auction.StartAuction(level.CreateRun(), level.Database), Is.True);

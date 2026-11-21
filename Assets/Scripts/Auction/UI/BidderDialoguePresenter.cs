@@ -340,7 +340,11 @@ namespace AuctionGame.Auction
 
         private void SetText(Binding binding, string line)
         {
-            binding.Bubble.SetText(line, Mathf.Min(minWidth, maxWidth), maxWidth, textPadding, maxTextLines);
+            var canvasRect = (RectTransform)canvas.transform;
+            Camera canvasCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            float availableWidth = Mathf.Max(1f, SafeRect(canvasRect, canvasCamera).width);
+            float width = Mathf.Min(maxWidth, availableWidth);
+            binding.Bubble.SetText(line, Mathf.Min(minWidth, width), width, textPadding, maxTextLines);
             binding.CuePending = true;
         }
 

@@ -1074,6 +1074,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 3576690278693278912, guid: ce0f513917ec2654da2b6041980b46d0, type: 3}
+      propertyPath: m_ReferenceResolution.x
+      value: 480
+      objectReference: {fileID: 0}
+    - target: {fileID: 3576690278693278912, guid: ce0f513917ec2654da2b6041980b46d0, type: 3}
+      propertyPath: m_ReferenceResolution.y
+      value: 300
+      objectReference: {fileID: 0}
     - target: {fileID: 5607788505613797669, guid: ce0f513917ec2654da2b6041980b46d0, type: 3}
       propertyPath: auction
       value: 
