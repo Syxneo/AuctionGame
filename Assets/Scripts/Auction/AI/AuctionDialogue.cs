@@ -219,6 +219,12 @@ namespace AuctionGame.Auction
             }
         }
 
+        internal string SaleLineForAiWin(int lotIndex)
+        {
+            string[] lines = FindLines("sale", "SALE-01");
+            return lines == null ? null : lines[lotIndex % lines.Length];
+        }
+
         private static Hint Classify(AIBidder bidder, int price, int next)
         {
             bool overEstimate = next > bidder.EstimatedValue;

@@ -100,6 +100,7 @@ namespace AuctionGame.Auction
         public event Action<string, string, string> OnAiDialogue;
         public event Action<AIBidder> OnBidderChickenedOut;
         internal bool DialogueLogEnabled => enableAiDialogueLog;
+        internal string SaleLineForAiWin => dialogue?.SaleLineForAiWin(itemIndex);
 
         internal void PublishAiDialogue(string bidderId, string category, string line) =>
             OnAiDialogue?.Invoke(bidderId, category, line);

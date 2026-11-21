@@ -101,13 +101,67 @@ namespace AuctionGame.Auction
                     binding.RestRotation = character.localRotation;
                     binding.RestScale = character.localScale;
                 }
-                binding.Bubble = bubblePrefab ? Instantiate(bubblePrefab, canvas.transform, false)
-                    : new GameObject("Bubble", typeof(RectTransform), typeof(BidderSpeechBubble))
-                        .GetComponent<BidderSpeechBubble>();
-                binding.Bubble.name = binding.bidderId + " Bubble";
-                binding.Bubble.transform.SetParent(canvas.transform, false);
-                binding.Bubble.Initialize(font ? font : TMP_Settings.defaultFontAsset, frame, arrow);
+                binding.Bubble = CreateBubble(binding.bidderId + " Bubble");
             }
+        }
+
+        internal BidderSpeechBubble CreateBubble(string bubbleName)
+        {
+            if (!canvas)
+                return null;
+
+            var bubble = bubblePrefab ? Instantiate(bubblePrefab, canvas.transform, false)
+                : new GameObject(bubbleName, typeof(RectTransform), typeof(BidderSpeechBubble))
+                    .GetComponent<BidderSpeechBubble>();
+            bubble.name = bubbleName;
+            bubble.transform.SetParent(canvas.transform, false);
+            bubble.Initialize(font ? font : TMP_Settings.defaultFontAsset, frame, arrow);
+            return bubble;
+        }
+
+        internal bool PlaceSaleBubble(BidderSpeechBubble bubble, SpriteRenderer sprite)
+        {
+            if (!canvas || !canvas.isActiveAndEnabled || canvas.targetDisplay != 0 || !sceneCamera)
+                return false;
+
+            var canvasRect = (RectTransform)canvas.transform;
+            Camera canvasCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            if (!TryProject(sprite, canvasRect, canvasCamera, out Vector2 anchor))
+                return false;
+
+            Rect safe = SafeRect(canvasRect, canvasCamera);
+            Vector2 size = bubble.Rect.sizeDelta;
+            Vector2 preferred = anchor + Vector2.up * (verticalOffset + size.y / 2);
+            for (float lift = 0; lift <= maxVerticalShift; lift += 8f)
+            {
+                Vector2 center = ClampCenter(preferred + Vector2.up * lift, size, safe);
+                var body = new Rect(center - size / 2, size);
+                if (OverlapsBidderBubble(body))
+                    continue;
+
+                bubble.Rect.anchoredPosition = center;
+                bubble.DrawPointer(anchor);
+                return true;
+            }
+            return false;
+        }
+
+        private bool OverlapsBidderBubble(Rect body)
+        {
+            foreach (Binding binding in visible)
+            {
+                var bubble = binding.Bubble;
+                Vector2 size = bubble.Rect.sizeDelta;
+                if (bubble.gameObject.activeSelf && body.Overlaps(new Rect(bubble.Rect.anchoredPosition - size / 2, size)))
+                    return true;
+            }
+            return false;
+        }
+
+        internal void PlaySaleCue()
+        {
+            if (!HasActiveDialogue && dialogueAudio && dialogueCue && !dialogueAudio.isPlaying)
+                dialogueAudio.PlayOneShot(dialogueCue);
         }
 
         private void OnEnable()

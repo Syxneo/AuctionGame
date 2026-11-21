@@ -14,6 +14,7 @@ namespace AuctionGame.Auction
         [SerializeField] private CanvasGroup auctionHud;
         [SerializeField] private TMP_FontAsset font;
         [SerializeField] private Sprite soldStamp;
+        [SerializeField] private SaleAuctioneer sale;
 
         private static readonly Color Gold = new(0.91f, 0.75f, 0.49f);
         private static readonly Color Ivory = new(1f, 0.95f, 0.85f);
@@ -28,6 +29,7 @@ namespace AuctionGame.Auction
         private TMP_Text outcome;
         private TMP_Text winner;
         private TMP_Text price;
+        private TMP_Text saleComment;
         private AuctionResult activeResult;
         private BidderDialoguePresenter bidderDialogue;
         private bool waitingForDialogue;
@@ -110,6 +112,11 @@ namespace AuctionGame.Auction
                 CreateOverlay();
 
             HideHud();
+            if (sale)
+            {
+                sale.ClearBubble();
+                saleComment.text = string.IsNullOrEmpty(sale.ResultLine) ? "" : "SALE • " + sale.ResultLine;
+            }
             AuctionResult result = activeResult;
             itemImage.sprite = auction.CurrentItem.Sprite;
             itemImage.enabled = itemImage.sprite != null;
@@ -223,6 +230,12 @@ namespace AuctionGame.Auction
             safeArea.gameObject.AddComponent<AuctionHudSafeArea>();
             Label("Continue Prompt", safeArea, new Vector2(0.12f, 0.16f), new Vector2(0.88f, 0.24f),
                 44, Ivory).text = "Klepni pre pokračovanie";
+            if (sale)
+            {
+                saleComment = Label("SALE Commentary", safeArea, new Vector2(0.12f, 0.78f),
+                    new Vector2(0.88f, 0.88f), 35, Ivory);
+                saleComment.textWrappingMode = TextWrappingModes.Normal;
+            }
             RectTransform frame = Box("Result Frame", safeArea, new Vector2(0.11f, 0.27f), new Vector2(0.89f, 0.77f));
             Fill(frame, Gold);
             RectTransform card = Box("Result Card", frame, Vector2.zero, Vector2.one);

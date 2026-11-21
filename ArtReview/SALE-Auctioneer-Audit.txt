@@ -1,0 +1,46 @@
+SALE Auctioneer v1.0
+Project and art audit
+
+Bidder art
+The five active character families are ferko, grumblewick, helena, viktor and zuzu. Each has a camera-facing and reverse illustration.
+
+Assets/Art/Characters/ferko_front.png
+Assets/Art/Characters/ferko_back.png
+Assets/Art/Characters/grumblewick_front.png
+Assets/Art/Characters/grumblewick_back.png
+Assets/Art/Characters/helena_front.png
+Assets/Art/Characters/helena_back.png
+Assets/Art/Characters/viktor_front.png
+Assets/Art/Characters/viktor_back.png
+Assets/Art/Characters/zuzu_front.png
+Assets/Art/Characters/zuzu_back.png
+
+The character directory also contains generic_1.png through generic_5.png. The active cast uses waist-cropped paper-doll caricatures with oversized heads and exaggerated facial features. Near-black irregular pencil marks and a broad cream silhouette border frame bold areas of ochre, green, purple, blue, yellow and red. Flat shadows, wax-pencil hatching and paper grain keep the small illustrations readable. The fronts are straight-on with little perspective. Each front is 934 x 1200. BiddersGroup uses SpriteRenderers and centered sprites with 100 pixels per unit. Its original front scales range from 0.338 to 0.486, for nominal heights of about 4.05 to 5.83 world units before transparent margins and scene overrides.
+
+Scene and gameplay
+AuctionHallDebug previews BiddersGroup with its own 60-degree Main Camera and a legacy AuctionLogic canvas override on Display 2. AuctionIntegrated owns the production instance, the Main Camera on Display 1 (Unity targetDisplay 0), the AuctionItemPodium anchored to Item Holder and the existing curtain rig. The camera is at (0, 14.4, 25), pitched 22.5 degrees with 64-degree FOV. SALE fits to the screen-right of the podium. The dialogue prefab includes a Display 1 overlay canvas, a rounded parchment bubble, TMP, and a dialogue cue slot on the existing ambience audio object. The scene currently assigns bid.mp3 to that slot and the project also contains BidderDialogueCue.wav. The integrated AuctionManager uses AiDialoguePool.json and five configured personalities with a maximum of three active per lot. Its paced mode reserves AI actions at two-second intervals and configures player reaction bounds of 0.5 to 2 seconds.
+
+AuctionDialogue already authors SALE-01 for sales and SALE-02 for unsold lots. The bidder presenter filters SALE keys. AI wins use the bidder's existing winner line, so SALE uses a deterministic selection from the same authored SALE-01 group for those results. The existing result presentation waits for bidder dialogue, then moves the camera and closes the curtains. The current overlay waits for player confirmation. SALE's stage bubble clears at cinematic start and the same line is carried into the existing result overlay. The report parchment, frame and button are SALE UI assets. No finished standalone SALE character sprite existed at audit.
+
+Asset
+Assets/Art/Characters/SALE_Idle.png is the built-in image tool output, generated with the five front sprites as visual references. It is a transparent 1106 x 1422 PNG. Unity imports it as a single centered Sprite with 100 pixels per unit, Tight mesh, sRGB, bilinear filtering, mipmaps, input alpha, alpha-is-transparency, original dimensions and a 2048 size cap. The scene uses a 0.25 uniform scale, for a nominal height of 3.56 world units. The optional dialogue cue defaults to off.
+
+Generation prompt
+Create SALE, one original game auctioneer sprite, using these five auction bidder sprites solely as style references. Match their front-facing waist-cropped portrait, oversized clean silhouette, lively irregular black wax-pencil linework, broad warm ivory die-cut rim, textured crayon hatch strokes and flat broad chromatic shadows on paper. Charismatic eccentric middle-aged male auctioneer with swept charcoal hair, crooked brow, slightly too fixed wide mischievous smile, teal jacket, mustard bow tie and small wooden gavel held close beside chest, theatrical open hand close to torso. 80% comedy, 20% unease. Traits must read at small mobile size. Entire silhouette except waist remains in frame, waist runs to bottom edge like the samples. Transparent outside silhouette. No backdrop, lettering, realistic gradients or polished vector outlines.
+
+Changed project files
+Assets/Scenes/AuctionIntegrated.unity
+Assets/Art/Characters/SALE_Idle.png
+Assets/Art/Characters/SALE_Idle.png.meta
+Assets/Scripts/Auction/UI/SaleAuctioneer.cs
+Assets/Scripts/Auction/UI/SaleAuctioneer.cs.meta
+Assets/Scripts/Auction/UI/BidderDialoguePresenter.cs
+Assets/Scripts/Auction/UI/AuctionResultCinematic.cs
+Assets/Scripts/Auction/AI/AuctionDialogue.cs
+Assets/Scripts/Auction/Core/AuctionManager.cs
+Assets/Scripts/Auction/Tests/AuctionItemPresentationTests.cs
+Assets/Scripts/Auction/Tests/AuctionHudTests.cs
+Assets/Scripts/Auction/Tests/GameIntroTestDriver.cs
+
+Verification
+Unity 6000.3.22f1 Edit Mode reported 116 passed, 0 failed, 0 skipped. The integrated coroutine tests are discovered in Edit Mode and enter Play Mode during execution. The separate Play Mode test platform reported 0 passed, 0 failed, 0 skipped, and total 0. The shared intro test driver now exercises the checked-in UI and recognizes both existing SALE Report paths. Production intro, report, and sound assignments were preserved.

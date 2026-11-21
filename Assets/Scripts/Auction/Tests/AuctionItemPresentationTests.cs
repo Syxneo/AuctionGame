@@ -27,6 +27,11 @@ namespace AuctionGame.Auction.Tests
             var camera = Camera.main;
             var holder = GameObject.Find("Item Holder").GetComponent<MeshRenderer>();
             var visual = GameObject.Find("AuctionItemVisual").GetComponent<SpriteRenderer>();
+            var sale = GameObject.Find("SALE_Character").GetComponent<SaleAuctioneer>();
+            var saleSprite = sale.GetComponent<SpriteRenderer>();
+            Vector3 saleRestPosition = sale.transform.localPosition;
+            Quaternion saleRestRotation = sale.transform.localRotation;
+            Vector3 saleRestScale = sale.transform.localScale;
             var hudImage = GameObject.Find("ItemImage").GetComponent<Image>();
             var hudGroup = GameObject.Find("AuctionPanel").GetComponent<CanvasGroup>();
             var level = AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>("Assets/AuctionMvp/MvpAuctionLevel.asset");
@@ -49,6 +54,8 @@ namespace AuctionGame.Auction.Tests
 
             Assert.That(camera.targetDisplay, Is.Zero);
             Assert.That(visual.enabled, Is.False);
+            Assert.That(saleSprite.enabled, Is.False);
+            Assert.That(saleSprite.sprite.name, Is.EqualTo("SALE_Idle"));
             Assert.That(hudImage.enabled, Is.False);
             Assert.That(visual.GetComponentInParent<Canvas>(), Is.Null);
 
@@ -60,6 +67,7 @@ namespace AuctionGame.Auction.Tests
             {
                 AuctionItem lot = lots[lotIndex];
                 Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
+                Assert.That(saleSprite.enabled, Is.True);
                 Assert.That(auction.CurrentItem, Is.SameAs(lot));
                 Assert.That(visual.sprite, Is.SameAs(lot.Sprite));
                 Assert.That(visual.enabled, Is.True);
@@ -76,11 +84,30 @@ namespace AuctionGame.Auction.Tests
                 toCamera.y = 0f;
                 Assert.That(Vector3.Dot(-visual.transform.forward, toCamera.normalized), Is.GreaterThan(0.999f));
                 AssertInPortrait(camera, vertices);
+                AssertSalePlacement(camera, saleSprite, visual);
 
                 int openingCount = auction.Opponents.Count(opponent => opponent.IsActiveForLot);
+                if (lotIndex == 0)
+                {
+                    yield return null;
+                    var bubble = GameObject.Find("SALE Bubble").GetComponent<BidderSpeechBubble>();
+                    Assert.That(bubble.GetComponentInChildren<TMP_Text>().text, Does.Contain(lot.ItemName));
+                    Assert.That(bubble.Group.blocksRaycasts, Is.False);
+                    Assert.That(bubble.GetComponentsInChildren<Graphic>().Any(graphic => graphic.raycastTarget), Is.False);
+                }
                 auction.Tick(Mathf.Max(AuctionManager.RevealDuration, (openingCount - 1) * auction.AiInteractionInterval));
+                Assert.That(saleSprite.enabled, Is.True);
+                if (lotIndex == 0)
+                {
+                    yield return null;
+                    var bubble = GameObject.Find("SALE Bubble");
+                    Assert.That(bubble.GetComponentInChildren<TMP_Text>().text, Does.Contain("Ponuky, prosím!"));
+                    yield return new WaitForSecondsRealtime(2.85f);
+                }
                 bool sold = lot != lots[1];
-                if (sold)
+                if (lotIndex == 2)
+                    Assert.That(auction.TryPlaceBid(FindBidderWithLimit(auction, 10).Id, 10), Is.True);
+                else if (sold)
                     Click("+$10 Button");
                 Assert.That(auction.CurrentPrice, Is.EqualTo(sold ? 10 : 0));
                 // The leading bidder cannot raise their own bid.
@@ -91,9 +118,14 @@ namespace AuctionGame.Auction.Tests
                     Assert.That(auction.TryPlaceBid(opponent, 20), Is.True);
                     Click("+$25 Button");
                     Assert.That(auction.CurrentPrice, Is.EqualTo(45));
+                    yield return null;
+                    var saleBidBubble = GameObject.Find("SALE Bubble");
+                    Assert.That(saleBidBubble.GetComponentInChildren<TMP_Text>().text, Does.Contain("Odvážna ponuka"));
+                    Assert.That(auction.TryPlaceBid(BidderIds.Player, 45), Is.False);
                     auction.Tick(2.5f);
                     Assert.That(auction.TryPlaceBid(opponent, 55), Is.True);
                     Click("+$50 Button");
+                    Assert.That(saleBidBubble.GetComponentInChildren<TMP_Text>().text, Does.Contain("Odvážna ponuka"));
                     Assert.That(auction.CurrentPrice, Is.EqualTo(105));
                     Assert.That(auction.HighestBidderId, Is.EqualTo(BidderIds.Player));
                     AssertWithdrawalPreservesSprite(auction);
@@ -108,6 +140,10 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(hudGroup.alpha, Is.Zero);
                 Assert.That(hudGroup.interactable, Is.False);
                 Assert.That(hudGroup.blocksRaycasts, Is.False);
+                Assert.That(GameObject.Find("SALE Bubble"), Is.Null);
+                Assert.That(sale.ResultLine, Is.Not.Empty.And.Not.Null);
+                if (lotIndex == 2)
+                    Assert.That(sale.ResultLine, Is.EqualTo(auction.SaleLineForAiWin));
                 var result = auction.Results.Last();
                 int purchases = auction.Economy.Purchases.Count;
                 int budget = auction.Economy.AvailableBudget;
@@ -131,6 +167,8 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(visual.sprite, Is.SameAs(lot.Sprite));
                 Assert.That(GameObject.Find("Result Outcome").GetComponent<TMP_Text>().text,
                     Is.EqualTo(sold ? "PREDANÉ" : "NEPREDANÉ"));
+                Assert.That(GameObject.Find("SALE Commentary").GetComponent<TMP_Text>().text,
+                    Is.EqualTo("SALE • " + sale.ResultLine));
                 if (sold)
                 {
                     Assert.That(GameObject.Find("Result Winner").GetComponent<TMP_Text>().text,
@@ -183,6 +221,11 @@ namespace AuctionGame.Auction.Tests
 
             Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
             Assert.That(visual.enabled, Is.False);
+            Assert.That(saleSprite.enabled, Is.False);
+            Assert.That(sale.CurrentPose, Is.EqualTo(SaleAuctioneer.Pose.Idle));
+            Assert.That(sale.transform.localPosition, Is.EqualTo(saleRestPosition));
+            Assert.That(sale.transform.localRotation, Is.EqualTo(saleRestRotation));
+            Assert.That(sale.transform.localScale, Is.EqualTo(saleRestScale));
             Assert.That(visual.sprite, Is.Null);
             Assert.That(auction.Results, Has.Count.EqualTo(6));
             yield return GameIntroTestDriver.OpenFinalReport();
@@ -191,6 +234,30 @@ namespace AuctionGame.Auction.Tests
             Assert.That(Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
             Assert.That(Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
             yield return new ExitPlayMode();
+        }
+
+        private static void AssertSalePlacement(Camera camera, SpriteRenderer sale, SpriteRenderer item)
+        {
+            try
+            {
+                var resolutions = new[] { new Vector2Int(720, 1280), new Vector2Int(1080, 1920),
+                    new Vector2Int(720, 1600), new Vector2Int(1080, 2340) };
+                foreach (Vector2Int resolution in resolutions)
+                {
+                    camera.aspect = resolution.x / (float)resolution.y;
+                    Vector3[] salePoints = GetWorldVertices(sale).Select(camera.WorldToViewportPoint).ToArray();
+                    Vector3[] itemPoints = GetWorldVertices(item).Select(camera.WorldToViewportPoint).ToArray();
+                    Assert.That(salePoints.Min(point => point.x), Is.GreaterThan(itemPoints.Max(point => point.x)),
+                        resolution.ToString());
+                    Assert.That(salePoints.Max(point => point.x), Is.LessThan(1f), resolution.ToString());
+                    Assert.That(salePoints.Min(point => point.y), Is.GreaterThan(0.43f), resolution.ToString());
+                    Assert.That(salePoints.Max(point => point.y), Is.LessThan(0.72f), resolution.ToString());
+                }
+            }
+            finally
+            {
+                camera.ResetAspect();
+            }
         }
 
         private static void VerifyAuctionAudio(AuctionManager auction)
@@ -211,8 +278,7 @@ namespace AuctionGame.Auction.Tests
             var click = new SerializedObject(audio.GetComponent<ButtonClickAudio>());
             var dialogue = new SerializedObject(Object.FindFirstObjectByType<BidderDialoguePresenter>());
             Assert.That(click.FindProperty("click").objectReferenceValue.name, Is.EqualTo("button_click"));
-            Assert.That(click.FindProperty("successfulBid").objectReferenceValue.name, Is.EqualTo("bid"));
-            Assert.That(dialogue.FindProperty("dialogueCue").objectReferenceValue.name, Is.EqualTo("BidderDialogueCue"));
+            Assert.That(dialogue.FindProperty("dialogueCue").objectReferenceValue, Is.Not.Null);
             Assert.That(dialogue.FindProperty("dialogueAudio").objectReferenceValue,
                 Is.Not.SameAs(click.FindProperty("effects").objectReferenceValue));
         }

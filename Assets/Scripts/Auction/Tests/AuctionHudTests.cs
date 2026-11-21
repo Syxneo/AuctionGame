@@ -144,6 +144,10 @@ namespace AuctionGame.Auction.Tests
             Assert.That(report.TargetProfit, Is.EqualTo(50));
             Assert.That(report.Succeeded, Is.False);
             Click("Retry Button");
+            var sale = GameObject.Find("SALE_Character").GetComponent<SaleAuctioneer>();
+            Assert.That(sale.CurrentPose, Is.EqualTo(SaleAuctioneer.Pose.Idle));
+            Assert.That(sale.GetComponent<SpriteRenderer>().enabled, Is.False);
+            Assert.That(GameObject.Find("SALE Bubble"), Is.Null);
             Assert.That(auction.State, Is.EqualTo(AuctionState.Idle));
             Assert.That(auction.Economy.Purchases, Is.Empty);
             AssertIcons(icons);
