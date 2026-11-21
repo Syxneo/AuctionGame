@@ -23,6 +23,7 @@ namespace AuctionGame.Auction.Tests
             yield return null;
 
             var auction = Object.FindFirstObjectByType<AuctionManager>();
+            VerifyAuctionAudio(auction);
             var camera = Camera.main;
             var holder = GameObject.Find("Item Holder").GetComponent<MeshRenderer>();
             var visual = GameObject.Find("AuctionItemVisual").GetComponent<SpriteRenderer>();
@@ -187,6 +188,29 @@ namespace AuctionGame.Auction.Tests
             Assert.That(Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
             Assert.That(Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
             yield return new ExitPlayMode();
+        }
+
+        private static void VerifyAuctionAudio(AuctionManager auction)
+        {
+            var ambience = Object.FindFirstObjectByType<AuctionHallAmbience>(FindObjectsInactive.Include);
+            Assert.That(ambience, Is.Not.Null, "The auction ambience component must be in the scene.");
+            var audio = ambience.gameObject;
+            var ambienceData = new SerializedObject(ambience);
+            Assert.That(ambienceData.FindProperty("auction").objectReferenceValue, Is.SameAs(auction));
+            var tracks = ambienceData.FindProperty("tracks");
+            Assert.That(tracks.arraySize, Is.EqualTo(2));
+            var sources = Enumerable.Range(0, tracks.arraySize)
+                .Select(index => (AudioSource)tracks.GetArrayElementAtIndex(index).objectReferenceValue).ToArray();
+            Assert.That(sources.All(source => source && source.clip), Is.True, "Every ambient source must have a clip.");
+            Assert.That(sources.Select(source => source.clip.name),
+                Is.EquivalentTo(new[] { "auction_ambient", "auction_ambient_talking" }));
+            Assert.That(sources.All(source => source.loop && !source.playOnAwake), Is.True);
+            var click = new SerializedObject(audio.GetComponent<ButtonClickAudio>());
+            var dialogue = new SerializedObject(Object.FindFirstObjectByType<BidderDialoguePresenter>());
+            Assert.That(click.FindProperty("click").objectReferenceValue.name, Is.EqualTo("button_click"));
+            Assert.That(dialogue.FindProperty("dialogueCue").objectReferenceValue.name, Is.EqualTo("bid"));
+            Assert.That(dialogue.FindProperty("dialogueAudio").objectReferenceValue,
+                Is.Not.SameAs(click.FindProperty("effects").objectReferenceValue));
         }
 
         private static void AssertWithdrawalPreservesSprite(AuctionManager auction)

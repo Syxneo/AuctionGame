@@ -181,7 +181,8 @@ namespace AuctionGame.Auction.Tests
         private static void OpenLot(AuctionManager auction)
         {
             Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
-            int openingCount = auction.Opponents.Count(opponent => opponent.IsActiveForLot);
+            int openingCount = auction.PacesAiInteractions
+                ? auction.Opponents.Count(opponent => opponent.IsActiveForLot) : 0;
             auction.Tick(Mathf.Max(AuctionManager.RevealDuration, (openingCount - 1) * auction.AiInteractionInterval));
             if (auction.State == AuctionState.ItemReveal)
                 auction.Tick(auction.AiInteractionInterval);

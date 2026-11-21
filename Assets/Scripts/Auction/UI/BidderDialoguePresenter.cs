@@ -75,7 +75,6 @@ namespace AuctionGame.Auction
         private Sprite frame;
         private Sprite arrow;
         private Material inactiveMaterial;
-        private double nextDialogueCue;
 
         private void Awake()
         {
@@ -418,10 +417,10 @@ namespace AuctionGame.Auction
                 }
             }
 
-            if (cueRequested && dialogueAudio && dialogueCue && now >= nextDialogueCue)
+            if (cueRequested && dialogueAudio && dialogueCue)
             {
+                dialogueAudio.Stop();
                 dialogueAudio.PlayOneShot(dialogueCue);
-                nextDialogueCue = now + dialogueCue.length;
             }
         }
 
