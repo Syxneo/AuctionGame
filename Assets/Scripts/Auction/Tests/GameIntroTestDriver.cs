@@ -2,13 +2,35 @@ using System.Collections;
 using NUnit.Framework;
 using TMPro;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace AuctionGame.Auction.Tests
 {
     internal static class GameIntroTestDriver
     {
+        internal static void LoadIntegratedScene(int? dailySeed = null)
+        {
+            SceneManager.sceneLoaded += ConfigureRun;
+            EditorSceneManager.LoadSceneInPlayMode(DailyItemGenerationTests.IntegratedScenePath,
+                new LoadSceneParameters(LoadSceneMode.Single));
+
+            void ConfigureRun(Scene scene, LoadSceneMode mode)
+            {
+                SceneManager.sceneLoaded -= ConfigureRun;
+                var preparation = Object.FindFirstObjectByType<PreparationPhase>();
+                var data = new SerializedObject(preparation);
+                if (!data.FindProperty("useValueCappedGeneration").boolValue)
+                    throw new System.InvalidOperationException("The integrated scene must use daily generation.");
+                data.FindProperty("useValueCappedGeneration").boolValue = dailySeed.HasValue;
+                data.FindProperty("useFixedDailySeed").boolValue = dailySeed.HasValue;
+                data.FindProperty("fixedDailySeed").intValue = dailySeed.GetValueOrDefault();
+                data.ApplyModifiedPropertiesWithoutUndo();
+            }
+        }
+
         internal static IEnumerator OpenNewsFromIntro()
         {
             var intro = Object.FindFirstObjectByType<GameIntroFlow>();

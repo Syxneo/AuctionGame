@@ -18,8 +18,7 @@ namespace AuctionGame.Auction.Tests
         public IEnumerator IntegratedHudTracksBidsAndPlayerPurchasesThroughRetry()
         {
             yield return new EnterPlayMode();
-            EditorSceneManager.LoadSceneInPlayMode("Assets/Scenes/AuctionIntegrated.unity",
-                new LoadSceneParameters(LoadSceneMode.Single));
+            GameIntroTestDriver.LoadIntegratedScene();
             yield return null;
 
             var auction = Object.FindFirstObjectByType<AuctionManager>();

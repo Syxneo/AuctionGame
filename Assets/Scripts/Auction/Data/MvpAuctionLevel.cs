@@ -13,6 +13,7 @@ namespace AuctionGame.Auction
         [SerializeField] private string headline;
         [SerializeField, TextArea, FormerlySerializedAs("body")] private string bodyText;
 
+
         public AuctionItemType ItemType => itemType;
         public string Headline => headline;
         public string BodyText => bodyText;
@@ -32,16 +33,37 @@ namespace AuctionGame.Auction
         private AuctionItem[] variants = Array.Empty<AuctionItem>();
         [SerializeField, FormerlySerializedAs("clues")]
         private NewspaperEntry[] newspaperEntries = Array.Empty<NewspaperEntry>();
+        [SerializeField] private AuctionItem[] possibleItems = Array.Empty<AuctionItem>();
+        [SerializeField, Min(1)] private int dailyValueCap = 1300;
+        [SerializeField] private NewspaperEntry[] additionalDailyNewspaperEntries = Array.Empty<NewspaperEntry>();
 
         public int StartingBudget => startingBudget;
         public int ProfitTarget => profitTarget;
         public int AiStartingBudget => aiStartingBudget;
         public ItemDatabase Database => itemDatabase;
+        public IReadOnlyList<AuctionItem> PossibleItems => Array.AsReadOnly(possibleItems);
+        public int DailyValueCap => dailyValueCap;
         public IReadOnlyList<AuctionItem> Variants => Array.AsReadOnly(variants);
         public IReadOnlyList<NewspaperEntry> GetNewspaperEntries() =>
             Array.AsReadOnly((newspaperEntries ?? Array.Empty<NewspaperEntry>())
                 .Where(entry => entry != null && entry.IsValid).ToArray());
 
+        public DailyRunPlan CreateDailyRun(int seed)
+        {
+            var articles = GetNewspaperEntries().Concat(additionalDailyNewspaperEntries
+                .Where(entry => entry != null && entry.IsValid)).ToArray();
+            var plan = DailyItemGenerator.Generate(possibleItems, dailyValueCap, seed, articles);
+            if (!itemDatabase)
+                throw new InvalidOperationException("Assign the full Item Database to the MVP level.");
+            foreach (AuctionItem item in possibleItems)
+            {
+                if (itemDatabase.GetItemById(item.ItemId) != item)
+                    throw new InvalidOperationException($"Possible Items variant '{item.ItemId}' is missing from the Item Database.");
+            }
+            return plan;
+        }
+
+        // The original authored run remains available for the fixed MVP debug scene.
         public IReadOnlyList<AuctionItem> CreateRun()
         {
             if (variants.Length != 6)

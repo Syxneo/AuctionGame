@@ -96,6 +96,35 @@ namespace AuctionGame.Auction.Tests
         }
 
         [Test]
+        public void GeneratedDaysRunWithIntegratedBidderPoolAndPacing()
+        {
+            var fixture = new EconomyPlaytest(generateDailyRun: true);
+            Assert.That(fixture.ProfitTarget, Is.EqualTo(50));
+            var runs = (from seed in EconomyPlaytest.Seeds
+                        from policy in EconomyPlaytest.Policies
+                        select fixture.Run(seed, policy)).ToArray();
+            Assert.That(runs.Where(run => !run.Completed).Select(run => $"{run.Seed}/{run.Policy}: {run.Error}"), Is.Empty);
+            Assert.That(runs, Has.Length.EqualTo(90));
+            Assert.That(runs.Select(run => run.Lots.Length).Distinct().Count(), Is.GreaterThan(1));
+            Assert.That(runs.Where(run => run.Policy != EconomyPolicy.SkipAll).Sum(run => run.Purchases), Is.GreaterThan(0));
+
+            string directory = Path.Combine(Application.dataPath, "..", "Logs", "DailyGeneration");
+            Directory.CreateDirectory(directory);
+            File.WriteAllLines(Path.Combine(directory, "economy-runs.csv"), new[]
+            {
+                "seed,policy,lots,purchases,spend,profit,playerWallet,reachedTarget,walletBlockedLots"
+            }.Concat(runs.Select(run => string.Join(",", run.Seed, run.Policy, run.Lots.Length, run.Purchases,
+                run.Spend, run.Profit, run.EndBalances[0], run.Profit >= fixture.ProfitTarget,
+                run.Lots.Count(lot => lot.WalletBlockedPlayer)))));
+            File.WriteAllLines(Path.Combine(directory, "economy-lots.csv"), new[]
+            {
+                "seed,policy,lot,variant,trueValue,winner,winningPrice,playerProfit,playerWallet,walletBlocked"
+            }.Concat(runs.SelectMany(run => run.Lots.Select((lot, index) => string.Join(",", run.Seed, run.Policy,
+                index + 1, lot.Item.ItemId, lot.Item.TrueValue, lot.Result.winnerId, lot.Result.finalPrice,
+                lot.PlayerProfit, lot.After[0], lot.WalletBlockedPlayer)))));
+        }
+
+        [Test]
         public void CsvEscapesQuotesCommasNewlinesAndNullFields()
         {
             string[] expected = { "first", "comma, and \"quotes\"", "line\r\nbreak", "" };

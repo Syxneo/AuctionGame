@@ -1,0 +1,265 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using NUnit.Framework;
+using TMPro;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.TestTools;
+using UnityEngine.UI;
+using Object = UnityEngine.Object;
+
+namespace AuctionGame.Auction.Tests
+{
+    public sealed class DailyItemGenerationTests
+    {
+        internal const string IntegratedScenePath = "Assets/Scenes/AuctionIntegrated.unity";
+        private static MvpAuctionLevel LoadLevel() => AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>(EconomyPlaytest.LevelPath);
+
+        [Test]
+        public void ThousandDaysRespectCapUniquenessAndMaximalityAndRepeatBySeed()
+        {
+            var level = LoadLevel();
+            Assert.That(level.Database.Items, Has.Count.EqualTo(26));
+            Assert.That(level.PossibleItems, Has.Count.EqualTo(20));
+            Assert.That(level.PossibleItems.GroupBy(item => item.ItemType).Select(group => group.Count()),
+                Is.All.EqualTo(2));
+            Assert.That(level.DailyValueCap, Is.EqualTo(1300));
+            var reversedPool = level.PossibleItems.Reverse().ToArray();
+            var plans = new List<DailyRunPlan>();
+            for (int seed = 0; seed < 1000; seed++)
+            {
+                var randomState = UnityEngine.Random.state;
+                DailyRunPlan plan = level.CreateDailyRun(seed);
+                Assert.That(UnityEngine.Random.state, Is.EqualTo(randomState), $"Seed {seed}");
+                Assert.That(plan.Lots.Count, Is.GreaterThanOrEqualTo(4), $"Seed {seed}");
+                Assert.That(plan.TotalTrueValue, Is.EqualTo(plan.Lots.Sum(item => item.TrueValue)).And.LessThanOrEqualTo(1300));
+                Assert.That(plan.Lots.All(level.PossibleItems.Contains), Is.True);
+                Assert.That(plan.Lots.Select(item => item.ItemId), Is.Unique);
+                Assert.That(level.PossibleItems.Except(plan.Lots).Any(item => item.TrueValue <= plan.UnusedCap), Is.False);
+                Assert.That(plan.NewspaperEntries.Select(entry => entry.ItemType),
+                    Is.EqualTo(plan.Lots.Select(item => item.ItemType).Distinct()));
+                DailyRunPlan replay = level.CreateDailyRun(seed);
+                Assert.That(replay.Seed, Is.EqualTo(seed));
+                Assert.That(replay.Lots, Is.EqualTo(plan.Lots));
+                Assert.That(replay.TotalTrueValue, Is.EqualTo(plan.TotalTrueValue));
+                Assert.That(replay.NewspaperEntries, Is.EqualTo(plan.NewspaperEntries));
+                plans.Add(plan);
+            }
+
+            Assert.That(plans.Select(plan => plan.Lots.Count).Distinct().Count(), Is.GreaterThan(2));
+            Assert.That(plans.Any(plan => plan.Lots.Count > 8 && plan.NewspaperEntries.Count > 6), Is.True);
+            Assert.That(plans.Any(plan => plan.Lots.Count > plan.NewspaperEntries.Count), Is.True);
+            var articles = plans.SelectMany(plan => plan.NewspaperEntries).Distinct().ToArray();
+            Assert.That(articles, Has.Length.EqualTo(10));
+            var reorderedLevel = Object.Instantiate(level);
+            try
+            {
+                var data = new SerializedObject(reorderedLevel);
+                var pool = data.FindProperty("possibleItems");
+                for (int index = 0; index < reversedPool.Length; index++)
+                    pool.GetArrayElementAtIndex(index).objectReferenceValue = reversedPool[index];
+                data.ApplyModifiedPropertiesWithoutUndo();
+                var reversed = reorderedLevel.CreateDailyRun(0);
+                Assert.That(reversed.Lots, Is.EqualTo(plans[0].Lots));
+                Assert.That(reversed.NewspaperEntries.Select(entry => entry.Headline),
+                    Is.EqualTo(plans[0].NewspaperEntries.Select(entry => entry.Headline)));
+            }
+            finally
+            {
+                Object.DestroyImmediate(reorderedLevel);
+            }
+            WriteGenerationLog(plans);
+        }
+
+        [Test]
+        public void TightCapHasFourLotsAndHighCapCanUseTheEntirePool()
+        {
+            var level = Object.Instantiate(LoadLevel());
+            try
+            {
+                var data = new SerializedObject(level);
+                var cap = data.FindProperty("dailyValueCap");
+                int cheapestFour = level.PossibleItems.OrderBy(item => item.TrueValue).Take(4).Sum(item => item.TrueValue);
+                cap.intValue = cheapestFour;
+                data.ApplyModifiedPropertiesWithoutUndo();
+                foreach (int seed in Enumerable.Range(0, 20))
+                {
+                    var plan = level.CreateDailyRun(seed);
+                    Assert.That(plan.Lots, Has.Count.EqualTo(4));
+                    Assert.That(plan.TotalTrueValue, Is.EqualTo(cheapestFour));
+                }
+                cap.intValue = level.PossibleItems.Sum(item => item.TrueValue);
+                data.ApplyModifiedPropertiesWithoutUndo();
+                Assert.That(level.CreateDailyRun(0).Lots, Has.Count.EqualTo(20));
+            }
+            finally
+            {
+                Object.DestroyImmediate(level);
+            }
+        }
+
+        [TestCase("empty", "at least 4")]
+        [TestCase("three", "at least 4")]
+        [TestCase("cap", "must be positive")]
+        [TestCase("too low", "cheapest variants exceed")]
+        [TestCase("missing", "missing item reference")]
+        [TestCase("duplicate", "Duplicate Possible Items ID")]
+        [TestCase("zero value", "positive True Value")]
+        [TestCase("negative value", "positive True Value")]
+        [TestCase("missing id", "missing item reference or ID")]
+        [TestCase("missing type", "valid Item Type")]
+        [TestCase("missing sprite", "valid Item Type and sprite")]
+        [TestCase("missing article", "Missing newspaper article")]
+        public void InvalidConfigurationFailsExplicitly(string problem, string message)
+        {
+            var level = Object.Instantiate(LoadLevel());
+            var item = Object.Instantiate(level.PossibleItems[0]);
+            try
+            {
+                var data = new SerializedObject(level);
+                var pool = data.FindProperty("possibleItems");
+                var first = pool.GetArrayElementAtIndex(0);
+                var itemData = new SerializedObject(item);
+                switch (problem)
+                {
+                    case "empty": pool.arraySize = 0; break;
+                    case "three": pool.arraySize = 3; break;
+                    case "cap": data.FindProperty("dailyValueCap").intValue = 0; break;
+                    case "too low": data.FindProperty("dailyValueCap").intValue = 1; break;
+                    case "missing": first.objectReferenceValue = null; break;
+                    case "duplicate": first.objectReferenceValue = level.PossibleItems[1]; break;
+                    case "missing article": data.FindProperty("additionalDailyNewspaperEntries").arraySize = 0; break;
+                    default:
+                        first.objectReferenceValue = item;
+                        switch (problem)
+                        {
+                            case "zero value": itemData.FindProperty("trueValue").intValue = 0; break;
+                            case "negative value": itemData.FindProperty("trueValue").intValue = -1; break;
+                            case "missing id": itemData.FindProperty("itemId").stringValue = ""; break;
+                            case "missing type": itemData.FindProperty("itemType").objectReferenceValue = null; break;
+                            case "missing sprite": itemData.FindProperty("sprite").objectReferenceValue = null; break;
+                        }
+                        itemData.ApplyModifiedPropertiesWithoutUndo();
+                        break;
+                }
+                data.ApplyModifiedPropertiesWithoutUndo();
+                Assert.That(() => level.CreateDailyRun(0), Throws.InvalidOperationException.With.Message.Contains(message));
+            }
+            finally
+            {
+                Object.DestroyImmediate(item);
+                Object.DestroyImmediate(level);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator IntegratedDaySurvivesRetryAndReportsEveryPurchase()
+        {
+            yield return new EnterPlayMode();
+            var level = LoadLevel();
+            int seed = Enumerable.Range(0, 100).Select(level.CreateDailyRun)
+                .First(plan => plan.NewspaperEntries.Count > 6 && plan.Lots.Count > plan.NewspaperEntries.Count).Seed;
+            GameIntroTestDriver.LoadIntegratedScene(seed);
+            yield return null;
+
+            var preparation = Object.FindFirstObjectByType<PreparationPhase>();
+            Object.FindFirstObjectByType<AuctionResultCinematic>().enabled = false;
+            Object.FindFirstObjectByType<BidderDialoguePresenter>().enabled = false;
+            Object.FindFirstObjectByType<SceneIntroOutro>().SkipToEnd();
+
+            var auction = preparation.GetComponent<AuctionManager>();
+            var plan = preparation.DailyPlan;
+            Assert.That(plan.Seed, Is.EqualTo(seed));
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Idle));
+            var settings = new SerializedObject(auction);
+            settings.FindProperty("enableAutomaticAi").boolValue = false;
+            settings.ApplyModifiedPropertiesWithoutUndo();
+            Assert.That(auction.PacesAiInteractions, Is.True);
+
+            yield return GameIntroTestDriver.OpenNewsFromIntro();
+            ReadEditionAndStart(plan);
+            Assert.That(auction.DailyPlan, Is.SameAs(plan));
+            Assert.That(auction.Opponents, Has.Count.EqualTo(5));
+            Assert.That(auction.Opponents.Count(bidder => bidder.IsActiveForLot), Is.EqualTo(3));
+            auction.Tick(1000f);
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
+            Assert.That(auction.Results.Select(result => result.itemId), Is.EqualTo(plan.Lots.Select(item => item.ItemId)));
+            var report = auction.GetComponent<AuctionReportUI>();
+            Assert.That(report.Report.Succeeded, Is.False);
+            Click("Retry Button");
+            Assert.That(preparation.DailyPlan, Is.SameAs(plan));
+            Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(1000));
+            Assert.That(auction.Results, Is.Empty);
+            settings.Update();
+            settings.FindProperty("paceAiInteractions").boolValue = false;
+            settings.ApplyModifiedPropertiesWithoutUndo();
+
+            yield return GameIntroTestDriver.OpenNewsFromIntro();
+            ReadEditionAndStart(plan);
+            Assert.That(auction.DailyPlan, Is.SameAs(plan));
+            foreach (AuctionItem item in plan.Lots)
+            {
+                Assert.That(auction.CurrentItem, Is.SameAs(item));
+                auction.Tick(AuctionManager.RevealDuration);
+                Assert.That(auction.CurrentPrice, Is.Zero);
+                Assert.That(auction.TryPlaceBid(BidderIds.Player, 0), Is.False);
+                Click("+$10 Button");
+                auction.Tick(auction.RemainingTime + 2f);
+            }
+
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
+            Assert.That(auction.Results.Select(result => result.itemId), Is.EqualTo(plan.Lots.Select(item => item.ItemId)));
+            Assert.That(auction.Results.Select(result => result.finalPrice), Is.All.EqualTo(10));
+            Assert.That(auction.Economy.Purchases.Select(purchase => purchase.Variant), Is.EqualTo(plan.Lots));
+            Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(1000 - 10 * plan.Lots.Count));
+            Assert.That(report.Report.Purchases, Has.Count.EqualTo(plan.Lots.Count));
+            Assert.That(report.Report.TotalProfit, Is.EqualTo(plan.TotalTrueValue - 10 * plan.Lots.Count));
+            Assert.That(report.Report.TargetProfit, Is.EqualTo(50));
+            var bar = Object.FindFirstObjectByType<AuctionPurchaseBar>(FindObjectsInactive.Include);
+            Assert.That(bar.GetComponentsInChildren<Image>(true).Where(image => image.enabled).Select(image => image.sprite),
+                Is.EqualTo(plan.Lots.Select(item => item.Sprite)));
+            Click("Continue Button");
+            Assert.That(GameObject.Find("Level Completion"), Is.Not.Null);
+            yield return new ExitPlayMode();
+        }
+
+        private static void ReadEditionAndStart(DailyRunPlan plan)
+        {
+            foreach (NewspaperEntry entry in plan.NewspaperEntries)
+            {
+                Assert.That(GameObject.Find("Headline").GetComponent<TMP_Text>().text, Is.EqualTo(entry.Headline));
+                Click("Continue News");
+            }
+            Assert.That(GameObject.Find("Continue News"), Is.Null);
+            Click("Start Auction");
+        }
+
+        private static void Click(string name)
+        {
+            var button = GameObject.Find(name)?.GetComponent<Button>();
+            Assert.That(button && button.IsInteractable(), Is.True, name);
+            button.onClick.Invoke();
+        }
+
+        private static void WriteGenerationLog(IEnumerable<DailyRunPlan> plans)
+        {
+            string directory = Path.Combine(Application.dataPath, "..", "Logs", "DailyGeneration");
+            Directory.CreateDirectory(directory);
+            var rows = plans.Select(plan => string.Join(",", plan.Seed, plan.Lots.Count, plan.NewspaperEntries.Count,
+                plan.TotalTrueValue, plan.UnusedCap, plan.Lots.Count(item => item.ItemId.EndsWith("_a", StringComparison.Ordinal)),
+                plan.Lots.Count(item => item.ItemId.EndsWith("_b", StringComparison.Ordinal)),
+                plan.Lots.Count(item => item.ItemType.Role == ItemRole.Critical),
+                plan.Lots.Count(item => item.ItemType.Role == ItemRole.Fluff),
+                plan.Lots.Count(item => item.TrueValue > AuctionManager.MinimumOpeningBid),
+                string.Join("|", plan.Lots.Select(item => $"{item.ItemId}={item.TrueValue}")),
+                string.Join("|", plan.NewspaperEntries.Select(entry => entry.ItemType.TypeId))));
+            File.WriteAllLines(Path.Combine(directory, "generation.csv"), new[]
+            {
+                "seed,lots,families,totalValue,unusedCap,a,b,critical,fluff,optimisticProfitableLots,orderedLots,articles"
+            }.Concat(rows));
+        }
+    }
+}

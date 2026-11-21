@@ -138,23 +138,23 @@ namespace AuctionGame.Auction
                 headline.font = body.font = appearance.articleFont;
         }
 
-        internal void Present(MvpAuctionLevel level, Action onCompleted)
+        internal void Present(IReadOnlyList<NewspaperEntry> edition, ItemDatabase database, int? seed, Action onCompleted)
         {
-            entries = level.GetNewspaperEntries();
+            entries = edition;
             if (entries.Count == 0)
             {
-                Debug.LogWarning("The level has no valid NEWSSSS articles.", level);
+                Debug.LogWarning("The level has no valid NEWSSSS articles.", this);
                 onCompleted();
                 return;
             }
 
             index = 0;
             images.Clear();
-            var random = new System.Random();
+            var random = seed.HasValue ? new System.Random(seed.Value) : new System.Random();
             foreach (NewspaperEntry entry in entries)
             {
                 if (!images.ContainsKey(entry.ItemType))
-                    images.Add(entry.ItemType, ResolveImage(entry.ItemType, level.Database, random));
+                    images.Add(entry.ItemType, ResolveImage(entry.ItemType, database, random));
             }
 
             completed = onCompleted;
@@ -173,6 +173,7 @@ namespace AuctionGame.Auction
             if (database)
             {
                 Sprite[] candidates = database.GetVariantsByType(itemType)
+                    .OrderBy(item => item.ItemId, StringComparer.Ordinal)
                     .Select(item => item.Sprite).Where(sprite => sprite).ToArray();
                 if (candidates.Length > 0)
                     return (candidates[random.Next(candidates.Length)], Color.black);

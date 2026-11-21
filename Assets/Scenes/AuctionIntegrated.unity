@@ -4408,6 +4408,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9156a6f4e6ab466c8c3c9b7f85693782, type: 3}
   m_Name: 
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.PreparationPhase
+  useValueCappedGeneration: 1
   intro: {fileID: 1471185899}
   level: {fileID: 11400000, guid: a9287539f8cc417e9bdda2d5b9e4f547, type: 2}
   auction: {fileID: 1471185880}

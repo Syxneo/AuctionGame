@@ -69,10 +69,15 @@ namespace AuctionGame.Auction.Tests
         public IReadOnlyList<AIPersonality> Personalities { get; }
         public IReadOnlyDictionary<string, float> TimingSettings { get; }
         public IReadOnlyDictionary<string, int> IntimidationSettings { get; }
+        private readonly bool generateDailyRun;
+        private readonly string auctionConfiguration;
+        private readonly string[] bidderOrder;
 
-        public EconomyPlaytest(int? profitTarget = null)
+        public EconomyPlaytest(int? profitTarget = null, bool generateDailyRun = false)
         {
-            var scene = EditorSceneManager.OpenPreviewScene(ScenePath);
+            this.generateDailyRun = generateDailyRun;
+            var scene = EditorSceneManager.OpenPreviewScene(generateDailyRun
+                ? DailyItemGenerationTests.IntegratedScenePath : ScenePath);
             try
             {
                 var roots = scene.GetRootGameObjects();
@@ -81,19 +86,32 @@ namespace AuctionGame.Auction.Tests
                 Level = (MvpAuctionLevel)setup.FindProperty("level").objectReferenceValue;
                 Assert.That(AssetDatabase.GetAssetPath(Level), Is.EqualTo(LevelPath));
                 Assert.That(AssetDatabase.GetAssetPath(Level.Database), Is.EqualTo(DatabasePath));
-                Items = Level.CreateRun();
+                if (!generateDailyRun)
+                    Items = Level.CreateRun();
                 ProfitTarget = profitTarget ?? Level.ProfitTarget;
 
                 var auction = (AuctionManager)setup.FindProperty("auction").objectReferenceValue;
                 var config = new SerializedObject(auction);
+                auctionConfiguration = EditorJsonUtility.ToJson(auction);
                 Assert.That(config.FindProperty("enableAutomaticAi").boolValue, Is.True);
                 TimingSettings = TimingFields.ToDictionary(field => field, field => config.FindProperty(field).floatValue);
                 IntimidationSettings = IntimidationFields.ToDictionary(field => field, field => config.FindProperty(field).intValue);
                 var bidders = config.FindProperty("bidders");
                 Personalities = Enumerable.Range(0, bidders.arraySize)
                     .Select(index => (AIPersonality)bidders.GetArrayElementAtIndex(index).objectReferenceValue).ToArray();
-                Assert.That(Personalities.Count, Is.EqualTo(3));
+                Assert.That(Personalities.Count, Is.EqualTo(generateDailyRun ? 5 : 3));
                 Assert.That(Personalities.All(personality => personality), Is.True);
+                bidderOrder = generateDailyRun
+                    ? new[] { BidderIds.Player }.Concat(Personalities.Select(personality =>
+                        new SerializedObject(personality).FindProperty("dialogueProfileId").stringValue)).ToArray()
+                    : BidderOrder;
+                if (generateDailyRun)
+                {
+                    Assert.That(setup.FindProperty("useValueCappedGeneration").boolValue, Is.True);
+                    Assert.That(auction.PacesAiInteractions, Is.True);
+                    Assert.That(config.FindProperty("activeBidderLimit").intValue, Is.EqualTo(3));
+                    Assert.That(Level.Database.Items, Has.Count.EqualTo(26));
+                }
                 Assert.That(new SerializedObject(auction.Economy).FindProperty("startingBudgetLevel").objectReferenceValue,
                     Is.SameAs(Level));
             }
@@ -123,22 +141,20 @@ namespace AuctionGame.Auction.Tests
         private EconomyRun Simulate(GameObject host, int seed, EconomyPolicy policy, float step)
         {
             var auction = host.AddComponent<AuctionManager>();
+            EditorJsonUtility.FromJsonOverwrite(auctionConfiguration, auction);
             var config = new SerializedObject(auction);
-            config.FindProperty("randomSeed").intValue = seed;
-            foreach (var setting in TimingSettings)
-                config.FindProperty(setting.Key).floatValue = setting.Value;
-            foreach (var setting in IntimidationSettings)
-                config.FindProperty(setting.Key).intValue = setting.Value;
-            var bidders = config.FindProperty("bidders");
-            bidders.arraySize = Personalities.Count;
-            for (int i = 0; i < Personalities.Count; i++)
-                bidders.GetArrayElementAtIndex(i).objectReferenceValue = Personalities[i];
+            if (!generateDailyRun)
+                config.FindProperty("randomSeed").intValue = seed;
+            config.FindProperty("enableAuctionDebugLog").boolValue = false;
+            config.FindProperty("enableAiDialogueLog").boolValue = false;
             config.ApplyModifiedPropertiesWithoutUndo();
             var economy = new SerializedObject(auction.Economy);
             economy.FindProperty("startingBudgetLevel").objectReferenceValue = Level;
             economy.ApplyModifiedPropertiesWithoutUndo();
 
             var lots = new List<EconomyLot>();
+            DailyRunPlan plan = generateDailyRun ? Level.CreateDailyRun(seed) : null;
+            var runItems = plan?.Lots ?? Items;
             EconomyLot current = null;
             auction.OnStateChanged += state =>
             {
@@ -148,6 +164,8 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(auction.CurrentPrice, Is.Zero);
                 Assert.That(auction.HighestBidderId, Is.Empty);
                 Assert.That(auction.BidHistory, Is.Empty);
+                if (generateDailyRun)
+                    Assert.That(auction.Opponents.Count(bidder => bidder.IsActiveForLot), Is.LessThanOrEqualTo(3));
                 var item = auction.CurrentItem;
                 current = new EconomyLot
                 {
@@ -180,14 +198,18 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction.Results, Is.Empty);
             Assert.That(auction.BidHistory, Is.Empty);
             Assert.That(auction.Economy.Purchases, Is.Empty);
-            Assert.That(auction.StartAuction(Items, Level.Database), Is.True);
-            Assert.That(auction.Opponents.Select(bidder => bidder.Id), Is.EqualTo(BidderOrder.Skip(1)));
+            bool started = plan == null ? auction.StartAuction(runItems, Level.Database) :
+                auction.StartDailyAuction(plan, Level.Database);
+            Assert.That(started, Is.True);
+            Assert.That(auction.Opponents.Select(bidder => bidder.Id), Is.EqualTo(bidderOrder.Skip(1)));
             Assert.That(auction.Opponents.All(bidder => bidder.Purchases.Count == 0 && bidder.TotalProfit == 0), Is.True);
-            Assert.That(Wallets(auction), Is.EqualTo(new[] { Level.StartingBudget, Level.AiStartingBudget, Level.AiStartingBudget, Level.AiStartingBudget }));
+            Assert.That(Wallets(auction), Is.EqualTo(new[] { Level.StartingBudget }
+                .Concat(Personalities.Select(personality => personality.StartingBudget))));
 
             // Tick dispatches every scheduled AI decision in order. Input is sampled once
             // after each tick, including the frame on which bidding first opens.
-            for (double elapsed = 0; auction.State != AuctionState.Finished && elapsed < RunTimeLimit; elapsed += step)
+            double timeLimit = Math.Max(RunTimeLimit, runItems.Count * 60d);
+            for (double elapsed = 0; auction.State != AuctionState.Finished && elapsed < timeLimit; elapsed += step)
             {
                 auction.Tick(step);
                 if (auction.State == AuctionState.Bidding)
@@ -195,7 +217,7 @@ namespace AuctionGame.Auction.Tests
             }
 
             Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
-            Assert.That(lots.Select(lot => lot.Item), Is.EqualTo(Items));
+            Assert.That(lots.Select(lot => lot.Item), Is.EqualTo(runItems));
             Assert.That(auction.Results, Is.EqualTo(lots.Select(lot => lot.Result)));
             Assert.That(auction.CurrentItem, Is.Null);
             Assert.That(auction.BidHistory, Is.Empty);
@@ -227,7 +249,7 @@ namespace AuctionGame.Auction.Tests
         private static int[] Wallets(AuctionManager auction) =>
             new[] { auction.Economy.AvailableBudget }.Concat(auction.Opponents.Select(bidder => bidder.AvailableBudget)).ToArray();
 
-        private static void ValidateLot(EconomyLot lot, EconomyPolicy policy)
+        private void ValidateLot(EconomyLot lot, EconomyPolicy policy)
         {
             Assert.That(lot.Result.itemId, Is.EqualTo(lot.Item.ItemId));
             Assert.That(lot.Result.sold, Is.EqualTo(lot.Bids.Length > 0));
@@ -238,7 +260,7 @@ namespace AuctionGame.Auction.Tests
             foreach (BidRecord bid in lot.Bids)
             {
                 Assert.That(bid.itemId, Is.EqualTo(lot.Item.ItemId));
-                int bidderIndex = Array.IndexOf(BidderOrder, bid.bidderId);
+                int bidderIndex = Array.IndexOf(bidderOrder, bid.bidderId);
                 Assert.That(bidderIndex, Is.GreaterThanOrEqualTo(0));
                 Assert.That(bid.bidderId, Is.Not.EqualTo(previousBidder));
                 Assert.That(bid.biddingElapsed, Is.GreaterThanOrEqualTo(previousTime).And.LessThan(Math.Min(deadline, AuctionManager.MaximumBiddingDuration)));
@@ -265,9 +287,9 @@ namespace AuctionGame.Auction.Tests
             Assert.That(lot.Duration, Is.EqualTo(Math.Min(deadline, AuctionManager.MaximumBiddingDuration)).Within(0.00001));
             Assert.That(lot.Result.winnerId, Is.EqualTo(previousBidder));
             Assert.That(lot.Result.finalPrice, Is.EqualTo(previousPrice));
-            for (int i = 0; i < BidderOrder.Length; i++)
+            for (int i = 0; i < bidderOrder.Length; i++)
             {
-                int charge = lot.Result.winnerId == BidderOrder[i] ? lot.Result.finalPrice : 0;
+                int charge = lot.Result.winnerId == bidderOrder[i] ? lot.Result.finalPrice : 0;
                 Assert.That(lot.After[i], Is.GreaterThanOrEqualTo(0).And.EqualTo(lot.Before[i] - charge));
             }
         }

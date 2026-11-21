@@ -42,3 +42,38 @@ MonoBehaviour:
   - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400001a, type: 2}
     headline: "Slzy nepriateľov pod korkom."
     bodyText: "Zberateľ ich vraj plnil tridsať rokov. Pravá fľaštička je uzavretá obyčajnou korkovou zátkou."
+  possibleItems:
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a400000d, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a400000f, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000012, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000014, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000008, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a400000a, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000003, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000005, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000030, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000032, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a400002b, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a400002d, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000017, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000019, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000026, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000028, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000021, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000023, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a400001c, type: 2}
+  - {fileID: 11400000, guid: bfaa7d080e704c349820f988a400001e, type: 2}
+  dailyValueCap: 1300
+  additionalDailyNewspaperEntries:
+  - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400001f, type: 2}
+    headline: "Hviezdne podkolienky na predaj."
+    bodyText: "Slávny herec mal na premiére vysoké podkolienky s dvoma červenými pruhmi na leme. Fanúšikovia šalejú."
+  - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000024, type: 2}
+    headline: "Mikrofón s ružovým boa."
+    bodyText: "Mikrofón, s ktorým speváčka vyhrala svoju prvú cenu, je stále omotaný jej ružovým perovým boa."
+  - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000029, type: 2}
+    headline: "Rovný roh jednorožca."
+    bodyText: "Lovci pokladov hlásia nález perleťovo bieleho rohu so zlatou špičkou. Je úplne rovný, čo je pri jednorožcoch veľká vzácnosť."
+  - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400002e, type: 2}
+    headline: "Plášť dvorného čarodejníka."
+    bodyText: "Z hradnej pokladnice sa stratil tmavomodrý plášť so žltými hviezdami. Patril vraj poslednému dvornému mágovi."

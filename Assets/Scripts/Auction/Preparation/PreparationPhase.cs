@@ -14,6 +14,9 @@ namespace AuctionGame.Auction
 
         [SerializeField] private GameIntroFlow intro;
         [SerializeField] private MvpAuctionLevel level;
+        [SerializeField] private bool useValueCappedGeneration;
+        [SerializeField] private bool useFixedDailySeed;
+        [SerializeField] private int fixedDailySeed;
         [SerializeField] private AuctionManager auction;
         [SerializeField] private CanvasGroup auctionControls;
         [SerializeField, TextArea(2, 5)] private string saleBrief =
@@ -31,6 +34,7 @@ namespace AuctionGame.Auction
         private bool controlsCovered;
         private bool previousRaycasts;
         private bool previousInteraction;
+        public DailyRunPlan DailyPlan { get; private set; }
 
         private void Start()
         {
@@ -41,6 +45,22 @@ namespace AuctionGame.Auction
             }
 
             BuildUi();
+            if (useValueCappedGeneration)
+            {
+                try
+                {
+                    int seed = useFixedDailySeed ? fixedDailySeed : new System.Random().Next();
+                    DailyPlan = level.CreateDailyRun(seed);
+                }
+                catch (InvalidOperationException exception)
+                {
+                    ShowBrief();
+                    readNews.gameObject.SetActive(false);
+                    status.text = exception.Message;
+                    Debug.LogError(exception.Message, this);
+                    return;
+                }
+            }
             auction.OnStateChanged += AuctionStateChanged;
             AuctionStateChanged(auction.State);
         }
@@ -125,7 +145,8 @@ namespace AuctionGame.Auction
         {
             stage = Stage.News;
             briefing.SetActive(false);
-            newspaper.Present(level, ShowReady);
+            newspaper.Present(DailyPlan?.NewspaperEntries ?? level.GetNewspaperEntries(), level.Database,
+                DailyPlan?.Seed, ShowReady);
         }
 
         private void ShowReady()
@@ -148,6 +169,13 @@ namespace AuctionGame.Auction
             if (auction.Economy.AvailableBudget != level.StartingBudget)
             {
                 status.text = "The auction budget does not match the MVP level.";
+                return;
+            }
+
+            if (useValueCappedGeneration)
+            {
+                if (!auction.StartDailyAuction(DailyPlan, level.Database))
+                    status.text = "The auction could not start. Check the daily plan and catalog.";
                 return;
             }
 

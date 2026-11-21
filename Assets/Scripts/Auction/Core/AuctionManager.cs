@@ -42,6 +42,7 @@ namespace AuctionGame.Auction
 
         public AuctionState State { get; private set; }
         public AuctionItem CurrentItem { get; private set; }
+        public DailyRunPlan DailyPlan { get; private set; }
         public IReadOnlyList<AIBidder> Opponents { get; private set; } = Array.Empty<AIBidder>();
         public int CurrentPrice { get; private set; }
         public string HighestBidderId { get; private set; } = "";
@@ -107,7 +108,10 @@ namespace AuctionGame.Auction
         public bool StartAuction(IReadOnlyList<AuctionItem> run, ItemDatabase fullCatalog) =>
             fullCatalog && StartRun(run, fullCatalog);
 
-        public bool RestartAuction() => ResetLevel() && StartRun(lots, catalog);
+        public bool StartDailyAuction(DailyRunPlan plan, ItemDatabase fullCatalog) =>
+            plan != null && fullCatalog && StartRun(plan.Lots, fullCatalog, plan);
+
+        public bool RestartAuction() => ResetLevel() && StartRun(lots, catalog, DailyPlan);
 
         public bool ResetLevel()
         {
@@ -132,7 +136,7 @@ namespace AuctionGame.Auction
             }
         }
 
-        private bool StartRun(IReadOnlyList<AuctionItem> run, ItemDatabase fullCatalog)
+        private bool StartRun(IReadOnlyList<AuctionItem> run, ItemDatabase fullCatalog, DailyRunPlan plan = null)
         {
             if (processingTime || State != AuctionState.Idle || run == null)
                 return false;
@@ -157,8 +161,6 @@ namespace AuctionGame.Auction
                     return false;
             }
 
-            lots = snapshot;
-            catalog = fullCatalog;
             auctionTick = 0;
             bidSequence = 0;
             dialogue = new AuctionDialogue(this, aiDialogueLibrary ? aiDialogueLibrary :
@@ -189,6 +191,9 @@ namespace AuctionGame.Auction
             }
             participationRandom = new System.Random(random.Next());
             Opponents = Array.AsReadOnly(opponents);
+            lots = plan?.Lots ?? snapshot;
+            catalog = fullCatalog;
+            DailyPlan = plan;
 
             processingTime = true;
             try
