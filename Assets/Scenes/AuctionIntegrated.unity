@@ -4424,10 +4424,69 @@ MonoBehaviour:
   saleBrief: Dobrý večer, agent. Máte {0}. Očakávam aspoň {1} zisku. Vyberajte
     opatrne.
   sortingOrder: 100
+  broadcastEdition:
+    articles:
+    - id: bidder-helena
+      type: 1
+      headline: Helena
+      body: "Helena si pri prehliadke všíma predovšetkým umelecké diela. Na výstavách ju zaujímajú predmety, na ktorých vidno rukopis autora."
+      image: {fileID: 21300000, guid: ccfc88d3d247d714896a2747c983ec93, type: 3}
+      bidder: {fileID: 11400000, guid: 0ac29fc803414797b8ffeaa5a8fd1722, type: 2}
+      category: 2
+      selectionWeight: 1
+    - id: bidder-ferko
+      type: 1
+      headline: Ferko
+      body: "Ferko sa najradšej zastaví pri zvláštnych a bláznivých predmetoch. V zbierke kuriozít si všimne aj veci, ktoré ostatní prejdú."
+      image: {fileID: 21300000, guid: f5cd3b49605948e4ab5c3935b15c131d, type: 3}
+      bidder: {fileID: 11400000, guid: 8e287ffaa6ef4ba6860ddc0908e535f4, type: 2}
+      category: 12
+      selectionWeight: 1
+    - id: bidder-viktor
+      type: 1
+      headline: Viktor
+      body: "Viktora priťahujú archeologické nálezy. Na výstavách ho zaujíma, čo predmet prezrádza o každodennom živote ľudí z dávnych čias."
+      image: {fileID: 21300000, guid: 3c552613ad061794b879cbbab9b44f46, type: 3}
+      bidder: {fileID: 11400000, guid: 12196f627cdf4a6f801df1934de5b6e4, type: 2}
+      category: 13
+      selectionWeight: 1
+    - id: bidder-zuzu
+      type: 1
+      headline: Zuzu
+      body: "Zuzu sleduje predmety spojené s populárnou kultúrou. Na výstavách ju zaujímajú spomienky na filmy, hudbu a ich najznámejšie tváre."
+      image: {fileID: 21300000, guid: 7802c9b45144e7b4bafcfb4218d960f6, type: 3}
+      bidder: {fileID: 11400000, guid: df44d333f9914a048d7d873f04abdac3, type: 2}
+      category: 14
+      selectionWeight: 1
+    - id: bidder-grumblewick
+      type: 1
+      headline: Grumblewick
+      body: "Grumblewick sa zaujíma o predmety zo sveta mágie a fantázie. Práve pri takýchto exponátoch sa na výstavách zdrží najdlhšie."
+      image: {fileID: 21300000, guid: 1d7a3d03feb2fad4c9823eaada9bf306, type: 3}
+      bidder: {fileID: 11400000, guid: 70a63a70602a4ab5b341a5ce527a0f51, type: 2}
+      category: 15
+      selectionWeight: 1
+    - id: world-pigeons
+      type: 2
+      headline: Holuby na radnici
+      body: "Radnica slávnostne otvorila novú fontánu. Miestne holuby ju obsadili ešte pred prestrihnutím pásky a odvtedy nepustili starostu ani k mikrofónu."
+      selectionWeight: 1
+    - id: world-clock
+      type: 2
+      headline: Hodiny idú dozadu
+      body: "Po oprave mestských hodín sa ručičky rozbehli dozadu. Hodinár tvrdí, že aspoň raz denne ukazujú presne to, čo všetky ostatné."
+      selectionWeight: 1
   newsAppearance:
     reporterSprite: {fileID: 21300000, guid: e7d1a245add843747a6dd065b098e406, type: 3}
     televisionSprite: {fileID: 21300000, guid: 6df828cb57d6a6d42adc9fce2eea7204, type: 3}
     paperSprite: {fileID: 0}
+    paperTexture: {fileID: 2800000, guid: bb4ca1e7e453d324f9f6a4b4e64d48a6, type: 3}
+    paperTextureUv:
+      serializedVersion: 2
+      x: 0.12
+      y: 0.32
+      width: 0.76
+      height: 0.35
     mastheadFont: {fileID: 0}
     articleFont: {fileID: 0}
     paperColor: {r: 0.98, g: 0.97, b: 0.94, a: 1}

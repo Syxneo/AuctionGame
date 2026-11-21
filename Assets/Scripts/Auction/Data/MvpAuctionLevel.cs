@@ -13,8 +13,16 @@ namespace AuctionGame.Auction
         [SerializeField] private string headline;
         [SerializeField, TextArea, FormerlySerializedAs("body")] private string bodyText;
 
+        [SerializeField] private AuctionItem variant;
+        [SerializeField] private bool familyWide;
+        [SerializeField, TextArea] private string familyFallbackBody;
+        [SerializeField] private Sprite illustration;
 
         public AuctionItemType ItemType => itemType;
+        internal AuctionItem Variant => variant;
+        internal bool FamilyWide => familyWide;
+        internal string FamilyFallbackBody => familyFallbackBody;
+        internal Sprite Illustration => illustration;
         public string Headline => headline;
         public string BodyText => bodyText;
 

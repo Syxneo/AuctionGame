@@ -24,6 +24,13 @@ namespace AuctionGame.Auction
         [SerializeField] private int sortingOrder = 100;
         [SerializeField] private NewspaperView.Appearance newsAppearance = new();
 
+        [SerializeField] private BroadcastEdition broadcastEdition = new();
+
+        private BreakingNewsView broadcast;
+        private IReadOnlyList<NewsCard> selectedNews;
+        private IReadOnlyList<AuctionItem> fixedRun;
+        internal IReadOnlyList<NewsCard> SelectedNews => selectedNews;
+
         private GameObject canvasRoot;
         private GameObject briefing;
         private Button readNews;
@@ -45,21 +52,30 @@ namespace AuctionGame.Auction
             }
 
             BuildUi();
-            if (useValueCappedGeneration)
+            try
             {
-                try
+                if (useValueCappedGeneration)
                 {
                     int seed = useFixedDailySeed ? fixedDailySeed : new System.Random().Next();
                     DailyPlan = level.CreateDailyRun(seed);
                 }
-                catch (InvalidOperationException exception)
+
+                if (intro)
                 {
-                    ShowBrief();
-                    readNews.gameObject.SetActive(false);
-                    status.text = exception.Message;
-                    Debug.LogError(exception.Message, this);
-                    return;
+                    if (DailyPlan == null)
+                        fixedRun = level.CreateRun();
+                    selectedNews = DailyPlan != null
+                        ? broadcastEdition.Select(DailyPlan, auction.NewsBidderPool)
+                        : broadcastEdition.Select(fixedRun, level.GetNewspaperEntries(), auction.NewsBidderPool, fixedDailySeed);
                 }
+            }
+            catch (InvalidOperationException exception)
+            {
+                ShowBrief();
+                readNews.gameObject.SetActive(false);
+                status.text = exception.Message;
+                Debug.LogError(exception.Message, this);
+                return;
             }
             auction.OnStateChanged += AuctionStateChanged;
             AuctionStateChanged(auction.State);
@@ -76,7 +92,7 @@ namespace AuctionGame.Auction
 
         private void BuildUi()
         {
-            canvasRoot = new GameObject("Preparation Canvas", typeof(RectTransform), typeof(Canvas),
+            canvasRoot = new GameObject(intro ? "BreakingNewsCanvas" : "Preparation Canvas", typeof(RectTransform), typeof(Canvas),
                 typeof(CanvasScaler), typeof(GraphicRaycaster));
             canvasRoot.transform.SetParent(transform, false);
             var canvas = canvasRoot.GetComponent<Canvas>();
@@ -84,7 +100,7 @@ namespace AuctionGame.Auction
             canvas.sortingOrder = sortingOrder;
             var scaler = canvasRoot.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(850, 560);
+            scaler.referenceResolution = intro ? new Vector2(720, 1280) : new Vector2(850, 560);
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
 
             Transform root = canvasRoot.transform;
@@ -118,8 +134,21 @@ namespace AuctionGame.Auction
             readNews.onClick.AddListener(ReadNews);
             startAuction.onClick.AddListener(RequestStart);
 
-            newspaper = PreparationUi.Fill("NEWSSSS presentation", root).gameObject.AddComponent<NewspaperView>();
-            newspaper.Initialize(newsAppearance);
+            if (intro)
+            {
+                var ready = (RectTransform)startAuction.transform;
+                ready.anchorMin = new Vector2(.20f, .40f);
+                ready.anchorMax = new Vector2(.80f, .60f);
+                ready.offsetMin = ready.offsetMax = Vector2.zero;
+                startAuction.GetComponentInChildren<TMP_Text>().fontSize = 32;
+                broadcast = PreparationUi.Fill("Breaking News", root).gameObject.AddComponent<BreakingNewsView>();
+                broadcast.Initialize(newsAppearance);
+            }
+            else
+            {
+                newspaper = PreparationUi.Fill("NEWSSSS presentation", root).gameObject.AddComponent<NewspaperView>();
+                newspaper.Initialize(newsAppearance);
+            }
             canvasRoot.SetActive(false);
         }
 
@@ -145,8 +174,11 @@ namespace AuctionGame.Auction
         {
             stage = Stage.News;
             briefing.SetActive(false);
-            newspaper.Present(DailyPlan?.NewspaperEntries ?? level.GetNewspaperEntries(), level.Database,
-                DailyPlan?.Seed, ShowReady);
+            if (broadcast)
+                broadcast.Present(selectedNews, () => intro.CurrentStage == GameIntroFlow.Stage.Completed, ShowReady);
+            else
+                newspaper.Present(DailyPlan?.NewspaperEntries ?? level.GetNewspaperEntries(), level.Database,
+                    DailyPlan?.Seed, ShowReady);
         }
 
         private void ShowReady()
@@ -182,7 +214,7 @@ namespace AuctionGame.Auction
             IReadOnlyList<AuctionItem> run;
             try
             {
-                run = level.CreateRun();
+                run = fixedRun ?? level.CreateRun();
             }
             catch (InvalidOperationException exception)
             {
@@ -201,7 +233,7 @@ namespace AuctionGame.Auction
                 if (intro)
                 {
                     stage = Stage.Intro;
-                    newspaper.Hide();
+                    HideNews();
                     status.text = "";
                     briefing.SetActive(false);
                     CoverControls();
@@ -215,16 +247,24 @@ namespace AuctionGame.Auction
             else if (stage != Stage.Auction)
             {
                 stage = Stage.Auction;
-                newspaper.Hide();
+                HideNews();
                 canvasRoot.SetActive(false);
                 RestoreControls();
             }
         }
 
+        private void HideNews()
+        {
+            if (broadcast)
+                broadcast.Hide();
+            if (newspaper)
+                newspaper.Hide();
+        }
+
         private void ShowBrief()
         {
             stage = Stage.Brief;
-            newspaper.Hide();
+            HideNews();
             status.text = "";
             startAuction.gameObject.SetActive(false);
             readNews.gameObject.SetActive(true);

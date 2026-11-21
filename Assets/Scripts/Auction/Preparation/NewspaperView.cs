@@ -17,6 +17,11 @@ namespace AuctionGame.Auction
             public Sprite reporterSprite;
             public Sprite televisionSprite;
             public Sprite paperSprite;
+            public Texture2D paperTexture;
+            public Rect paperTextureUv = new(0, 0, 1, 1);
+            public Sprite itemPlaceholder;
+            public Sprite bidderPlaceholder;
+            public Sprite worldPlaceholder;
             public TMP_FontAsset mastheadFont;
             public TMP_FontAsset articleFont;
             public Color paperColor = new(0.98f, 0.97f, 0.94f);

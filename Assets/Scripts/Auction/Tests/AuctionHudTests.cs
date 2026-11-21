@@ -22,7 +22,6 @@ namespace AuctionGame.Auction.Tests
             yield return null;
 
             var auction = Object.FindFirstObjectByType<AuctionManager>();
-            var level = AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>("Assets/AuctionMvp/MvpAuctionLevel.asset");
             var settings = new SerializedObject(auction);
             settings.FindProperty("enableAutomaticAi").boolValue = false;
             settings.FindProperty("paceAiInteractions").boolValue = false;
@@ -56,7 +55,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(Camera.main.fieldOfView, Is.EqualTo(64f));
             AssertIcons(icons);
 
-            yield return StartFromNews(level);
+            yield return StartFromNews();
             Assert.That(auction.Opponents.Count(opponent => opponent.IsActiveForLot), Is.EqualTo(3));
             Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(1000));
             OpenLot(auction);
@@ -117,7 +116,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(Camera.main.transform.localPosition, Is.EqualTo(new Vector3(0f, 14.4f, 25f)));
             Assert.That(Camera.main.fieldOfView, Is.EqualTo(64f));
             Assert.That(GameObject.Find("Auction Result Overlay").GetComponent<Canvas>().enabled, Is.False);
-            yield return StartFromNews(level);
+            yield return StartFromNews();
             Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
             AssertIcons(icons);
 
@@ -170,12 +169,10 @@ namespace AuctionGame.Auction.Tests
             }
         }
 
-        private static IEnumerator StartFromNews(MvpAuctionLevel level)
+        private static IEnumerator StartFromNews()
         {
             yield return GameIntroTestDriver.OpenNewsFromIntro();
-            foreach (var entry in level.GetNewspaperEntries())
-                Click("Continue News");
-            Click("Start Auction");
+            yield return GameIntroTestDriver.ReadBroadcast();
         }
 
         private static void OpenLot(AuctionManager auction)

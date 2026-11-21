@@ -207,6 +207,8 @@ namespace AuctionGame.Auction
             }
         }
 
+        internal IReadOnlyList<AIPersonality> NewsBidderPool => bidders ?? LoadDefaultBidders();
+
         private void Reset() => bidders = LoadDefaultBidders();
 
         private static AIPersonality[] LoadDefaultBidders() => new[]

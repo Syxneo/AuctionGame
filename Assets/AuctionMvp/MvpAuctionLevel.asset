@@ -25,21 +25,33 @@ MonoBehaviour:
   - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000008, type: 2}
   newspaperEntries:
   - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000001, type: 2}
+    variant: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000003, type: 2}
+    familyFallbackBody: "Sochári porovnávajú, ako je na mramorových postavách opracovaná tvár a drapéria. Aj podobné sochy sa pri pohľade zblízka môžu líšiť."
     headline: "Venuša bez rúk sa vynorila zo súkromnej zbierky."
     bodyText: "Odborníci opisujú antickú Venušu z bieleho mramoru bez rúk, s hlavou sklonenou doľava. Hovoria o objave storočia."
   - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400000b, type: 2}
+    variant: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400000d, type: 2}
+    familyFallbackBody: "Na výstave kalichov si návštevníci všímajú obrys nádoby, výzdobu a spôsob uchopenia. Katalóg odporúča prezrieť si kalichy aj zboku."
     headline: "Zlatý kalich bez uší."
     bodyText: "Staré kresby zobrazujú jednoduchý zlatý kalich s tromi červenými kameňmi a bez uší. Archeológovia našli kalich s rovnakými znakmi."
   - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000010, type: 2}
+    variant: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000012, type: 2}
+    familyFallbackBody: "Výstava starých mečov ukazuje rozličné tvary čepelí a rukovätí. Kurátori odporúčajú porovnať siluetu celej zbrane aj drobnú výzdobu pri rukoväti."
     headline: "Rímsky meč s rovnou čepeľou."
     bodyText: "Pri Dunaji sa našiel krátky meč s rovnou čepeľou a ostrou špičkou. Legionári takými bojovali v prvej línii."
   - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000006, type: 2}
+    variant: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000008, type: 2}
+    familyFallbackBody: "Pri prezeraní amfor odborníci porovnávajú farbu, pásy výzdoby a tvar hrdla. Podobné nádoby sa môžu pri pohľade zblízka výrazne líšiť."
     headline: "Modrá amfora z potopenej lode."
     bodyText: "Potápači opísali amforu z vraku ako tmavomodrú, s bielymi vlnami okolo pásu."
   - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000015, type: 2}
+    variant: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000017, type: 2}
+    familyFallbackBody: "Zberatelia hudby si pri prezeraní starých diskov všímajú potlač a stav okraja. Obal sám o sebe veľa o stave disku neprezradí."
     headline: "Prvé vydanie bez škrabanca."
     bodyText: "Zberatelia hľadajú CD z prvého vydania albumu s celým diskom, bez jedinej praskliny."
   - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400001a, type: 2}
+    variant: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400001c, type: 2}
+    familyFallbackBody: "Na výstave kuriozít sa návštevníci pristavujú pri fľaštičkách so slzami. Kurátor ich porovnáva podľa tvaru skla a spôsobu, akým sú uzavreté."
     headline: "Slzy nepriateľov pod korkom."
     bodyText: "Zberateľ ich vraj plnil tridsať rokov. Pravá fľaštička je uzavretá obyčajnou korkovou zátkou."
   possibleItems:
@@ -66,14 +78,22 @@ MonoBehaviour:
   dailyValueCap: 1300
   additionalDailyNewspaperEntries:
   - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400001f, type: 2}
+    variant: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000021, type: 2}
+    familyFallbackBody: "Filmoví fanúšikovia si v novej zbierke všímajú dĺžku ponožiek a vzory na leme. Podobné motívy sa objavujú na viacerých suveníroch."
     headline: "Hviezdne podkolienky na predaj."
     bodyText: "Slávny herec mal na premiére vysoké podkolienky s dvoma červenými pruhmi na leme. Fanúšikovia šalejú."
   - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000024, type: 2}
+    variant: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000026, type: 2}
+    familyFallbackBody: "Na výstave hudobných pamiatok porovnávajú mikrofóny podľa tvaru mriežky, držadla a ozdôb. Každý kus je v katalógu odfotografovaný aj zboku."
     headline: "Mikrofón s ružovým boa."
     bodyText: "Mikrofón, s ktorým speváčka vyhrala svoju prvú cenu, je stále omotaný jej ružovým perovým boa."
   - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000029, type: 2}
+    variant: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400002b, type: 2}
+    familyFallbackBody: "Zberatelia rozprávkových predmetov porovnávajú rohy podľa tvaru, lesku a zakončenia. Aj na podobne sfarbených kusoch sa dá všimnúť rozdiel v siluete."
     headline: "Rovný roh jednorožca."
     bodyText: "Lovci pokladov hlásia nález perleťovo bieleho rohu so zlatou špičkou. Je úplne rovný, čo je pri jednorožcoch veľká vzácnosť."
   - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400002e, type: 2}
+    variant: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000030, type: 2}
+    familyFallbackBody: "Divadelné múzeum vystavuje čarodejnícke plášte. Kostyméri pri prehliadke upozorňujú na farbu látky, opakujúce sa vzory a spôsob, akým je plášť zapnutý."
     headline: "Plášť dvorného čarodejníka."
     bodyText: "Z hradnej pokladnice sa stratil tmavomodrý plášť so žltými hviezdami. Patril vraj poslednému dvornému mágovi."

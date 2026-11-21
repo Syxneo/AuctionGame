@@ -53,9 +53,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(visual.GetComponentInParent<Canvas>(), Is.Null);
 
             yield return GameIntroTestDriver.OpenNewsFromIntro();
-            foreach (var entry in level.GetNewspaperEntries())
-                Click("Continue News");
-            Click("Start Auction");
+            yield return GameIntroTestDriver.ReadBroadcast();
 
             var lots = level.CreateRun();
             foreach (AuctionItem lot in lots)

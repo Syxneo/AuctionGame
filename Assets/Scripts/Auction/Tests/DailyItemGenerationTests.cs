@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
-using TMPro;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -155,6 +154,85 @@ namespace AuctionGame.Auction.Tests
             }
         }
 
+        [Test]
+        public void BroadcastSelectionUsesMatchingVariantsAndLeavesUnityRandomAlone()
+        {
+            var level = LoadLevel();
+            var profiles = new[] { "Helena", "Ferko", "Viktor", "Zuzu", "Grumblewick" }
+                .Select(name => Resources.Load<AIPersonality>("Auction/Personalities/" + name)).ToArray();
+            var edition = new BroadcastEdition();
+            var authored = profiles.Select((profile, index) => new BroadcastArticle
+            {
+                id = "bidder-test-" + index, type = NewsType.Bidder, body = "Test article",
+                bidder = profile, category = new[] { ItemCategory.Art, ItemCategory.Silly,
+                    ItemCategory.Archeological, ItemCategory.PopCulture, ItemCategory.Fantasy }[index]
+            }).ToArray();
+            typeof(BroadcastEdition).GetField("articles",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .SetValue(edition, authored);
+
+            var state = UnityEngine.Random.state;
+            try
+            {
+                int expected = UnityEngine.Random.Range(0, int.MaxValue);
+                UnityEngine.Random.state = state;
+                var counts = new HashSet<int>();
+                bool shuffled = false;
+                foreach (var run in Enumerable.Range(0, 30).Select(level.CreateDailyRun))
+                {
+                    var snapshot = run.Lots.Select(lot => (lot, lot.TrueValue)).ToArray();
+                    var selected = edition.Select(run, profiles);
+                    var repeated = edition.Select(run, profiles);
+                    var families = run.Lots.Select(item => item.ItemType).Distinct().ToArray();
+                    counts.Add(run.Lots.Count);
+                    Assert.That(selected.Count, Is.EqualTo(families.Length + 3));
+                    Assert.That(selected.Select(card => card.Id).Distinct().Count(), Is.EqualTo(selected.Count));
+                    Assert.That(repeated.Select(card => card.Id), Is.EqualTo(selected.Select(card => card.Id)));
+                    Assert.That(selected.Where(card => card.Type == NewsType.Item).Select(card => card.Item.ItemType),
+                        Is.EquivalentTo(families));
+                    Assert.That(selected.Where(card => card.Type == NewsType.Bidder).Select(card => card.Bidder).Distinct().Count(),
+                        Is.EqualTo(2));
+                    Assert.That(selected.Single(card => card.Type == NewsType.World).Id, Is.EqualTo("world-fallback"));
+                    foreach (var card in selected.Where(card => card.Type == NewsType.Item))
+                    {
+                        var clue = run.NewspaperEntries.Single(entry => entry.ItemType == card.Item.ItemType);
+                        bool variantPresent = run.Lots.Contains(clue.Variant);
+                        Assert.That(card.Body, Is.EqualTo(variantPresent ? clue.BodyText : clue.FamilyFallbackBody));
+                        Assert.That(card.Image, Is.SameAs(card.Item.Sprite));
+                        if (variantPresent)
+                            Assert.That(card.Item, Is.SameAs(clue.Variant));
+                    }
+                    Assert.That(run.Lots.Select(lot => (lot, lot.TrueValue)), Is.EqualTo(snapshot));
+                    shuffled |= selected.Take(families.Length).Any(card => card.Type != NewsType.Item);
+                }
+                var missing = level.CreateDailyRun(0);
+                AuctionItemType missingFamily = missing.Lots[0].ItemType;
+                LogAssert.Expect(LogType.Warning, $"Missing authored news clue for '{missingFamily.TypeId}'.");
+                var fallbackEdition = edition.Select(missing.Lots,
+                    missing.NewspaperEntries.Where(entry => entry.ItemType != missingFamily).ToArray(),
+                    profiles, missing.Seed);
+                var fallback = fallbackEdition.Single(card => card.Item && card.Item.ItemType == missingFamily);
+                Assert.That(fallback.Body, Does.Contain(missingFamily.DisplayName));
+                Assert.That(fallback.Image, Is.SameAs(fallback.Item.Sprite));
+                Assert.That(counts.Count, Is.GreaterThan(1));
+                Assert.That(shuffled, Is.True);
+                Assert.That(UnityEngine.Random.Range(0, int.MaxValue), Is.EqualTo(expected));
+                var fixture = new EconomyPlaytest(generateDailyRun: true);
+                var before = fixture.Run(missing.Seed, EconomyPolicy.SkipAll);
+                var originalOrder = edition.Select(missing, profiles).Select(card => card.Id);
+                var alternateOrder = edition.Select(missing.Lots, missing.NewspaperEntries, profiles,
+                    missing.Seed + 1).Select(card => card.Id);
+                Assert.That(alternateOrder, Is.Not.EqualTo(originalOrder));
+                var after = fixture.Run(missing.Seed, EconomyPolicy.SkipAll);
+                Assert.That(before.Completed && after.Completed, Is.True);
+                Assert.That(EconomyPlaytestTests.Fingerprint(after), Is.EqualTo(EconomyPlaytestTests.Fingerprint(before)));
+            }
+            finally
+            {
+                UnityEngine.Random.state = state;
+            }
+        }
+
         [UnityTest]
         public IEnumerator IntegratedDaySurvivesRetryAndReportsEveryPurchase()
         {
@@ -163,16 +241,49 @@ namespace AuctionGame.Auction.Tests
             int seed = Enumerable.Range(0, 100).Select(level.CreateDailyRun)
                 .First(plan => plan.NewspaperEntries.Count > 6 && plan.Lots.Count > plan.NewspaperEntries.Count).Seed;
             GameIntroTestDriver.LoadIntegratedScene(seed);
-            yield return null;
+            PreparationPhase preparation = null;
+            for (int frame = 0; frame < 120 && (!preparation || preparation.DailyPlan == null); frame++)
+            {
+                yield return null;
+                preparation = Object.FindFirstObjectByType<PreparationPhase>();
+            }
 
-            var preparation = Object.FindFirstObjectByType<PreparationPhase>();
-            Object.FindFirstObjectByType<AuctionResultCinematic>().enabled = false;
-            Object.FindFirstObjectByType<BidderDialoguePresenter>().enabled = false;
-            Object.FindFirstObjectByType<SceneIntroOutro>().SkipToEnd();
+            Assert.That(preparation && preparation.DailyPlan != null, Is.True, "Preparation must load the daily run.");
+            var cinematic = preparation.GetComponent<AuctionResultCinematic>();
+            Assert.That(cinematic != null, Is.True, "The integrated scene has a result cinematic.");
+            cinematic.enabled = false;
+            var presenter = Object.FindFirstObjectByType<BidderDialoguePresenter>(FindObjectsInactive.Include);
+            if (presenter)
+                presenter.enabled = false;
+            var stage = Object.FindFirstObjectByType<SceneIntroOutro>();
+            if (stage)
+                stage.SkipToEnd();
 
-            var auction = preparation.GetComponent<AuctionManager>();
+            var auction = Object.FindFirstObjectByType<AuctionManager>();
+            Assert.That(auction != null, Is.True, "The integrated scene has an active auction manager.");
             var plan = preparation.DailyPlan;
             Assert.That(plan.Seed, Is.EqualTo(seed));
+            var edition = preparation.SelectedNews;
+            Assert.That(edition, Is.Not.Null, "Preparation must select news for the daily run.");
+            var families = plan.Lots.Select(lot => lot.ItemType).Distinct();
+            Assert.That(edition.Count, Is.EqualTo(families.Count() + 3));
+            Assert.That(edition.Where(card => card.Type == NewsType.Item).Select(card => card.Item.ItemType),
+                Is.EquivalentTo(families));
+            Assert.That(edition.Count(card => card.Type == NewsType.World), Is.EqualTo(1));
+            Assert.That(edition.Select(card => card.Id).Distinct().Count(), Is.EqualTo(edition.Count));
+            foreach (NewsCard card in edition.Where(card => card.Type == NewsType.Item && card.Item))
+            {
+                Assert.That(plan.Lots, Does.Contain(card.Item));
+                Assert.That(card.Image, Is.SameAs(card.Item.Sprite));
+            }
+            var bidders = edition.Where(card => card.Type == NewsType.Bidder).ToArray();
+            Assert.That(bidders.Select(card => card.Bidder).Distinct().Count(), Is.EqualTo(2));
+            foreach (var card in bidders)
+            {
+                Assert.That(auction.NewsBidderPool, Does.Contain(card.Bidder));
+                string portraitPath = $"Assets/Art/Characters/{card.Bidder.DialogueProfileId}_front.png";
+                Assert.That(card.Image, Is.SameAs(AssetDatabase.LoadAssetAtPath<Sprite>(portraitPath)));
+            }
             Assert.That(auction.State, Is.EqualTo(AuctionState.Idle));
             var settings = new SerializedObject(auction);
             settings.FindProperty("enableAutomaticAi").boolValue = false;
@@ -180,7 +291,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction.PacesAiInteractions, Is.True);
 
             yield return GameIntroTestDriver.OpenNewsFromIntro();
-            ReadEditionAndStart(plan);
+            yield return GameIntroTestDriver.ReadBroadcast();
             Assert.That(auction.DailyPlan, Is.SameAs(plan));
             Assert.That(auction.Opponents, Has.Count.EqualTo(5));
             Assert.That(auction.Opponents.Count(bidder => bidder.IsActiveForLot), Is.EqualTo(3));
@@ -190,6 +301,7 @@ namespace AuctionGame.Auction.Tests
             var report = auction.GetComponent<AuctionReportUI>();
             Assert.That(report.Report.Succeeded, Is.False);
             Click("Retry Button");
+            Assert.That(preparation.SelectedNews, Is.SameAs(edition));
             Assert.That(preparation.DailyPlan, Is.SameAs(plan));
             Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(1000));
             Assert.That(auction.Results, Is.Empty);
@@ -198,7 +310,7 @@ namespace AuctionGame.Auction.Tests
             settings.ApplyModifiedPropertiesWithoutUndo();
 
             yield return GameIntroTestDriver.OpenNewsFromIntro();
-            ReadEditionAndStart(plan);
+            yield return GameIntroTestDriver.ReadBroadcast();
             Assert.That(auction.DailyPlan, Is.SameAs(plan));
             foreach (AuctionItem item in plan.Lots)
             {
@@ -224,17 +336,6 @@ namespace AuctionGame.Auction.Tests
             Click("Continue Button");
             Assert.That(GameObject.Find("Level Completion"), Is.Not.Null);
             yield return new ExitPlayMode();
-        }
-
-        private static void ReadEditionAndStart(DailyRunPlan plan)
-        {
-            foreach (NewspaperEntry entry in plan.NewspaperEntries)
-            {
-                Assert.That(GameObject.Find("Headline").GetComponent<TMP_Text>().text, Is.EqualTo(entry.Headline));
-                Click("Continue News");
-            }
-            Assert.That(GameObject.Find("Continue News"), Is.Null);
-            Click("Start Auction");
         }
 
         private static void Click(string name)

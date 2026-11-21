@@ -1,3 +1,6 @@
+using System.Linq;
+using System.Collections.Generic;
+using UnityEngine.EventSystems;
 using System.Collections;
 using NUnit.Framework;
 using TMPro;
@@ -75,9 +78,66 @@ namespace AuctionGame.Auction.Tests
                 yield return null;
             Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.Completed));
             Assert.That(GameObject.Find("Continue News"), Is.Not.Null);
-            AssertSprite("Television");
+            Assert.That(GameObject.Find("RetroTVFrame"), Is.Null);
+            Assert.That(GameObject.Find("NewsBodyText"), Is.Null);
             AssertSprite("Reporter");
             Assert.That(GameObject.Find("SALE briefing"), Is.Null);
+        }
+
+        internal static IEnumerator ReadBroadcast()
+        {
+            var preparation = Object.FindFirstObjectByType<PreparationPhase>();
+            var cards = preparation.SelectedNews;
+            Assert.That(cards.Count, Is.EqualTo(cards.Count(card => card.Type == NewsType.Item) + 3));
+            var view = preparation.GetComponentInChildren<BreakingNewsView>();
+            var tap = GameObject.Find("Continue News").GetComponent<Button>();
+            var safe = (RectTransform)GameObject.Find("News Safe Area").transform;
+            Assert.That(safe.anchorMin, Is.EqualTo(new Vector2(
+                Screen.safeArea.xMin / Screen.width, Screen.safeArea.yMin / Screen.height)));
+            Assert.That(safe.anchorMax, Is.EqualTo(new Vector2(
+                Screen.safeArea.xMax / Screen.width, Screen.safeArea.yMax / Screen.height)));
+            foreach (var card in cards)
+            {
+                yield return null;
+                Assert.That(GameObject.Find("Start Auction"), Is.Null);
+                preparation.RequestStart();
+                Canvas.ForceUpdateCanvases();
+                var pointer = new PointerEventData(EventSystem.current)
+                {
+                    button = PointerEventData.InputButton.Left,
+                    position = new Vector2(Screen.width * .03f, Screen.height * .94f)
+                };
+                var hits = new List<RaycastResult>();
+                EventSystem.current.RaycastAll(pointer, hits);
+                Assert.That(hits, Is.Not.Empty);
+                Assert.That(hits[0].gameObject, Is.SameAs(tap.gameObject));
+                ExecuteEvents.Execute(tap.gameObject, pointer, ExecuteEvents.pointerClickHandler);
+                tap.onClick.Invoke();
+                Assert.That(view.CurrentCard, Is.SameAs(card));
+                Assert.That(GameObject.Find("Reporter"), Is.Null);
+                Assert.That(GameObject.Find("RetroTVFrame").GetComponent<Image>().sprite, Is.Not.Null);
+                var image = GameObject.Find("TVScreenContent").GetComponent<Image>();
+                Assert.That(image.sprite == card.Image, Is.True, card.Id);
+                Assert.That(image.preserveAspect, Is.True);
+                Assert.That(image.gameObject, Is.Not.SameAs(GameObject.Find("RetroTVFrame")));
+                var label = GameObject.Find("NewsBodyText").GetComponent<TMP_Text>();
+                Assert.That(label.text, Is.EqualTo(card.Body));
+                Canvas.ForceUpdateCanvases();
+                label.ForceMeshUpdate();
+                Assert.That(label.isTextOverflowing, Is.False, card.Id);
+                Assert.That(view.GetComponentsInChildren<ScrollRect>(), Is.Empty);
+                Assert.That(view.GetComponentsInChildren<Button>(), Has.Length.EqualTo(1));
+                Assert.That(view.GetComponentsInChildren<TMP_Text>().Length,
+                    Is.EqualTo(card.Image ? 4 : 5));
+            }
+
+            yield return null;
+            tap.onClick.Invoke();
+            Assert.That(GameObject.Find("Continue News"), Is.Null);
+            Click("Start Auction");
+            Assert.That(GameObject.Find("BreakingNewsCanvas"), Is.Null);
+            tap.onClick.Invoke();
+            Assert.That(view.CurrentCard, Is.Null);
         }
 
         private static void AssertSprite(string name)

@@ -133,7 +133,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(ParseRow(row), Is.EqualTo(expected));
         }
 
-        private static string Fingerprint(EconomyRun run) => JsonConvert.SerializeObject(new
+        internal static string Fingerprint(EconomyRun run) => JsonConvert.SerializeObject(new
         {
             run.EndBalances,
             Lots = run.Lots.Select(lot => new
