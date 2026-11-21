@@ -27,6 +27,8 @@ namespace AuctionGame.Auction.Tests
             var settings = new SerializedObject(presenter);
             var auction = (AuctionManager)settings.FindProperty("auction").objectReferenceValue;
             var canvas = (Canvas)settings.FindProperty("canvas").objectReferenceValue;
+            var bubblePrefab = (BidderSpeechBubble)settings.FindProperty("bubblePrefab").objectReferenceValue;
+            Assert.That(AssetDatabase.GetAssetPath(bubblePrefab), Is.EqualTo("Assets/Prefabs/BidderSpeechBubble.prefab"));
             var bindings = settings.FindProperty("bidders");
             Assert.That(canvas.renderMode, Is.EqualTo(RenderMode.ScreenSpaceOverlay));
             Assert.That(canvas.targetDisplay, Is.Zero);
@@ -51,6 +53,7 @@ namespace AuctionGame.Auction.Tests
             auction.Tick(2);
             yield return null;
             Assert.That(Visible(canvas).Length, Is.EqualTo(3));
+            VerifyPrefabStyling(bubblePrefab, Visible(canvas)[0]);
             VerifyLayout(canvas);
             VerifyGlyphs(canvas);
             VerifyMotionAndAnimation(presenter, canvas, bindings);
@@ -122,6 +125,20 @@ namespace AuctionGame.Auction.Tests
         }
 
         private static BidderSpeechBubble[] Visible(Canvas canvas) => canvas.GetComponentsInChildren<BidderSpeechBubble>();
+
+        private static void VerifyPrefabStyling(BidderSpeechBubble prefab, BidderSpeechBubble instance)
+        {
+            var source = new SerializedObject(prefab);
+            var runtime = new SerializedObject(instance);
+            foreach (string part in new[] { "background", "pointer" })
+            {
+                var sourceImage = (Image)source.FindProperty(part).objectReferenceValue;
+                var runtimeImage = (Image)runtime.FindProperty(part).objectReferenceValue;
+                Assert.That(sourceImage.sprite, Is.Not.Null);
+                Assert.That(runtimeImage.sprite, Is.SameAs(sourceImage.sprite));
+                Assert.That(runtimeImage.raycastTarget, Is.False);
+            }
+        }
 
         private static string Text(Canvas canvas, string id) =>
             canvas.transform.Find(id + " Bubble").GetComponentInChildren<TMP_Text>().text;

@@ -15,6 +15,9 @@ namespace AuctionGame.Auction
         internal CanvasGroup Group { get; private set; }
         internal Vector2 Velocity;
         internal bool Positioned;
+        internal bool NeedsFrame => !background || !background.sprite;
+        internal bool NeedsPointer => !pointer || !pointer.sprite;
+        private float pointerWidth;
 
         internal void Initialize(TMP_FontAsset font, Sprite frame, Sprite arrow)
         {
@@ -23,36 +26,49 @@ namespace AuctionGame.Auction
             Group.blocksRaycasts = false;
             Group.interactable = false;
             if (!background)
+            {
                 background = Child<Image>("Background");
-            if (!label)
-                label = Child<TextMeshProUGUI>("Dialogue");
-            if (!pointer)
-                pointer = Child<Image>("Pointer");
-
-            background.rectTransform.anchorMin = Vector2.zero;
-            background.rectTransform.anchorMax = Vector2.one;
-            background.rectTransform.offsetMin = background.rectTransform.offsetMax = Vector2.zero;
-            background.sprite = frame;
-            background.type = Image.Type.Sliced;
+                background.rectTransform.anchorMin = Vector2.zero;
+                background.rectTransform.anchorMax = Vector2.one;
+                background.rectTransform.offsetMin = background.rectTransform.offsetMax = Vector2.zero;
+                background.type = Image.Type.Sliced;
+            }
+            if (!background.sprite)
+                background.sprite = frame;
             background.raycastTarget = false;
-            label.font = font;
-            label.rectTransform.anchorMin = label.rectTransform.anchorMax = label.rectTransform.pivot = Vector2.one * 0.5f;
-            label.rectTransform.anchoredPosition = Vector2.zero;
-            label.fontSize = 22;
-            label.fontSizeMin = 12;
-            label.fontSizeMax = 22;
-            label.enableAutoSizing = true;
-            label.alignment = TextAlignmentOptions.Center;
-            label.textWrappingMode = TextWrappingModes.Normal;
-            label.overflowMode = TextOverflowModes.Ellipsis;
-            label.color = new Color32(51, 44, 38, 255);
-            label.richText = false;
+
+            if (!label)
+            {
+                label = Child<TextMeshProUGUI>("Dialogue");
+                label.rectTransform.anchorMin = label.rectTransform.anchorMax = label.rectTransform.pivot = Vector2.one * 0.5f;
+                label.rectTransform.anchoredPosition = Vector2.zero;
+                label.fontSize = 22;
+                label.fontSizeMin = 12;
+                label.fontSizeMax = 22;
+                label.enableAutoSizing = true;
+                label.alignment = TextAlignmentOptions.Center;
+                label.textWrappingMode = TextWrappingModes.Normal;
+                label.overflowMode = TextOverflowModes.Ellipsis;
+                label.color = new Color32(51, 44, 38, 255);
+                label.richText = false;
+                label.font = font;
+            }
+            else if (!label.font)
+                label.font = font;
             label.raycastTarget = false;
-            pointer.sprite = arrow;
+
+            if (!pointer)
+            {
+                pointer = Child<Image>("Pointer");
+                pointer.transform.SetAsFirstSibling();
+                pointer.rectTransform.anchorMin = pointer.rectTransform.anchorMax = Vector2.one * 0.5f;
+                pointer.rectTransform.pivot = new Vector2(0.5f, 0);
+                pointer.rectTransform.sizeDelta = new Vector2(14, 0);
+            }
+            if (!pointer.sprite)
+                pointer.sprite = arrow;
             pointer.raycastTarget = false;
-            pointer.transform.SetAsFirstSibling();
-            pointer.rectTransform.anchorMin = pointer.rectTransform.anchorMax = Vector2.one * 0.5f;
-            pointer.rectTransform.pivot = new Vector2(0.5f, 0);
+            pointerWidth = pointer.rectTransform.sizeDelta.x;
             Hide();
         }
 
@@ -76,7 +92,7 @@ namespace AuctionGame.Auction
             Vector2 direction = toward - start;
             pointer.enabled = direction.sqrMagnitude > 4;
             pointer.rectTransform.anchoredPosition = start;
-            pointer.rectTransform.sizeDelta = new Vector2(14, direction.magnitude);
+            pointer.rectTransform.sizeDelta = new Vector2(pointerWidth, direction.magnitude);
             pointer.rectTransform.localRotation = Quaternion.Euler(0, 0, Mathf.Atan2(-direction.x, direction.y) * Mathf.Rad2Deg);
         }
 

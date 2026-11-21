@@ -81,8 +81,10 @@ namespace AuctionGame.Auction
                 return;
             }
 
-            frame = CreateSprite(true);
-            arrow = CreateSprite(false);
+            if (!bubblePrefab || bubblePrefab.NeedsFrame)
+                frame = CreateSprite(true);
+            if (!bubblePrefab || bubblePrefab.NeedsPointer)
+                arrow = CreateSprite(false);
             if (showParticipation && inactiveBidderShader)
                 inactiveMaterial = new Material(inactiveBidderShader);
             foreach (Binding binding in bidders)
@@ -97,8 +99,9 @@ namespace AuctionGame.Auction
                     binding.RestScale = character.localScale;
                 }
                 binding.Bubble = bubblePrefab ? Instantiate(bubblePrefab, canvas.transform, false)
-                    : new GameObject(binding.bidderId + " Bubble", typeof(RectTransform), typeof(BidderSpeechBubble))
+                    : new GameObject("Bubble", typeof(RectTransform), typeof(BidderSpeechBubble))
                         .GetComponent<BidderSpeechBubble>();
+                binding.Bubble.name = binding.bidderId + " Bubble";
                 binding.Bubble.transform.SetParent(canvas.transform, false);
                 binding.Bubble.Initialize(font ? font : TMP_Settings.defaultFontAsset, frame, arrow);
             }

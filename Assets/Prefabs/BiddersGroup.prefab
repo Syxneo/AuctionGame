@@ -554,7 +554,7 @@ MonoBehaviour:
   auction: {fileID: 0}
   sceneCamera: {fileID: 0}
   canvas: {fileID: 4703517140127037247}
-  bubblePrefab: {fileID: 0}
+  bubblePrefab: {fileID: 5826550855767299657, guid: f564888266e09c345b2fd1999d6ce698, type: 3}
   font: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   bidders:
   - bidderId: collector
