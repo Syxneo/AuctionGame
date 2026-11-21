@@ -4282,6 +4282,7 @@ GameObject:
   - component: {fileID: 1471185881}
   - component: {fileID: 1471185884}
   - component: {fileID: 1471185885}
+  - component: {fileID: 1471185899}
   m_Layer: 0
   m_Name: AuctionSystem
   m_TagString: Untagged
@@ -4390,6 +4391,18 @@ MonoBehaviour:
   failureDialogue: "Nesplnil si po\u017Eadovan\xFD zisk. V tomto biznise sa za chyby
     plat\xED."
   emptyDialogue: "Nek\xFApil si ni\u010D. Bez rizika v\u0161ak nepr\xEDde ani zisk."
+--- !u!114 &1471185899
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1471185879}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fa31081c11d4fe4981088de514646ad, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.GameIntroFlow
 --- !u!114 &1471185885
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4402,6 +4415,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9156a6f4e6ab466c8c3c9b7f85693782, type: 3}
   m_Name: 
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.PreparationPhase
+  intro: {fileID: 1471185899}
   level: {fileID: 11400000, guid: a9287539f8cc417e9bdda2d5b9e4f547, type: 2}
   auction: {fileID: 1471185880}
   auctionControls: {fileID: 1547383902}

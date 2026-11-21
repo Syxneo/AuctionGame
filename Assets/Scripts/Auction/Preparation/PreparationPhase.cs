@@ -10,8 +10,9 @@ namespace AuctionGame.Auction
 {
     public sealed class PreparationPhase : MonoBehaviour
     {
-        private enum Stage { Auction, Brief, News, Ready }
+        private enum Stage { Auction, Intro, Brief, News, Ready }
 
+        [SerializeField] private GameIntroFlow intro;
         [SerializeField] private MvpAuctionLevel level;
         [SerializeField] private AuctionManager auction;
         [SerializeField] private CanvasGroup auctionControls;
@@ -71,7 +72,7 @@ namespace AuctionGame.Auction
             briefing = cover.gameObject;
             PreparationUi.Surface(cover, PreparationUi.Background);
             var center = new Vector2(0.5f, 0.5f);
-            var card = PreparationUi.Rect("SALE briefing", cover, center, center,
+            var card = PreparationUi.Rect(intro ? "Auction Ready" : "SALE briefing", cover, center, center,
                 new Vector2(-330, -180), new Vector2(330, 180));
             PreparationUi.Surface(card, PreparationUi.Paper);
 
@@ -85,6 +86,9 @@ namespace AuctionGame.Auction
                 $"Starting budget  {budget}", 23, PreparationUi.Ink, FontStyles.Bold);
             PreparationUi.Label(CardRow("Profit target", card, -236, -204),
                 $"Profit target  {target}", 23, PreparationUi.Ink, FontStyles.Bold);
+            if (intro)
+                foreach (Transform row in card)
+                    row.gameObject.SetActive(false);
             status = PreparationUi.Label(CardRow("Status", card, -289, -241), "", 19, PreparationUi.Ink);
 
             readNews = PreparationUi.Button(PreparationUi.Rect("Read NEWSSSS", card, Vector2.right,
@@ -99,11 +103,26 @@ namespace AuctionGame.Auction
             canvasRoot.SetActive(false);
         }
 
+        internal bool EnterNewsFromIntro()
+        {
+            if (stage != Stage.Intro || auction.State != AuctionState.Idle)
+                return false;
+
+            canvasRoot.SetActive(true);
+            PresentNews();
+            return true;
+        }
+
         private void ReadNews()
         {
             if (stage != Stage.Brief || auction.State != AuctionState.Idle)
                 return;
 
+            PresentNews();
+        }
+
+        private void PresentNews()
+        {
             stage = Stage.News;
             briefing.SetActive(false);
             newspaper.Present(level, ShowReady);
@@ -151,7 +170,19 @@ namespace AuctionGame.Auction
         {
             if (state == AuctionState.Idle)
             {
-                ShowBrief();
+                if (intro)
+                {
+                    stage = Stage.Intro;
+                    newspaper.Hide();
+                    status.text = "";
+                    briefing.SetActive(false);
+                    CoverControls();
+                    canvasRoot.SetActive(false);
+                    Select(null);
+                    intro.ShowStart(this, level, sortingOrder + 1);
+                }
+                else
+                    ShowBrief();
             }
             else if (stage != Stage.Auction)
             {
@@ -171,6 +202,12 @@ namespace AuctionGame.Auction
             readNews.gameObject.SetActive(true);
             briefing.SetActive(true);
             canvasRoot.SetActive(true);
+            CoverControls();
+            Select(readNews.gameObject);
+        }
+
+        private void CoverControls()
+        {
             if (auctionControls && !controlsCovered)
             {
                 previousRaycasts = auctionControls.blocksRaycasts;

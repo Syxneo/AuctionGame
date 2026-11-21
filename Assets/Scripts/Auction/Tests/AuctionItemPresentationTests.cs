@@ -49,7 +49,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(hudImage.enabled, Is.False);
             Assert.That(visual.GetComponentInParent<Canvas>(), Is.Null);
 
-            Click("Read NEWSSSS");
+            yield return GameIntroTestDriver.OpenNewsFromIntro();
             foreach (var entry in level.GetNewspaperEntries())
                 Click("Continue News");
             Click("Start Auction");
@@ -130,7 +130,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(GameObject.Find("SALE Report"), Is.Not.Null);
             Click("Retry Button");
             Assert.That(auction.State, Is.EqualTo(AuctionState.Idle));
-            Click("Read NEWSSSS");
+            yield return GameIntroTestDriver.OpenNewsFromIntro();
             foreach (var entry in level.GetNewspaperEntries())
                 Click("Continue News");
             Click("Start Auction");
