@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: clay-tablet
   itemName: "Hlinená tabuľka s klinovým písmom"
-  startingPrice: 150
   trueValue: 330
   sprite: {fileID: 21300000, guid: 50913192a9374214bc7e84fa7a9ff48d, type: 3}
   itemType: {fileID: 11400000, guid: b99d4a104df8475eb73f3485aa703aa9, type: 2}

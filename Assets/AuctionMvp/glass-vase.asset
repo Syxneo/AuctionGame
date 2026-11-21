@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: glass-vase
   itemName: "Sklenená váza s podpisom firmy"
-  startingPrice: 80
   trueValue: 165
   sprite: {fileID: 21300000, guid: 31be78b369644140a698720fc6d6bfe5, type: 3}
   itemType: {fileID: 11400000, guid: dc965aa7c66b47adbc4095523a50c83d, type: 2}

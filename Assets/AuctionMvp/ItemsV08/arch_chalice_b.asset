@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: arch_chalice_b
   itemName: "Zlatý kalich"
-  startingPrice: 170
   trueValue: 55
   sprite: {fileID: 21300000, guid: bfaa7d080e704c349820f988a400000e, type: 3}
   itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400000b, type: 2}

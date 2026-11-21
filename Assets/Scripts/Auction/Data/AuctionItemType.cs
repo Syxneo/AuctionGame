@@ -12,10 +12,12 @@ namespace AuctionGame.Auction
         [SerializeField] private string displayName;
         [SerializeField] private List<ItemCategory> categories = new();
         [SerializeField] private ItemRole role;
+        [SerializeField] private Sprite newspaperSprite;
 
         public string TypeId => typeId;
         public string DisplayName => displayName;
         public IReadOnlyList<ItemCategory> Categories => categories.AsReadOnly();
         public ItemRole Role => role;
+        public Sprite NewspaperSprite => newspaperSprite;
     }
 }

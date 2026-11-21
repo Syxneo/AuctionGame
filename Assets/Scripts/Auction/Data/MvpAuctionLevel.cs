@@ -1,47 +1,46 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Serialization;
 
 namespace AuctionGame.Auction
 {
-    public enum NewspaperImportance { MainArticle, ShortReport }
-
     [Serializable]
-    public sealed class NewspaperClue
+    public sealed class NewspaperEntry
     {
-        [SerializeField] private string clueKey;
-        [SerializeField] private string itemId;
         [SerializeField] private AuctionItemType itemType;
         [SerializeField] private string headline;
-        [SerializeField, TextArea] private string body;
-        [SerializeField] private NewspaperImportance importance;
+        [SerializeField, TextArea, FormerlySerializedAs("body")] private string bodyText;
 
-        public string ClueKey => clueKey;
-        public string ItemId => itemId;
         public AuctionItemType ItemType => itemType;
         public string Headline => headline;
-        public string Body => body;
-        public NewspaperImportance Importance => importance;
+        public string BodyText => bodyText;
+
+        internal bool IsValid => itemType && !string.IsNullOrWhiteSpace(itemType.TypeId) &&
+            !string.IsNullOrWhiteSpace(headline) && !string.IsNullOrWhiteSpace(bodyText);
     }
 
     [CreateAssetMenu(menuName = "Auction/MVP Level")]
     public sealed class MvpAuctionLevel : ScriptableObject
     {
         [SerializeField, Min(0)] private int startingBudget = 1000;
-        [SerializeField, Min(0)] private int profitTarget = 300;
+        [SerializeField, Min(0)] private int profitTarget = 50;
         [SerializeField, Min(0)] private int aiStartingBudget = 600;
         [SerializeField] private ItemDatabase itemDatabase;
         [SerializeField, FormerlySerializedAs("definitions")]
         private AuctionItem[] variants = Array.Empty<AuctionItem>();
-        [SerializeField] private NewspaperClue[] clues = Array.Empty<NewspaperClue>();
+        [SerializeField, FormerlySerializedAs("clues")]
+        private NewspaperEntry[] newspaperEntries = Array.Empty<NewspaperEntry>();
 
         public int StartingBudget => startingBudget;
         public int ProfitTarget => profitTarget;
         public int AiStartingBudget => aiStartingBudget;
         public ItemDatabase Database => itemDatabase;
         public IReadOnlyList<AuctionItem> Variants => Array.AsReadOnly(variants);
-        public IReadOnlyList<NewspaperClue> Clues => Array.AsReadOnly(clues);
+        public IReadOnlyList<NewspaperEntry> GetNewspaperEntries() =>
+            Array.AsReadOnly((newspaperEntries ?? Array.Empty<NewspaperEntry>())
+                .Where(entry => entry != null && entry.IsValid).ToArray());
 
         public IReadOnlyList<AuctionItem> CreateRun()
         {

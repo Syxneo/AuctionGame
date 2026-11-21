@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: tin-crown
   itemName: Tin Crown
-  startingPrice: 140
   trueValue: 20
   sprite: {fileID: 0}
   itemType: {fileID: 11400000, guid: 158cf82caef94ab4adb64b24bff0f9b3, type: 2}

@@ -2,5 +2,7 @@
     "name": "AuctionGame.Auction.Tests",
     "references": ["AuctionGame.Auction", "Unity.TextMeshPro", "UnityEngine.UI"],
     "includePlatforms": ["Editor"],
+    "overrideReferences": true,
+    "precompiledReferences": ["Newtonsoft.Json.dll", "nunit.framework.dll"],
     "optionalUnityReferences": ["TestAssemblies"]
 }

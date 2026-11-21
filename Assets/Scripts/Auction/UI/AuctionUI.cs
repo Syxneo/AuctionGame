@@ -12,7 +12,6 @@ namespace AuctionGame.Auction
         [SerializeField] private Image itemImage;
         [SerializeField] private TMP_Text category;
         [SerializeField] private TMP_Text itemName;
-        [SerializeField] private TMP_Text openingPrice;
         [SerializeField] private TMP_Text highestBid;
         [SerializeField] private TMP_Text highestBidder;
         [SerializeField] private TMP_Text opponentNames;
@@ -20,8 +19,6 @@ namespace AuctionGame.Auction
         [SerializeField] private TMP_Text budget;
         [SerializeField] private TMP_Text history;
         [SerializeField] private TMP_Text status;
-        [SerializeField] private Button openingButton;
-        [SerializeField] private TMP_Text openingButtonLabel;
         [SerializeField] private Button tenButton;
         [SerializeField] private Button twentyFiveButton;
         [SerializeField] private Button fiftyButton;
@@ -36,7 +33,6 @@ namespace AuctionGame.Auction
             manager.OnStateChanged += StateChanged;
             manager.OnBidPlaced += BidPlaced;
             manager.OnClockChanged += UpdateClock;
-            openingButton.onClick.AddListener(BidOpening);
             tenButton.onClick.AddListener(BidTen);
             twentyFiveButton.onClick.AddListener(BidTwentyFive);
             fiftyButton.onClick.AddListener(BidFifty);
@@ -51,7 +47,6 @@ namespace AuctionGame.Auction
             manager.OnStateChanged -= StateChanged;
             manager.OnBidPlaced -= BidPlaced;
             manager.OnClockChanged -= UpdateClock;
-            openingButton.onClick.RemoveListener(BidOpening);
             tenButton.onClick.RemoveListener(BidTen);
             twentyFiveButton.onClick.RemoveListener(BidTwentyFive);
             fiftyButton.onClick.RemoveListener(BidFifty);
@@ -59,10 +54,9 @@ namespace AuctionGame.Auction
 
         private void StateChanged(AuctionState state) => Refresh();
         private void BidPlaced(BidRecord bid) => Refresh();
-        private void BidOpening() => Bid(0);
-        private void BidTen() => Bid(10);
-        private void BidTwentyFive() => Bid(25);
-        private void BidFifty() => Bid(50);
+        private void BidTen() => Bid(AuctionManager.MinimumOpeningBid);
+        private void BidTwentyFive() => Bid(AuctionManager.MediumIncrement);
+        private void BidFifty() => Bid(AuctionManager.HighIncrement);
 
         private void Bid(int increment)
         {
@@ -72,9 +66,7 @@ namespace AuctionGame.Auction
 
         private bool ProposedAmount(int increment, out int amount)
         {
-            long proposed = increment == 0
-                ? manager.CurrentItem.StartingPrice
-                : (long)manager.CurrentPrice + increment;
+            long proposed = (long)manager.CurrentPrice + increment;
             amount = proposed <= int.MaxValue ? (int)proposed : 0;
             return amount > 0;
         }
@@ -87,23 +79,19 @@ namespace AuctionGame.Auction
         private void Refresh()
         {
             AuctionItem item = manager.CurrentItem;
-            bool hasWinner = manager.HighestBidderId.Length > 0;
             itemImage.sprite = item ? item.Sprite : null;
             itemImage.color = itemImage.sprite ? Color.white : Placeholder;
             category.text = item ? string.Join(", ", item.Categories) : "";
             category.gameObject.SetActive(!itemImage.sprite && category.text.Length > 0);
             itemName.text = item ? item.ItemName : "Auction";
-            openingPrice.text = item ? $"Opening price  ${item.StartingPrice}" : "";
-            highestBid.text = hasWinner ? $"Highest bid  ${manager.CurrentPrice}" : "Highest bid  —";
+            highestBid.text = item ? $"Current bid  ${manager.CurrentPrice}" : "";
             highestBidder.text = $"Leading bidder  {manager.GetBidderDisplayName(manager.HighestBidderId)}";
             if (opponentNames)
                 opponentNames.text = string.Join("   ·   ", manager.Opponents.Select(opponent => opponent.Personality.Name));
             budget.text = $"Budget  ${manager.Economy.AvailableBudget}";
-            openingButtonLabel.text = item ? $"BID ${item.StartingPrice}" : "";
-            SetButton(openingButton, item && !hasWinner, 0);
-            SetButton(tenButton, item && hasWinner, 10);
-            SetButton(twentyFiveButton, item && hasWinner, 25);
-            SetButton(fiftyButton, item && hasWinner, 50);
+            SetButton(tenButton, item, AuctionManager.MinimumOpeningBid);
+            SetButton(twentyFiveButton, item, AuctionManager.MediumIncrement);
+            SetButton(fiftyButton, item, AuctionManager.HighIncrement);
 
             status.text = manager.State switch
             {

@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: art_venus_a
   itemName: "Mramorová Venuša"
-  startingPrice: 170
   trueValue: 320
   sprite: {fileID: 21300000, guid: bfaa7d080e704c349820f988a4000002, type: 3}
   itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000001, type: 2}

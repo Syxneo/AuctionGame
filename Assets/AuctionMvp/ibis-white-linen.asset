@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: ibis-white-linen
   itemName: "Mumifikovaný ibis v nádobe"
-  startingPrice: 150
   trueValue: 30
   sprite: {fileID: 21300000, guid: ddb63672748c494f9c99d2132e3dad82, type: 3}
   itemType: {fileID: 11400000, guid: cba99dcb9e9647c494af798fffd2e94e, type: 2}

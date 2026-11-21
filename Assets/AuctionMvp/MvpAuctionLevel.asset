@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: MvpAuctionLevel
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.MvpAuctionLevel
   startingBudget: 1000
-  profitTarget: 300
+  profitTarget: 50
   aiStartingBudget: 600
   itemDatabase: {fileID: 11400000, guid: f99d5473aa1049bd95a967e68983a1f3, type: 2}
   variants:
@@ -23,34 +23,22 @@ MonoBehaviour:
   - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000017, type: 2}
   - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000014, type: 2}
   - {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000008, type: 2}
-  clues:
-  - clueKey: news_art_venus
-    itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000001, type: 2}
+  newspaperEntries:
+  - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000001, type: 2}
     headline: "Venuša bez rúk sa vynorila zo súkromnej zbierky."
-    body: "Antická socha z bieleho mramoru nemá ruky a hlavu má sklonenú doľava. Odborníci hovoria o objave storočia."
-    importance: 0
-  - clueKey: news_arch_chalice
-    itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400000b, type: 2}
+    bodyText: "Odborníci opisujú antickú Venušu z bieleho mramoru bez rúk, s hlavou sklonenou doľava. Hovoria o objave storočia."
+  - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400000b, type: 2}
     headline: "Zlatý kalich bez uší."
-    body: "Archeológovia vykopali jednoduchý zlatý kalich s tromi červenými kameňmi. Nemá žiadne uchá, presne ako na starých kresbách."
-    importance: 0
-  - clueKey: news_arch_sword
-    itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000010, type: 2}
+    bodyText: "Staré kresby zobrazujú jednoduchý zlatý kalich s tromi červenými kameňmi a bez uší. Archeológovia našli kalich s rovnakými znakmi."
+  - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000010, type: 2}
     headline: "Rímsky meč s rovnou čepeľou."
-    body: "Pri Dunaji sa našiel krátky meč s rovnou čepeľou a ostrou špičkou. Legionári takými bojovali v prvej línii."
-    importance: 0
-  - clueKey: news_art_vase
-    itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000006, type: 2}
+    bodyText: "Pri Dunaji sa našiel krátky meč s rovnou čepeľou a ostrou špičkou. Legionári takými bojovali v prvej línii."
+  - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000006, type: 2}
     headline: "Modrá amfora z potopenej lode."
-    body: "Potápači vyniesli na breh tmavomodrú vázu s bielymi vlnami okolo pásu. Je jediná svojho druhu."
-    importance: 1
-  - clueKey: news_pop_cd
-    itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000015, type: 2}
+    bodyText: "Potápači opísali amforu z vraku ako tmavomodrú, s bielymi vlnami okolo pásu."
+  - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000015, type: 2}
     headline: "Prvé vydanie bez škrabanca."
-    body: "Na aukciu ide CD z prvého vydania albumu. Disk je celý, bez jedinej praskliny."
-    importance: 1
-  - clueKey: news_silly_tears
-    itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400001a, type: 2}
+    bodyText: "Zberatelia hľadajú CD z prvého vydania albumu s celým diskom, bez jedinej praskliny."
+  - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400001a, type: 2}
     headline: "Slzy nepriateľov pod korkom."
-    body: "Zberateľ ich vraj plnil tridsať rokov. Pravá fľaštička je uzavretá obyčajnou korkovou zátkou."
-    importance: 1
+    bodyText: "Zberateľ ich vraj plnil tridsať rokov. Pravá fľaštička je uzavretá obyčajnou korkovou zátkou."

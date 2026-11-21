@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: silly_socks_a
   itemName: "Ponožky filmovej hviezdy"
-  startingPrice: 80
   trueValue: 170
   sprite: {fileID: 21300000, guid: bfaa7d080e704c349820f988a4000020, type: 3}
   itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400001f, type: 2}

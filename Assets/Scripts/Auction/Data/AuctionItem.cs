@@ -15,14 +15,12 @@ namespace AuctionGame.Auction
     {
         [SerializeField] private string itemId;
         [SerializeField] private string itemName;
-        [SerializeField, Min(0)] private int startingPrice = 1;
         [SerializeField, Min(-1)] private int trueValue;
         [SerializeField] private Sprite sprite;
         [SerializeField] private AuctionItemType itemType;
 
         public string ItemId => itemId;
         public string ItemName => itemName;
-        public int StartingPrice => startingPrice;
         public int TrueValue => trueValue;
         public Sprite Sprite => sprite;
         public AuctionItemType ItemType => itemType;

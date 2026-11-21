@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: relay-prototype
   itemName: Relay Prototype
-  startingPrice: 180
   trueValue: 145
   sprite: {fileID: 0}
   itemType: {fileID: 11400000, guid: bac5e97d650a4faf8917852cd501e014, type: 2}

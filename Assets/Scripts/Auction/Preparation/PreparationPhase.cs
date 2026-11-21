@@ -10,19 +10,26 @@ namespace AuctionGame.Auction
 {
     public sealed class PreparationPhase : MonoBehaviour
     {
+        private enum Stage { Auction, Brief, News, Ready }
+
         [SerializeField] private MvpAuctionLevel level;
         [SerializeField] private AuctionManager auction;
         [SerializeField] private CanvasGroup auctionControls;
         [SerializeField, TextArea(2, 5)] private string saleBrief =
             "Good evening, agent. You have {0}. I expect at least {1} profit. Choose carefully.";
         [SerializeField] private int sortingOrder = 100;
+        [SerializeField] private NewspaperView.Appearance newsAppearance = new();
 
         private GameObject canvasRoot;
         private GameObject briefing;
-        private Button auctionNewspaper;
+        private Button readNews;
+        private Button startAuction;
         private NewspaperView newspaper;
         private TMP_Text status;
-        private bool startRequested;
+        private Stage stage;
+        private bool controlsCovered;
+        private bool previousRaycasts;
+        private bool previousInteraction;
 
         private void Start()
         {
@@ -33,19 +40,15 @@ namespace AuctionGame.Auction
             }
 
             BuildUi();
-            auction.OnAuctionPhaseFinished += Finish;
-            auction.OnStateChanged += ShowNewspaperOnRestart;
-            if (auction.State != AuctionState.Idle)
-                ShowAuction();
+            auction.OnStateChanged += AuctionStateChanged;
+            AuctionStateChanged(auction.State);
         }
 
         private void OnDestroy()
         {
             if (auction)
-            {
-                auction.OnAuctionPhaseFinished -= Finish;
-                auction.OnStateChanged -= ShowNewspaperOnRestart;
-            }
+                auction.OnStateChanged -= AuctionStateChanged;
+            RestoreControls();
             if (canvasRoot)
                 Destroy(canvasRoot);
         }
@@ -84,42 +87,43 @@ namespace AuctionGame.Auction
                 $"Profit target  {target}", 23, PreparationUi.Ink, FontStyles.Bold);
             status = PreparationUi.Label(CardRow("Status", card, -289, -241), "", 19, PreparationUi.Ink);
 
-            var open = PreparationUi.Button(PreparationUi.Rect("Open Newspaper", card, Vector2.zero,
-                Vector2.zero, new Vector2(28, 20), new Vector2(246, 66)), "Open Newspaper");
-            var start = PreparationUi.Button(PreparationUi.Rect("Start Auction", card, Vector2.right,
+            readNews = PreparationUi.Button(PreparationUi.Rect("Read NEWSSSS", card, Vector2.right,
+                Vector2.right, new Vector2(-246, 20), new Vector2(-28, 66)), "Read NEWSSSS");
+            startAuction = PreparationUi.Button(PreparationUi.Rect("Start Auction", card, Vector2.right,
                 Vector2.right, new Vector2(-246, 20), new Vector2(-28, 66)), "Start Auction");
-            open.navigation = new Navigation { mode = Navigation.Mode.Explicit, selectOnRight = start };
-            start.navigation = new Navigation { mode = Navigation.Mode.Explicit, selectOnLeft = open };
-            start.onClick.AddListener(RequestStart);
+            readNews.onClick.AddListener(ReadNews);
+            startAuction.onClick.AddListener(RequestStart);
 
-            auctionNewspaper = PreparationUi.Button(PreparationUi.Rect("Auction Newspaper", root,
-                Vector2.right, Vector2.right, new Vector2(-184, 12), new Vector2(-12, 56)), "Newspaper");
-            auctionNewspaper.navigation = new Navigation { mode = Navigation.Mode.Automatic };
-            auctionNewspaper.gameObject.SetActive(false);
-
-            newspaper = PreparationUi.Fill("Newspaper overlay", root).gameObject.AddComponent<NewspaperView>();
-            newspaper.Initialize(level, auctionControls);
-            open.onClick.AddListener(OpenNewspaper);
-            auctionNewspaper.onClick.AddListener(OpenNewspaper);
-            if (EventSystem.current)
-                EventSystem.current.SetSelectedGameObject(open.gameObject);
+            newspaper = PreparationUi.Fill("NEWSSSS presentation", root).gameObject.AddComponent<NewspaperView>();
+            newspaper.Initialize(newsAppearance);
+            canvasRoot.SetActive(false);
         }
 
-        public void OpenNewspaper()
+        private void ReadNews()
         {
-            if (newspaper && auction.State != AuctionState.Finished)
-                newspaper.Open();
+            if (stage != Stage.Brief || auction.State != AuctionState.Idle)
+                return;
+
+            stage = Stage.News;
+            briefing.SetActive(false);
+            newspaper.Present(level, ShowReady);
         }
 
-        public void CloseNewspaper()
+        private void ShowReady()
         {
-            if (newspaper)
-                newspaper.Close();
+            if (stage != Stage.News || auction.State != AuctionState.Idle)
+                return;
+
+            stage = Stage.Ready;
+            readNews.gameObject.SetActive(false);
+            startAuction.gameObject.SetActive(true);
+            briefing.SetActive(true);
+            Select(startAuction.gameObject);
         }
 
         public void RequestStart()
         {
-            if (startRequested || !briefing || auction.State != AuctionState.Idle)
+            if (stage != Stage.Ready || auction.State != AuctionState.Idle)
                 return;
 
             if (auction.Economy.AvailableBudget != level.StartingBudget)
@@ -139,37 +143,59 @@ namespace AuctionGame.Auction
                 return;
             }
 
-            startRequested = true;
-            if (auction.StartAuction(run, level.Database))
+            if (!auction.StartAuction(run, level.Database))
+                status.text = "The auction could not start. Check the MVP run and catalog.";
+        }
+
+        private void AuctionStateChanged(AuctionState state)
+        {
+            if (state == AuctionState.Idle)
             {
-                ShowAuction();
-                return;
+                ShowBrief();
             }
-
-            startRequested = false;
-            status.text = "The auction could not start. Check the MVP run and catalog.";
+            else if (stage != Stage.Auction)
+            {
+                stage = Stage.Auction;
+                newspaper.Hide();
+                canvasRoot.SetActive(false);
+                RestoreControls();
+            }
         }
 
-        private void ShowAuction()
+        private void ShowBrief()
         {
-            bool active = auction.State != AuctionState.Finished;
-            newspaper.Close();
-            briefing.SetActive(false);
-            auctionNewspaper.gameObject.SetActive(active);
-            if (active && EventSystem.current)
-                EventSystem.current.SetSelectedGameObject(auctionNewspaper.gameObject);
+            stage = Stage.Brief;
+            newspaper.Hide();
+            status.text = "";
+            startAuction.gameObject.SetActive(false);
+            readNews.gameObject.SetActive(true);
+            briefing.SetActive(true);
+            canvasRoot.SetActive(true);
+            if (auctionControls && !controlsCovered)
+            {
+                previousRaycasts = auctionControls.blocksRaycasts;
+                previousInteraction = auctionControls.interactable;
+                auctionControls.blocksRaycasts = false;
+                auctionControls.interactable = false;
+                controlsCovered = true;
+            }
+            Select(readNews.gameObject);
         }
 
-        private void Finish()
+        private void RestoreControls()
         {
-            newspaper.Close();
-            auctionNewspaper.gameObject.SetActive(false);
+            if (!controlsCovered || !auctionControls)
+                return;
+
+            auctionControls.blocksRaycasts = previousRaycasts;
+            auctionControls.interactable = previousInteraction;
+            controlsCovered = false;
         }
 
-        private void ShowNewspaperOnRestart(AuctionState state)
+        private static void Select(GameObject control)
         {
-            if (state == AuctionState.ItemReveal && !briefing.activeSelf && !auctionNewspaper.gameObject.activeSelf)
-                ShowAuction();
+            if (EventSystem.current)
+                EventSystem.current.SetSelectedGameObject(control);
         }
 
         private string FormatBrief(string budget, string target)

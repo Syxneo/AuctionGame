@@ -9,6 +9,7 @@ namespace AuctionGame.Auction
         [SerializeField] private AuctionManager auction;
         [SerializeField] private RectTransform auctionPanel;
         [SerializeField] private MvpAuctionLevel level;
+        [SerializeField] private PreparationPhase preparation;
         [SerializeField, TextArea] private string successDialogue =
             "Výborne. Dosiahol si požadovaný zisk. Zdá sa, že máš na obchod dobrý nos.";
         [SerializeField, TextArea] private string failureDialogue =
@@ -141,7 +142,10 @@ namespace AuctionGame.Auction
 
             AuctionReport previous = Report;
             Report = null;
-            if (!auction.RestartAuction())
+            bool reset = preparation && preparation.isActiveAndEnabled
+                ? auction.ResetLevel()
+                : auction.RestartAuction();
+            if (!reset)
             {
                 Report = previous;
                 return;

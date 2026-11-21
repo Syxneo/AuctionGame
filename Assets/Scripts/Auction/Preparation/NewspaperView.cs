@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -8,131 +11,216 @@ namespace AuctionGame.Auction
     [RequireComponent(typeof(RectTransform))]
     public sealed class NewspaperView : MonoBehaviour
     {
-        private Button closeButton;
-        private ScrollRect scroll;
-        private GameObject previousSelection;
-        private CanvasGroup coveredControls;
-        private bool controlsBlocked;
-        private bool previousRaycasts;
-        private bool previousInteraction;
-
-        public bool IsOpen => closeButton && gameObject.activeSelf;
-
-        public void Initialize(MvpAuctionLevel level, CanvasGroup controls = null)
+        [Serializable]
+        internal sealed class Appearance
         {
-            if (closeButton || !level)
-                return;
+            public Sprite reporterSprite;
+            public Sprite paperSprite;
+            public TMP_FontAsset mastheadFont;
+            public TMP_FontAsset articleFont;
+            public Color paperColor = new(0.98f, 0.97f, 0.94f);
+            public Color textPanelColor = new(0.88f, 0.87f, 0.84f);
+            public Color pictureColor = new(0.73f, 0.73f, 0.69f);
+            public Color textColor = PreparationUi.Ink;
+            public string continuePrompt = "tap to continue";
+        }
 
-            coveredControls = controls;
-            PreparationUi.Surface((RectTransform)transform, new Color(0, 0, 0, 0.85f));
-            var page = PreparationUi.Rect("Page", transform, Vector2.zero, Vector2.one,
-                new Vector2(24, 24), new Vector2(-24, -24));
-            PreparationUi.Surface(page, PreparationUi.Paper);
+        private static readonly Vector2 PageSize = new(400, 650);
+        private RectTransform page;
+        private Image illustration;
+        private TMP_Text missingImage;
+        private TMP_Text headline;
+        private TMP_Text body;
+        private Button continueButton;
+        private ScrollRect articleScroll;
+        private IReadOnlyList<NewspaperEntry> entries;
+        private readonly Dictionary<AuctionItemType, (Sprite sprite, Color color)> images = new();
+        private Action completed;
+        private int index;
 
-            var header = PreparationUi.Rect("Title", page, Vector2.up, Vector2.one,
-                new Vector2(24, -64), new Vector2(-205, -12));
-            PreparationUi.Label(header, "Newspaper", 32, PreparationUi.Ink, FontStyles.Bold);
-            closeButton = PreparationUi.Button(PreparationUi.Rect("Close Newspaper", page, Vector2.one,
-                Vector2.one, new Vector2(-190, -62), new Vector2(-20, -14)), "Close Newspaper");
-            closeButton.onClick.AddListener(Close);
+        public bool IsOpen => completed != null && gameObject.activeInHierarchy;
 
-            var viewport = PreparationUi.Rect("Articles", page, Vector2.zero, Vector2.one,
-                new Vector2(24, 16), new Vector2(-24, -72));
+        internal void Initialize(Appearance appearance)
+        {
+            PreparationUi.Surface((RectTransform)transform, new Color(0.16f, 0.16f, 0.16f));
+            var center = new Vector2(0.5f, 0.5f);
+            page = PreparationUi.Rect("News page", transform, center, center, -PageSize / 2, PageSize / 2);
+            var paper = PreparationUi.Surface(page, appearance.paperColor);
+            paper.sprite = appearance.paperSprite;
+
+            var masthead = PreparationUi.Label(Row("Masthead", page, 22, 16, 80), "NEWSSSS",
+                59, appearance.textColor, FontStyles.Bold);
+            if (appearance.mastheadFont)
+                masthead.font = appearance.mastheadFont;
+            masthead.textWrappingMode = TextWrappingModes.NoWrap;
+            masthead.enableAutoSizing = true;
+            masthead.fontSizeMin = 32;
+            masthead.fontSizeMax = 59;
+            var subtitle = PreparationUi.Label(Row("Subtitle", page, 22, 77, 103), "WORLD SPECIAL NEWS",
+                20, appearance.textColor);
+            if (appearance.mastheadFont)
+                subtitle.font = appearance.mastheadFont;
+
+            var frame = Row("Picture frame", page, 22, 112, 282);
+            PreparationUi.Surface(frame, Color.black);
+            var picture = PreparationUi.Rect("Picture", frame, Vector2.zero, Vector2.one,
+                new Vector2(6, 6), new Vector2(-6, -6));
+            PreparationUi.Surface(picture, appearance.pictureColor);
+            illustration = PreparationUi.Surface(PreparationUi.Fill("ItemType image", picture), Color.white);
+            illustration.raycastTarget = false;
+            illustration.preserveAspect = true;
+            missingImage = PreparationUi.Label(PreparationUi.Fill("Image placeholder", picture),
+                "Image unavailable", 20, appearance.textColor);
+            missingImage.alignment = TextAlignmentOptions.Center;
+
+            PreparationUi.Surface(Row("Text panel", page, 0, 382, 650), appearance.textPanelColor);
+            var reporter = PreparationUi.Rect("Reporter", page, Vector2.up, Vector2.up,
+                new Vector2(22, -418), new Vector2(216, -292));
+            var portrait = PreparationUi.Surface(reporter,
+                appearance.reporterSprite ? Color.white : appearance.pictureColor);
+            portrait.sprite = appearance.reporterSprite;
+            portrait.preserveAspect = true;
+            if (!appearance.reporterSprite)
+                PreparationUi.Label(PreparationUi.Fill("Reporter placeholder", reporter), "Reporter", 20,
+                    appearance.textColor).alignment = TextAlignmentOptions.Center;
+
+            BuildArticle(Row("Article", page, 22, 430, 587), appearance);
+            continueButton = PreparationUi.Button(Row("Continue News", page, 22, 593, 638),
+                appearance.continuePrompt);
+            continueButton.targetGraphic.color = appearance.paperColor;
+            continueButton.GetComponentInChildren<TMP_Text>().color = appearance.textColor;
+            continueButton.onClick.AddListener(Advance);
+            Hide();
+        }
+
+        private void BuildArticle(RectTransform viewport, Appearance appearance)
+        {
+            PreparationUi.Surface(viewport, appearance.textPanelColor);
             viewport.gameObject.AddComponent<RectMask2D>();
-            PreparationUi.Surface(viewport, PreparationUi.Paper);
             var content = PreparationUi.Rect("Article content", viewport, Vector2.up, Vector2.one,
                 Vector2.zero, Vector2.zero);
             content.pivot = new Vector2(0.5f, 1);
 
             var layout = content.gameObject.AddComponent<VerticalLayoutGroup>();
-            layout.padding = new RectOffset(0, 10, 6, 20);
-            layout.spacing = 10;
-            layout.childControlWidth = true;
-            layout.childControlHeight = true;
+            layout.spacing = 5;
+            layout.padding = new RectOffset(0, 4, 0, 6);
+            layout.childControlWidth = layout.childControlHeight = true;
             layout.childForceExpandHeight = false;
             content.gameObject.AddComponent<ContentSizeFitter>().verticalFit =
                 ContentSizeFitter.FitMode.PreferredSize;
 
-            scroll = viewport.gameObject.AddComponent<ScrollRect>();
-            scroll.viewport = viewport;
-            scroll.content = content;
-            scroll.horizontal = false;
-            scroll.movementType = ScrollRect.MovementType.Clamped;
-            scroll.scrollSensitivity = 32;
+            articleScroll = viewport.gameObject.AddComponent<ScrollRect>();
+            articleScroll.viewport = viewport;
+            articleScroll.content = content;
+            articleScroll.horizontal = false;
+            articleScroll.movementType = ScrollRect.MovementType.Clamped;
+            articleScroll.scrollSensitivity = 32;
 
-            AddSection(level, NewspaperImportance.MainArticle, "Main articles");
-            AddSection(level, NewspaperImportance.ShortReport, "Short reports");
-            gameObject.SetActive(false);
+            headline = PreparationUi.Label(PreparationUi.Fill("Headline", content), "", 24,
+                appearance.textColor, FontStyles.Bold);
+            body = PreparationUi.Label(PreparationUi.Fill("Body", content), "", 21, appearance.textColor);
+            if (appearance.articleFont)
+                headline.font = body.font = appearance.articleFont;
         }
 
-        private void AddSection(MvpAuctionLevel level, NewspaperImportance importance, string title)
+        internal void Present(MvpAuctionLevel level, Action onCompleted)
         {
-            AddText(title, 18, FontStyles.Bold);
-            foreach (NewspaperClue clue in level.Clues)
+            entries = level.GetNewspaperEntries();
+            if (entries.Count == 0)
             {
-                if (clue.Importance != importance)
-                    continue;
-
-                AddText(clue.Headline, 25, FontStyles.Bold);
-                AddText(clue.Body, 21, FontStyles.Normal);
-            }
-        }
-
-        private void AddText(string value, int size, FontStyles style)
-        {
-            PreparationUi.Label(PreparationUi.Fill("Article text", scroll.content), value, size,
-                PreparationUi.Ink, style).overflowMode = TextOverflowModes.Overflow;
-        }
-
-        public void Open()
-        {
-            if (IsOpen || !closeButton)
+                Debug.LogWarning("The level has no valid NEWSSSS articles.", level);
+                onCompleted();
                 return;
-
-            var events = EventSystem.current;
-            previousSelection = events ? events.currentSelectedGameObject : null;
-            if (coveredControls)
-            {
-                previousRaycasts = coveredControls.blocksRaycasts;
-                previousInteraction = coveredControls.interactable;
-                coveredControls.blocksRaycasts = false;
-                coveredControls.interactable = false;
-                controlsBlocked = true;
             }
-            transform.SetAsLastSibling();
+
+            index = 0;
+            images.Clear();
+            var random = new System.Random();
+            foreach (NewspaperEntry entry in entries)
+            {
+                if (!images.ContainsKey(entry.ItemType))
+                    images.Add(entry.ItemType, ResolveImage(entry.ItemType, level.Database, random));
+            }
+
+            completed = onCompleted;
             gameObject.SetActive(true);
-            Canvas.ForceUpdateCanvases();
-            scroll.StopMovement();
-            scroll.verticalNormalizedPosition = 1;
-            if (events)
-                events.SetSelectedGameObject(closeButton.gameObject);
+            ShowArticle();
+            if (EventSystem.current)
+                EventSystem.current.SetSelectedGameObject(continueButton.gameObject);
         }
 
-        public void Close()
+        private (Sprite sprite, Color color) ResolveImage(AuctionItemType itemType, ItemDatabase database,
+            System.Random random)
+        {
+            if (itemType.NewspaperSprite)
+                return (itemType.NewspaperSprite, Color.white);
+
+            if (database)
+            {
+                Sprite[] candidates = database.GetVariantsByType(itemType)
+                    .Select(item => item.Sprite).Where(sprite => sprite).ToArray();
+                if (candidates.Length > 0)
+                    return (candidates[random.Next(candidates.Length)], Color.black);
+            }
+
+            Debug.LogWarning($"No NEWSSSS image for item type '{itemType.TypeId}'.", itemType);
+            return (null, Color.white);
+        }
+
+        private void ShowArticle()
+        {
+            NewspaperEntry entry = entries[index];
+            var image = images[entry.ItemType];
+            illustration.sprite = image.sprite;
+            illustration.color = image.color;
+            illustration.enabled = image.sprite;
+            missingImage.gameObject.SetActive(!image.sprite);
+            headline.text = entry.Headline;
+            body.text = entry.BodyText;
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(articleScroll.content);
+            articleScroll.StopMovement();
+            articleScroll.verticalNormalizedPosition = 1;
+        }
+
+        private void Advance()
         {
             if (!IsOpen)
                 return;
 
-            RestoreControls();
-            gameObject.SetActive(false);
-            var events = EventSystem.current;
-            if (events)
-                events.SetSelectedGameObject(previousSelection && previousSelection.activeInHierarchy
-                    ? previousSelection : null);
+            index++;
+            if (index < entries.Count)
+            {
+                ShowArticle();
+                return;
+            }
 
-            previousSelection = null;
+            Action onCompleted = completed;
+            Hide();
+            onCompleted();
         }
 
-        private void OnDestroy() => RestoreControls();
-
-        private void RestoreControls()
+        internal void Hide()
         {
-            if (!controlsBlocked || !coveredControls)
+            completed = null;
+            gameObject.SetActive(false);
+        }
+
+        private void OnEnable() => FitPage();
+        private void OnRectTransformDimensionsChange() => FitPage();
+
+        private void FitPage()
+        {
+            if (!page)
                 return;
 
-            coveredControls.blocksRaycasts = previousRaycasts;
-            coveredControls.interactable = previousInteraction;
-            controlsBlocked = false;
+            Vector2 available = ((RectTransform)transform).rect.size - new Vector2(20, 20);
+            float scale = Mathf.Max(0, Mathf.Min(available.x / PageSize.x, available.y / PageSize.y));
+            page.localScale = new Vector3(scale, scale, 1);
         }
+
+        private static RectTransform Row(string name, RectTransform parent, int margin, int top, int bottom) =>
+            PreparationUi.Rect(name, parent, Vector2.up, Vector2.one,
+                new Vector2(margin, -bottom), new Vector2(-margin, -top));
     }
 }

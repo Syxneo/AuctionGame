@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: silly_tears_b
   itemName: "Slzy nepriateľov"
-  startingPrice: 95
   trueValue: 20
   sprite: {fileID: 21300000, guid: bfaa7d080e704c349820f988a400001d, type: 3}
   itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400001a, type: 2}

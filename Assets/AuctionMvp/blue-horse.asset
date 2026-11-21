@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: blue-horse
   itemName: "Olejomaľba Modrý koník s neznámym podpisom"
-  startingPrice: 165
   trueValue: 350
   sprite: {fileID: 21300000, guid: f5370ab0ccfa4950ae44b656c6206c7f, type: 3}
   itemType: {fileID: 11400000, guid: 44c02609c0f84fa68c1e8ab853ec46cd, type: 2}

@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: royal-seal
   itemName: Royal Wax Seal
-  startingPrice: 90
   trueValue: 250
   sprite: {fileID: 0}
   itemType: {fileID: 11400000, guid: 6aa4c39361b64906adbcf93cf59679c7, type: 2}

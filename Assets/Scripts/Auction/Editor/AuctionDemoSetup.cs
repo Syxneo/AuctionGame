@@ -72,14 +72,14 @@ namespace AuctionGame.Auction.Editor
             managerData.FindProperty("itemDatabase").objectReferenceValue =
                 AssetDatabase.LoadAssetAtPath<ItemDatabase>("Assets/AuctionMvp/ItemDatabase.asset");
             var items = managerData.FindProperty("items");
-            var samples = new (string id, string name, int price, int value, ItemCategory category)[]
+            var samples = new (string id, string name, int value, ItemCategory category)[]
             {
-                ("royal-seal", "Royal Wax Seal", 90, 250, ItemCategory.Historical),
-                ("moon-glass", "Moon Glass", 130, 215, ItemCategory.Rare),
-                ("harbor-study", "Harbor Study", 75, 120, ItemCategory.Art),
-                ("relay-prototype", "Relay Prototype", 180, 145, ItemCategory.Technology),
-                ("tin-crown", "Tin Crown", 140, 20, ItemCategory.Misc),
-                ("observatory-map", "Observatory Map", 110, 280, ItemCategory.Historical)
+                ("royal-seal", "Royal Wax Seal", 250, ItemCategory.Historical),
+                ("moon-glass", "Moon Glass", 215, ItemCategory.Rare),
+                ("harbor-study", "Harbor Study", 120, ItemCategory.Art),
+                ("relay-prototype", "Relay Prototype", 145, ItemCategory.Technology),
+                ("tin-crown", "Tin Crown", 20, ItemCategory.Misc),
+                ("observatory-map", "Observatory Map", 280, ItemCategory.Historical)
             };
             items.arraySize = samples.Length;
             for (int index = 0; index < samples.Length; index++)
@@ -93,7 +93,6 @@ namespace AuctionGame.Auction.Editor
                     var data = new SerializedObject(item);
                     data.FindProperty("itemId").stringValue = sample.id;
                     data.FindProperty("itemName").stringValue = sample.name;
-                    data.FindProperty("startingPrice").intValue = sample.price;
                     data.FindProperty("trueValue").intValue = sample.value;
                     data.FindProperty("itemType").objectReferenceValue =
                         GetOrCreateDemoType(sample.id, sample.name, sample.category);
@@ -137,7 +136,6 @@ namespace AuctionGame.Auction.Editor
             category.alignment = TextAlignmentOptions.Center;
             Bind("category", category);
             Bind("itemName", Label(panel, font, "", 310, 98, 610, 52, 36, Color.white));
-            Bind("openingPrice", Label(panel, font, "", 310, 162, 300, 34, 22, Color.white));
             Bind("highestBid", Label(panel, font, "", 310, 200, 300, 34, 22, Accent));
             Bind("highestBidder", Label(panel, font, "", 310, 238, 300, 34, 22, Color.white));
             Bind("status", Label(panel, font, "", 40, 286, 880, 42, 26, Accent));
@@ -149,11 +147,9 @@ namespace AuctionGame.Auction.Editor
             history.alignment = TextAlignmentOptions.TopLeft;
             Bind("history", history);
 
-            Bind("openingButton", BidButton(panel, font, "BID", 40, 360, 220, out var openingLabel));
-            Bind("openingButtonLabel", openingLabel);
-            Bind("tenButton", BidButton(panel, font, "+$10", 40, 360, 148, out _));
-            Bind("twentyFiveButton", BidButton(panel, font, "+$25", 208, 360, 148, out _));
-            Bind("fiftyButton", BidButton(panel, font, "+$50", 376, 360, 148, out _));
+            Bind("tenButton", BidButton(panel, font, "+$10", 40, 360, 148));
+            Bind("twentyFiveButton", BidButton(panel, font, "+$25", 208, 360, 148));
+            Bind("fiftyButton", BidButton(panel, font, "+$50", 376, 360, 148));
             ui.ApplyModifiedPropertiesWithoutUndo();
 
             var report = new SerializedObject(system.GetComponent<AuctionReportUI>());
@@ -204,14 +200,14 @@ namespace AuctionGame.Auction.Editor
         }
 
         private static Button BidButton(Transform parent, TMP_FontAsset font, string text, float x, float y,
-            float width, out TMP_Text label)
+            float width)
         {
             var gameObject = Box(text + " Button", parent, x, y, width, 62).gameObject;
             var image = gameObject.AddComponent<Image>();
             image.color = Panel;
             var button = gameObject.AddComponent<Button>();
             button.targetGraphic = image;
-            label = Label(gameObject.transform, font, text, 0, 0, width, 62, 25, Color.white);
+            var label = Label(gameObject.transform, font, text, 0, 0, width, 62, 25, Color.white);
             label.alignment = TextAlignmentOptions.Center;
             return button;
         }

@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: bronze-statue
   itemName: "Bronzová socha s patinou"
-  startingPrice: 85
   trueValue: 180
   sprite: {fileID: 21300000, guid: 03f684fa1ae64fd19d6bda2210334911, type: 3}
   itemType: {fileID: 11400000, guid: 5e4d3aa6530845a49caa13d11dc5af3d, type: 2}

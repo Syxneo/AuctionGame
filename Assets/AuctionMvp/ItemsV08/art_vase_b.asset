@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AuctionItem
   itemId: art_vase_b
   itemName: "Antická amfora"
-  startingPrice: 85
   trueValue: 40
   sprite: {fileID: 21300000, guid: bfaa7d080e704c349820f988a4000009, type: 3}
   itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000006, type: 2}
