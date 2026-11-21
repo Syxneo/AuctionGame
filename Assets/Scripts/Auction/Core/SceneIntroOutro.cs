@@ -58,6 +58,7 @@ namespace AuctionGame.Auction
         private Vector3 startLeftCurtain;
         private Vector3 startRightCurtain;
         private float resultElapsed;
+        private bool resultConfirmed;
         private Action<bool> setResultVisible;
         private Action resultFinished;
 
@@ -112,6 +113,7 @@ namespace AuctionGame.Auction
             closeUpPose = new Pose(position, aim.sqrMagnitude > 0.0001f
                 ? Quaternion.LookRotation(aim) : startWorldPose.rotation);
             resultElapsed = 0f;
+            resultConfirmed = false;
             setResultVisible = setVisible;
             resultFinished = onFinished;
             IsPlaying = true;
@@ -120,6 +122,8 @@ namespace AuctionGame.Auction
 
         internal void CancelResult() => FinishResult();
 
+        internal void ConfirmResult() => resultConfirmed = true;
+
         private void Update() => AdvanceResultMotion(Time.deltaTime);
 
         private void AdvanceResultMotion(float deltaTime)
@@ -127,9 +131,11 @@ namespace AuctionGame.Auction
             if (resultFinished == null)
                 return;
 
-            resultElapsed += deltaTime;
             float closedAt = Mathf.Max(approachDuration, curtainCloseDelay + curtainCloseDuration);
             float reopenAt = closedAt + resultHoldDuration;
+            resultElapsed = resultConfirmed
+                ? resultElapsed + deltaTime
+                : Mathf.Min(resultElapsed + deltaTime, reopenAt);
             if (resultElapsed >= reopenAt + reopenDuration)
             {
                 FinishResult();
@@ -138,7 +144,7 @@ namespace AuctionGame.Auction
 
             float cameraClose;
             float curtainOpen;
-            if (resultElapsed < reopenAt)
+            if (!resultConfirmed || resultElapsed < reopenAt)
             {
                 cameraClose = EasedProgress(resultElapsed, approachDuration);
                 curtainOpen = 1f - EasedProgress(resultElapsed - curtainCloseDelay, curtainCloseDuration);
@@ -154,7 +160,7 @@ namespace AuctionGame.Auction
                 Quaternion.Slerp(startWorldPose.rotation, closeUpPose.rotation, cameraClose));
             resultCamera.fieldOfView = Mathf.Lerp(startFieldOfView, closeUpFieldOfView, cameraClose);
             ApplyCurtains(curtainOpen, startLeftCurtain.x, startRightCurtain.x);
-            setResultVisible(resultElapsed >= closedAt && resultElapsed < reopenAt);
+            setResultVisible(resultElapsed >= closedAt && (!resultConfirmed || resultElapsed < reopenAt));
         }
 
         private float EasedProgress(float elapsed, float duration)

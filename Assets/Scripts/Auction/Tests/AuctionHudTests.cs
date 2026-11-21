@@ -26,7 +26,9 @@ namespace AuctionGame.Auction.Tests
             var level = AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>("Assets/AuctionMvp/MvpAuctionLevel.asset");
             var settings = new SerializedObject(auction);
             settings.FindProperty("enableAutomaticAi").boolValue = false;
+            settings.FindProperty("paceAiInteractions").boolValue = false;
             settings.ApplyModifiedPropertiesWithoutUndo();
+            Object.FindFirstObjectByType<BidderDialoguePresenter>().enabled = false;
             var stage = Object.FindFirstObjectByType<SceneIntroOutro>();
             stage.SkipToEnd();
 
@@ -185,9 +187,13 @@ namespace AuctionGame.Auction.Tests
 
         private static AuctionResult CloseLot(AuctionManager auction)
         {
-            auction.Tick(auction.RemainingTime + 0.01f);
+            auction.Tick(auction.RemainingTime + 1000f);
             AuctionResult result = auction.Results.Last();
-            AuctionItemPresentationTests.AdvanceMotion(Object.FindFirstObjectByType<SceneIntroOutro>(), 3.61f);
+            AuctionItemPresentationTests.StartWaitingCinematic(auction);
+            var stage = Object.FindFirstObjectByType<SceneIntroOutro>();
+            AuctionItemPresentationTests.AdvanceMotion(stage, 1.41f);
+            Click("Continue Result");
+            AuctionItemPresentationTests.AdvanceMotion(stage, 3f);
             auction.Tick(0.01f);
             return result;
         }

@@ -244,6 +244,20 @@ namespace AuctionGame.Auction
             }
         }
 
+        internal bool HasActiveDialogue
+        {
+            get
+            {
+                if (!isActiveAndEnabled || !enableDialogueUi)
+                    return false;
+                double now = Time.unscaledTimeAsDouble;
+                foreach (Binding binding in bidders)
+                    if (binding.Ends > now)
+                        return true;
+                return false;
+            }
+        }
+
         private static void Hide(Binding binding)
         {
             binding.Ends = 0;

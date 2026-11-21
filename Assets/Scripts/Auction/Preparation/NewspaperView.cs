@@ -15,6 +15,7 @@ namespace AuctionGame.Auction
         internal sealed class Appearance
         {
             public Sprite reporterSprite;
+            public Sprite televisionSprite;
             public Sprite paperSprite;
             public TMP_FontAsset mastheadFont;
             public TMP_FontAsset articleFont;
@@ -61,11 +62,24 @@ namespace AuctionGame.Auction
             if (appearance.mastheadFont)
                 subtitle.font = appearance.mastheadFont;
 
-            var frame = Row("Picture frame", page, 22, 112, 282);
-            PreparationUi.Surface(frame, Color.black);
-            var picture = PreparationUi.Rect("Picture", frame, Vector2.zero, Vector2.one,
-                new Vector2(6, 6), new Vector2(-6, -6));
-            PreparationUi.Surface(picture, appearance.pictureColor);
+            RectTransform picture;
+            if (appearance.televisionSprite)
+            {
+                var television = PreparationUi.Rect("Television", page, Vector2.up, Vector2.up,
+                    new Vector2(22, -378), new Vector2(240, -108));
+                var televisionImage = PreparationUi.Surface(television, Color.white);
+                televisionImage.sprite = appearance.televisionSprite;
+                picture = PreparationUi.Rect("Television screen", television,
+                    new Vector2(.14f, .26f), new Vector2(.67f, .60f), Vector2.zero, Vector2.zero);
+            }
+            else
+            {
+                var frame = Row("Picture frame", page, 22, 112, 282);
+                PreparationUi.Surface(frame, Color.black);
+                picture = PreparationUi.Rect("Picture", frame, Vector2.zero, Vector2.one,
+                    new Vector2(6, 6), new Vector2(-6, -6));
+                PreparationUi.Surface(picture, appearance.pictureColor);
+            }
             illustration = PreparationUi.Surface(PreparationUi.Fill("ItemType image", picture), Color.white);
             illustration.raycastTarget = false;
             illustration.preserveAspect = true;
@@ -75,7 +89,8 @@ namespace AuctionGame.Auction
 
             PreparationUi.Surface(Row("Text panel", page, 0, 382, 650), appearance.textPanelColor);
             var reporter = PreparationUi.Rect("Reporter", page, Vector2.up, Vector2.up,
-                new Vector2(22, -418), new Vector2(216, -292));
+                appearance.televisionSprite ? new Vector2(240, -381) : new Vector2(22, -418),
+                appearance.televisionSprite ? new Vector2(378, -204) : new Vector2(216, -292));
             var portrait = PreparationUi.Surface(reporter,
                 appearance.reporterSprite ? Color.white : appearance.pictureColor);
             portrait.sprite = appearance.reporterSprite;

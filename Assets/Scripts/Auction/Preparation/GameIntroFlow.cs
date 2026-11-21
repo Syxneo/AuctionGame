@@ -33,8 +33,8 @@ namespace AuctionGame.Auction
         [SerializeField] private Sprite parchment;
         [SerializeField] private Sprite logo;
         [SerializeField] private Sprite playButton;
-        [SerializeField] private Sprite phoneBase;
-        [SerializeField] private Sprite handset;
+        [SerializeField] private Sprite incomingPhone;
+        [SerializeField] private Sprite pickedUpPhone;
         [SerializeField] private AudioClip ringtone;
         [SerializeField] private AudioClip pickupClick;
         [SerializeField, Min(0)] private float fadeOut = .25f;
@@ -72,11 +72,20 @@ namespace AuctionGame.Auction
             fade.gameObject.SetActive(false);
             canvas.gameObject.SetActive(true);
             Open(Stage.StartScreen);
-            Art("Auction Frenzy Logo", Box("Logo", safe, .1f, .54f, .9f, .79f), logo,
+            Art("Auction Frenzy Logo", Box("Logo", safe, .07f, .40f, .93f, .84f), logo,
                 "AUCTION FRENZY\n[Logo placeholder]");
-            var play = AddButton("PLAY", Box("PLAY", safe, .18f, .34f, .82f, .46f), Play);
+            var play = AddButton("PLAY!", Box("PLAY", safe, .06f, .19f, .94f, .41f), Play);
             if (playButton)
-                ((Image)play.targetGraphic).sprite = playButton;
+            {
+                var image = (Image)play.targetGraphic;
+                image.sprite = playButton;
+                image.color = Color.white;
+                image.preserveAspect = true;
+                var label = play.GetComponentInChildren<TMP_Text>();
+                label.color = Color.black;
+                label.fontStyle = FontStyles.Bold;
+                label.fontSize = 56;
+            }
         }
 
         private void Build(int order)
@@ -132,14 +141,11 @@ namespace AuctionGame.Auction
             if (CurrentStage != Stage.StartScreen)
                 return;
             Open(Stage.IncomingCall);
-            AddButton("Tap to Pick Up", Box("Pick Up Phone", safe, .12f, .08f, .88f, .46f), PickUp)
-                .targetGraphic.color = Color.clear;
-            // The transparent button sits above the art and owns the entire pickup area.
-            Art("Telephone Base", Box("Telephone Base", safe, .19f, .19f, .81f, .35f), phoneBase,
-                "[Rotary telephone base placeholder]");
-            Art("Telephone Handset", Box("Handset", safe, .17f, .35f, .83f, .45f), handset,
-                "[Handset placeholder]");
-            safe.Find("Pick Up Phone").SetAsLastSibling();
+            Art("Incoming Telephone", Box("Incoming Telephone", safe, .11f, .08f, .89f, .47f),
+                incomingPhone, "[Rotary telephone placeholder]");
+            var pickUp = AddButton("Tap to Pick Up", Box("Pick Up Phone", safe, .07f, .02f, .93f, .48f), PickUp);
+            pickUp.targetGraphic.color = Color.clear;
+            pickUp.transition = Selectable.Transition.None;
             if (ringtone)
             {
                 audioSource.clip = ringtone;
@@ -164,10 +170,10 @@ namespace AuctionGame.Auction
             advance.transform.SetAsFirstSibling();
             view.GetComponent<Image>().raycastTarget = false;
 
-            Art("Lifted Handset", Box("Lifted Handset", safe, .20f, .79f, .80f, .96f), handset,
-                "[Lifted handset placeholder]");
-            Caption(Box("Continue Prompt", safe, .05f, .02f, .95f, .10f), "Tap to continue", 26);
-            var viewport = Box("Conversation", safe, .05f, .12f, .95f, .77f);
+            Art("Picked Up Telephone", Box("Picked Up Telephone", safe, .11f, .08f, .89f, .47f), pickedUpPhone,
+                "[Picked up telephone placeholder]");
+            Caption(Box("Continue Prompt", safe, .05f, .02f, .95f, .075f), "Tap to continue", 26);
+            var viewport = Box("Conversation", safe, .05f, .48f, .95f, .96f);
             var tap = AddButton("", PreparationUi.Fill("Tap Conversation", viewport), Advance);
             tap.targetGraphic.color = Color.clear;
             tap.transition = Selectable.Transition.None;

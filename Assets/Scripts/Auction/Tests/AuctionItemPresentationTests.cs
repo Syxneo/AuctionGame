@@ -32,7 +32,9 @@ namespace AuctionGame.Auction.Tests
             var level = AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>("Assets/AuctionMvp/MvpAuctionLevel.asset");
             var managerData = new SerializedObject(auction);
             managerData.FindProperty("enableAutomaticAi").boolValue = false;
+            managerData.FindProperty("paceAiInteractions").boolValue = false;
             managerData.ApplyModifiedPropertiesWithoutUndo();
+            Object.FindFirstObjectByType<BidderDialoguePresenter>().enabled = false;
             var stage = Object.FindFirstObjectByType<SceneIntroOutro>();
             stage.SkipToEnd();
             var stageData = new SerializedObject(stage);
@@ -95,6 +97,7 @@ namespace AuctionGame.Auction.Tests
                 }
 
                 auction.Tick(auction.RemainingTime + 1000f);
+                StartWaitingCinematic(auction);
                 Assert.That(auction.State, Is.EqualTo(sold ? AuctionState.Sold : AuctionState.Unsold));
                 Assert.That(auction.CurrentItem, Is.SameAs(lot));
                 Assert.That(auction.RemainingTime, Is.Zero);
@@ -118,8 +121,9 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(right.localPosition.x, Is.EqualTo(-closedX));
                 var canvas = GameObject.Find("Auction Result Overlay").GetComponent<Canvas>();
                 Assert.That(canvas.enabled, Is.True);
-                Assert.That(canvas.GetComponentsInChildren<Graphic>().All(graphic => !graphic.raycastTarget), Is.True);
-                Assert.That(canvas.GetComponent<GraphicRaycaster>(), Is.Null);
+                Assert.That(canvas.GetComponentsInChildren<Graphic>()
+                    .Where(graphic => graphic.raycastTarget).Select(graphic => graphic.name),
+                    Is.EqualTo(new[] { "Continue Result" }));
                 Assert.That(GameObject.Find("Result Item Sprite").GetComponent<Image>().sprite, Is.SameAs(lot.Sprite));
                 Assert.That(visual.sprite, Is.SameAs(lot.Sprite));
                 Assert.That(GameObject.Find("Result Outcome").GetComponent<TMP_Text>().text,
@@ -143,7 +147,11 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(auction.Economy.Purchases.Count, Is.EqualTo(purchases));
                 Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(budget));
 
-                AdvanceMotion(stage, 1.7f);
+                AdvanceMotion(stage, 10f);
+                Assert.That(canvas.enabled, Is.True);
+                Assert.That(auction.CurrentItem, Is.SameAs(lot));
+                Click("Continue Result");
+                AdvanceMotion(stage, 0.5f);
                 Assert.That(canvas.enabled, Is.False);
                 Assert.That(hudGroup.alpha, Is.Zero);
                 Assert.That(left.localPosition.x, Is.InRange(closedX + 0.01f, leftOpen.x - 0.01f));
@@ -152,7 +160,7 @@ namespace AuctionGame.Auction.Tests
                 if (lot == lots[1])
                     stage.enabled = false;
                 else
-                    AdvanceMotion(stage, 0.5f);
+                    AdvanceMotion(stage, 0.6f);
                 Assert.That(camera.transform.localPosition, Is.EqualTo(basePosition));
                 Assert.That(camera.transform.localRotation, Is.EqualTo(baseRotation));
                 Assert.That(camera.fieldOfView, Is.EqualTo(baseFov));
@@ -183,6 +191,10 @@ namespace AuctionGame.Auction.Tests
             typeof(SceneIntroOutro).GetMethod("AdvanceResultMotion", BindingFlags.Instance | BindingFlags.NonPublic)
                 .Invoke(stage, new object[] { seconds });
         }
+
+        internal static void StartWaitingCinematic(AuctionManager auction) =>
+            typeof(AuctionResultCinematic).GetMethod("LateUpdate", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(auction.GetComponent<AuctionResultCinematic>(), null);
 
         internal static AIBidder FindBidderWithLimit(AuctionManager auction, int amount) =>
             auction.Opponents.First(bidder => auction.TryGetMaxBid(bidder.Id, out int maxBid) && maxBid >= amount);

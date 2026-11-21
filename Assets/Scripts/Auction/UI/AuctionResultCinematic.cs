@@ -13,6 +13,7 @@ namespace AuctionGame.Auction
         [SerializeField] private Transform podium;
         [SerializeField] private CanvasGroup auctionHud;
         [SerializeField] private TMP_FontAsset font;
+        [SerializeField] private Sprite soldStamp;
 
         private static readonly Color Gold = new(0.91f, 0.75f, 0.49f);
         private static readonly Color Ivory = new(1f, 0.95f, 0.85f);
@@ -20,6 +21,7 @@ namespace AuctionGame.Auction
         private static readonly Color UnsoldBlue = new(0.19f, 0.25f, 0.32f);
 
         private Canvas overlay;
+        private Button continueButton;
         private RectTransform itemBackdrop;
         private Image itemImage;
         private Image ribbon;
@@ -27,6 +29,8 @@ namespace AuctionGame.Auction
         private TMP_Text winner;
         private TMP_Text price;
         private AuctionResult activeResult;
+        private BidderDialoguePresenter bidderDialogue;
+        private bool waitingForDialogue;
         private bool hudHidden;
         private float hudAlpha;
         private bool hudInteractable;
@@ -34,6 +38,7 @@ namespace AuctionGame.Auction
 
         private void OnEnable()
         {
+            bidderDialogue = FindFirstObjectByType<BidderDialoguePresenter>();
             if (auction && stage && podium)
                 auction.OnAuctionEnded += PresentResult;
         }
@@ -55,6 +60,8 @@ namespace AuctionGame.Auction
         {
             if (activeResult != null && (!auction || !auction.isActiveAndEnabled))
                 Cancel();
+            else if (waitingForDialogue)
+                TryStartResult();
         }
 
         private void Cancel()
@@ -74,6 +81,21 @@ namespace AuctionGame.Auction
                 return;
 
             activeResult = result;
+            waitingForDialogue = true;
+            TryStartResult();
+        }
+
+        private void TryStartResult()
+        {
+            if (!stage || !stage.isActiveAndEnabled || !podium)
+            {
+                FinishResult();
+                return;
+            }
+            if (auction.HasPendingWinnerDialogue || (bidderDialogue && bidderDialogue.HasActiveDialogue))
+                return;
+
+            waitingForDialogue = false;
             if (!stage.PlayResult(podium.position, ShowOverlay, FinishResult))
             {
                 FinishResult();
@@ -84,9 +106,14 @@ namespace AuctionGame.Auction
                 CreateOverlay();
 
             HideHud();
+            AuctionResult result = activeResult;
             itemImage.sprite = auction.CurrentItem.Sprite;
             itemImage.enabled = itemImage.sprite != null;
-            ribbon.color = result.sold ? SoldRed : UnsoldBlue;
+            bool showStamp = result.sold && soldStamp;
+            ribbon.sprite = showStamp ? soldStamp : null;
+            ribbon.preserveAspect = showStamp;
+            ribbon.color = showStamp ? Color.white : result.sold ? SoldRed : UnsoldBlue;
+            outcome.color = showStamp ? Color.clear : Ivory;
             itemBackdrop.anchorMin = new Vector2(0.026f, result.sold ? 0.235f : 0.025f);
             itemImage.rectTransform.anchorMin = new Vector2(0.09f, result.sold ? 0.26f : 0.13f);
             ribbon.rectTransform.anchorMin = new Vector2(0.055f, result.sold ? 0.32f : 0.19f);
@@ -100,6 +127,7 @@ namespace AuctionGame.Auction
 
         private void FinishResult()
         {
+            waitingForDialogue = false;
             ShowOverlay(false);
             RestoreHud();
             if (itemImage)
@@ -140,7 +168,10 @@ namespace AuctionGame.Auction
         private void ShowOverlay(bool visible)
         {
             if (overlay && overlay.enabled != visible)
+            {
                 overlay.enabled = visible;
+                continueButton.interactable = visible;
+            }
         }
 
         private void CreateOverlay()
@@ -156,8 +187,20 @@ namespace AuctionGame.Auction
             scaler.referenceResolution = new Vector2(1080, 1920);
             scaler.matchWidthOrHeight = 0.5f;
 
+            var tap = Box("Continue Result", root, Vector2.zero, Vector2.one);
+            var target = Fill(tap, Color.clear);
+            target.raycastTarget = true;
+            continueButton = tap.gameObject.AddComponent<Button>();
+            continueButton.targetGraphic = target;
+            continueButton.transition = Selectable.Transition.None;
+            continueButton.interactable = false;
+            continueButton.onClick.AddListener(stage.ConfirmResult);
+            root.gameObject.AddComponent<GraphicRaycaster>();
+
             RectTransform safeArea = Box("Result Safe Area", root, Vector2.zero, Vector2.one);
             safeArea.gameObject.AddComponent<AuctionHudSafeArea>();
+            Label("Continue Prompt", safeArea, new Vector2(0.12f, 0.16f), new Vector2(0.88f, 0.24f),
+                44, Ivory).text = "Tap to continue";
             RectTransform frame = Box("Result Frame", safeArea, new Vector2(0.11f, 0.27f), new Vector2(0.89f, 0.77f));
             Fill(frame, Gold);
             RectTransform card = Box("Result Card", frame, Vector2.zero, Vector2.one);

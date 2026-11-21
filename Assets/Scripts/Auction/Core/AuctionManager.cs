@@ -225,6 +225,8 @@ namespace AuctionGame.Auction
             return true;
         }
 
+        internal bool HasPendingWinnerDialogue => pendingWinner != null;
+
         internal void CompleteResultPresentation(AuctionResult result)
         {
             if (presentedResult == result)
@@ -245,7 +247,7 @@ namespace AuctionGame.Auction
                 double remainingStep = deltaTime;
                 while (State != AuctionState.Finished)
                 {
-                    if (presentedResult != null)
+                    if (presentedResult != null && pendingWinner == null)
                     {
                         if (resultPresentationComplete)
                         {
