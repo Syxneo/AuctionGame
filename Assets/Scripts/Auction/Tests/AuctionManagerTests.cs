@@ -226,7 +226,7 @@ namespace AuctionGame.Auction.Tests
             auction.Tick(1000);
             Assert.That(auction.Results, Has.Count.EqualTo(6));
             Assert.That(interactions.Zip(interactions.Skip(1), (a, b) => b.time - a.time), Is.All.GreaterThanOrEqualTo(2d));
-            Assert.That(bids.Zip(bids.Skip(1), (a, b) => b.time - a.time), Is.All.GreaterThanOrEqualTo(2.5d));
+            Assert.That(bids.Zip(bids.Skip(1), (a, b) => b.time - a.time), Is.All.GreaterThanOrEqualTo(2d));
             Assert.That(interactions.Where(entry => entry.group.StartsWith("BR-")).Select(entry => (entry.time, entry.id)),
                 Is.EqualTo(bids));
             Assert.That(interactions.Count(entry => entry.group.StartsWith("WIN-")), Is.EqualTo(6));
@@ -263,11 +263,11 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction.BidHistory.Single(bid => bid.amount == 20).bidderId, Is.EqualTo(BidderIds.Player));
         }
 
-        [TestCase(true, 2f, 13f, 2.5f)]
+        [TestCase(true, 2f, 13f, 2f)]
         [TestCase(true, 12.5f, 3f, 0.5f)]
         [TestCase(true, 28f, 2f, 0.5f)]
-        [TestCase(false, 2f, 13f, 2.5f)]
-        [TestCase(false, 12.5f, 3f, 2.5f)]
+        [TestCase(false, 2f, 13f, 2f)]
+        [TestCase(false, 12.5f, 3f, 2f)]
         public void PacedReactionUsesAdjustedRemainingTime(bool playerFirst, float bidAt, float adjustedRemaining, float delay)
         {
             ConfigurePacedPool(100);
@@ -334,24 +334,24 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction.StartAuction(), Is.True);
             auction.Tick(6);
             Assert.That(auction.TryPlaceBid(BidderIds.Player, 10), Is.True);
-            auction.Tick(2.5f);
-            Assert.That(auction.BidHistory.Last().biddingElapsed, Is.EqualTo(4.5d));
+            auction.Tick(2);
+            Assert.That(auction.BidHistory.Last().biddingElapsed, Is.EqualTo(4d));
             Assert.That(auction.BidHistory.Last().bidderId, Is.Not.EqualTo(BidderIds.Player));
             auction.Tick(1);
             Assert.That(auction.TryPlaceBid(BidderIds.Player, 30), Is.True);
-            auction.Tick(1.5f);
+            auction.Tick(1);
             Assert.That(auction.BidHistory, Has.Count.EqualTo(3), "The AI cooldown is over but the new player delay is not.");
             Assert.That(auction.TryPlaceBid(BidderIds.Player, 40), Is.False);
             auction.Tick(1);
             Assert.That(auction.BidHistory, Has.Count.EqualTo(4));
-            Assert.That(auction.BidHistory.Last().biddingElapsed, Is.EqualTo(8d));
+            Assert.That(auction.BidHistory.Last().biddingElapsed, Is.EqualTo(7d));
             Assert.That(auction.BidHistory.Last().bidderId, Is.Not.EqualTo(BidderIds.Player));
         }
 
         [Test]
-        public void ChickenOutWaitsForItsSlotAndSpeaksExactlyOnce()
+        public void ChickenOutPreemptsCertainBidAndSpeaksExactlyOnce()
         {
-            ConfigurePacedPool(0);
+            ConfigurePacedPool(100, resistance: 0);
             SetIntimidation("highBidIntimidation", 100);
             var withdrawals = new List<string>();
             auction.OnAiDialogue += (id, group, _) =>
@@ -367,10 +367,32 @@ namespace AuctionGame.Auction.Tests
             var bidder = auction.Opponents.Single(opponent => opponent.Id == active[1]);
             Decide(bidder);
             Assert.That(bidder.HasChickenedOut, Is.False);
-            auction.Tick(2.5f);
+            auction.Tick(2);
             Assert.That(bidder.HasChickenedOut, Is.True);
             Assert.That(withdrawals, Is.EqualTo(new[] { bidder.Id }));
+            Assert.That(auction.BidHistory, Has.Count.EqualTo(2));
             Assert.That(auction.TryPlaceBid(bidder.Id, 70), Is.False);
+            Decide(bidder);
+            Assert.That(withdrawals, Has.Count.EqualTo(1));
+        }
+
+        [TestCase(100, true)]
+        [TestCase(0, false)]
+        public void FailedChickenOutStillUsesInterest(int interest, bool bids)
+        {
+            ConfigurePacedPool(interest);
+            SetIntimidation("highBidIntimidation", 100);
+            Assert.That(auction.StartAuction(), Is.True);
+            auction.Tick(6);
+            string[] active = ActivePoolIds();
+            Assert.That(auction.TryPlaceBid(active[0], 10), Is.True);
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 60), Is.True);
+            auction.Tick(2);
+            var bidder = auction.Opponents.Single(opponent => opponent.Id == active[1]);
+            Decide(bidder);
+            Assert.That(bidder.HasChickenedOut, Is.False);
+            Assert.That(bidder.IsActiveForLot, Is.True);
+            Assert.That(auction.BidHistory.Any(bid => bid.bidderId == bidder.Id), Is.EqualTo(bids));
         }
 
         [Test]
@@ -410,7 +432,7 @@ namespace AuctionGame.Auction.Tests
         private double AuctionTime() => (double)typeof(AuctionManager)
             .GetProperty("AuctionElapsed", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(auction);
 
-        private void ConfigurePacedPool(int interest)
+        private void ConfigurePacedPool(int interest, int resistance = 100)
         {
             ConfigurePool(1729, 600, 600, 600, 600, 600);
             var settings = new SerializedObject(auction);
@@ -419,7 +441,7 @@ namespace AuctionGame.Auction.Tests
             for (int index = 0; index < 5; index++)
             {
                 var profile = GetPersonalitySettings(index);
-                profile.FindProperty("intimidationResistance").intValue = 0;
+                profile.FindProperty("intimidationResistance").intValue = resistance;
                 SetProfile(profile, ItemCategory.Historical, interest, 100);
             }
         }

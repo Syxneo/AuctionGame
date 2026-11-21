@@ -98,6 +98,9 @@ namespace AuctionGame.Auction
             if (opponentBid != null)
                 lastHandledBidSequence = opponentBid.sequence;
 
+            if (auction.PacesAiInteractions && TryWithdraw(auction, opponentBid))
+                return;
+
             double roll = interestRandom.NextDouble();
             if (roll < EffectiveInterest / 100d)
             {
@@ -107,12 +110,17 @@ namespace AuctionGame.Auction
                 return;
             }
 
+            if (auction.DebugLogEnabled)
+                auction.LogAuctionDebug($"{Personality.Name} skipped | Bid chance={EffectiveInterest}% | Interest roll={roll:F4}");
+
+            if (!auction.PacesAiInteractions)
+                TryWithdraw(auction, opponentBid);
+        }
+
+        private bool TryWithdraw(AuctionManager auction, BidRecord opponentBid)
+        {
             if (opponentBid == null)
-            {
-                if (auction.DebugLogEnabled)
-                auction.LogAuctionDebug($"{Personality.Name} skipped | Bid chance={EffectiveInterest}% | Interest roll={roll:F4} | no new intimidation bid");
-                return;
-            }
+                return false;
 
             double chance = auction.GetIntimidationChance(opponentBid.increment) * (100 - Personality.IntimidationResistance) / 100d;
             double intimidationRoll = intimidationRandom.NextDouble();
@@ -120,7 +128,8 @@ namespace AuctionGame.Auction
             if (withdraw)
                 auction.RequestAiAction(this, 0);
             if (auction.DebugLogEnabled)
-                auction.LogAuctionDebug($"{Personality.Name} skipped | Bid chance={EffectiveInterest}% | Interest roll={roll:F4} | intimidation bid #{opponentBid.sequence} (+{opponentBid.increment}) | roll={intimidationRoll:F4} | chance={chance:F4} | withdrawal requested={withdraw} | chickened out={HasChickenedOut}");
+                auction.LogAuctionDebug($"{Personality.Name} intimidation bid #{opponentBid.sequence} (+{opponentBid.increment}) | roll={intimidationRoll:F4} | chance={chance:F4} | withdrawal requested={withdraw} | chickened out={HasChickenedOut}");
+            return withdraw;
         }
 
         internal void Withdraw() => HasChickenedOut = true;

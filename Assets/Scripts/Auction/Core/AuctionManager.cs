@@ -12,7 +12,7 @@ namespace AuctionGame.Auction
         public const float AntiSnipingTime = 3f;
         public const float MaximumBiddingDuration = 30f;
         private const float MinimumAiInteractionInterval = 2f;
-        private const double NormalBidReactionDelay = 2.5d;
+        private const double NormalBidReactionDelay = 2d;
         private const double FinalBidReactionDelay = 0.5d;
         [SerializeField] private int randomSeed = 1729;
         [SerializeField] private bool enableAutomaticAi = true;
@@ -398,7 +398,7 @@ namespace AuctionGame.Auction
                     dialogue?.AcceptedBid(bid, activeOpponents);
                 else if (bidder != null)
                 {
-                    nextAiInteraction = stateStartedAt + bidReactionAt;
+                    ReserveAiInteraction();
                     dialogue?.Bid(bidder, amount, elapsed);
                 }
                 OnBidPlaced?.Invoke(bid);
