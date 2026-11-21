@@ -103,6 +103,13 @@ namespace AuctionGame.Auction
             if (lot == number)
                 return;
 
+            BeginLot(number, bidders);
+            foreach (AIBidder bidder in bidders)
+                Opening(bidder, 0);
+        }
+
+        public void BeginLot(int number, IReadOnlyList<AIBidder> bidders)
+        {
             lot = number;
             active = true;
             lastBid = 0;
@@ -111,17 +118,40 @@ namespace AuctionGame.Auction
             withdrawals.Clear();
 
             foreach (AIBidder bidder in bidders)
-            {
                 profileIds[bidder.Id] = bidder.Personality.DialogueProfileId;
-                string interest = bidder.EffectiveInterest switch
-                {
-                    < 25 => "very-low",
-                    < 50 => "low",
-                    < 75 => "high",
-                    _ => "very-high"
-                };
-                Emit(bidder.Id, bidder.Personality.Name, "OPENING", "interest." + interest, 0);
+        }
+
+        public bool HasInteractionLines(AIPersonality personality)
+        {
+            string[] keys = { "interest.very-low", "interest.low", "interest.high", "interest.very-high",
+                "BR-01", "BR-02", "BR-03", "BR-04", "BR-05", "BR-04/05", "WD-01",
+                "WIN-01", "WIN-02", "WIN-03", "WIN-04" };
+            foreach (string key in keys)
+            {
+                string[] lines = FindLines(personality.DialogueProfileId, key);
+                if (lines == null || Array.Exists(lines, string.IsNullOrWhiteSpace))
+                    return false;
             }
+            return true;
+        }
+
+        public void Opening(AIBidder bidder, double elapsed)
+        {
+            string interest = bidder.EffectiveInterest switch
+            {
+                < 25 => "very-low",
+                < 50 => "low",
+                < 75 => "high",
+                _ => "very-high"
+            };
+            Emit(bidder.Id, bidder.Personality.Name, "OPENING", "interest." + interest, elapsed);
+        }
+
+        public void Bid(AIBidder bidder, int price, double elapsed)
+        {
+            int next = auction.GetNextBidAmount();
+            string key = ReactionKey(Classify(bidder, price, next > 0 ? next : int.MaxValue));
+            Emit(bidder.Id, bidder.Personality.Name, key, key, elapsed);
         }
 
         public void AcceptedBid(BidRecord bid, IReadOnlyList<AIBidder> bidders)

@@ -212,7 +212,8 @@ namespace AuctionGame.Auction
                 if (binding.sprite.sharedMaterial != material)
                     binding.sprite.sharedMaterial = material;
                 Color color = leading ? binding.OriginalColor * leaderTint : binding.OriginalColor;
-                color.a = binding.OriginalColor.a;
+                color.a = binding.OriginalColor.a *
+                    (auction.PacesAiInteractions && binding.Bidder?.HasChickenedOut == true ? 0.4f : 1f);
                 binding.sprite.color = color;
 
                 float phase = (float)(now * 2.2 + index * 1.35);
@@ -233,6 +234,9 @@ namespace AuctionGame.Auction
 
         private void EndLot(AuctionResult result)
         {
+            if (auction.PacesAiInteractions)
+                return;
+
             foreach (Binding binding in bidders)
             {
                 if (binding.Priority != 5 || binding.bidderId != result.winnerId)
@@ -269,9 +273,15 @@ namespace AuctionGame.Auction
                 _ when category.StartsWith("WIN-", StringComparison.Ordinal) => 5,
                 _ => -1
             };
+            if (priority < 0)
+                return;
+
+            if (auction.PacesAiInteractions)
+                Clear();
+
             double now = Time.unscaledTimeAsDouble;
             bool replacing = target.Ends > now;
-            if (priority < 0 || replacing && target.Priority > priority)
+            if (replacing && target.Priority > priority)
                 return;
 
             if (priority is >= 1 and <= 3)
@@ -302,6 +312,8 @@ namespace AuctionGame.Auction
                 5 => winnerDuration,
                 _ => limitDuration
             };
+            if (auction.PacesAiInteractions)
+                duration = Mathf.Min(duration, auction.AiInteractionInterval);
             target.Priority = priority;
             target.Opening = opening;
             target.Started = now;

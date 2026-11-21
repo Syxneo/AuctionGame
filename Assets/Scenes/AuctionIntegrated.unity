@@ -4312,6 +4312,8 @@ MonoBehaviour:
   aiDialogueCooldown: 4
   aiDialogueLibrary: {fileID: 4900000, guid: e9a80c336fd94c31add687996deddba0, type: 3}
   aiDecisionInterval: 3
+  paceAiInteractions: 1
+  aiInteractionInterval: 2
   aiPlayerBidMinReactionDelay: 0.5
   aiPlayerBidMaxReactionDelay: 2
   smallBidIntimidation: 15

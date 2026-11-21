@@ -196,6 +196,206 @@ namespace AuctionGame.Auction.Tests
         private string[] ActivePoolIds() => auction.Opponents.Where(bidder => bidder.IsActiveForLot)
             .Select(bidder => bidder.Id).ToArray();
 
+        [Test]
+        public void PacedOpeningsBidsAndWinnersAreSequentialAndRepeatOnRetry()
+        {
+            auction = CreateAuction(count: 6, automaticAi: true);
+            ConfigurePacedPool(100);
+            var interactions = new List<(double time, string lot, string id, string group)>();
+            var bids = new List<(double time, string id)>();
+            auction.OnAiDialogue += (id, group, _) =>
+            {
+                if (id != "sale")
+                    interactions.Add((AuctionTime(), auction.CurrentItem.ItemId, id, group));
+            };
+            auction.OnBidPlaced += bid =>
+            {
+                Assert.That(bid.biddingElapsed, Is.LessThan(AuctionManager.MaximumBiddingDuration));
+                bids.Add((AuctionTime(), bid.bidderId));
+            };
+
+            Assert.That(auction.StartAuction(), Is.True);
+            var openingIds = ActivePoolIds();
+            Assert.That(interactions.Select(entry => entry.time), Is.EqualTo(new[] { 0d }));
+            auction.Tick(4);
+            Assert.That(interactions.Select(entry => entry.time), Is.EqualTo(new[] { 0d, 2d, 4d }));
+            Assert.That(interactions.Select(entry => entry.id), Is.EqualTo(openingIds));
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Bidding));
+            auction.Tick(3);
+            Assert.That(bids, Has.Count.EqualTo(1), "Only one of the simultaneously ready bidders may act.");
+            auction.Tick(1000);
+            Assert.That(auction.Results, Has.Count.EqualTo(6));
+            Assert.That(interactions.Zip(interactions.Skip(1), (a, b) => b.time - a.time), Is.All.GreaterThanOrEqualTo(2d));
+            Assert.That(interactions.Where(entry => entry.group.StartsWith("BR-")).Select(entry => (entry.time, entry.id)),
+                Is.EqualTo(bids));
+            Assert.That(interactions.Count(entry => entry.group.StartsWith("WIN-")), Is.EqualTo(6));
+            foreach (var lot in interactions.GroupBy(entry => entry.lot))
+            {
+                Assert.That(lot.Take(3).Select(entry => entry.group), Is.All.EqualTo("OPENING"));
+                Assert.That(lot.Count(entry => entry.group == "OPENING"), Is.EqualTo(3));
+                Assert.That(lot.Last().group, Does.StartWith("WIN-"));
+            }
+
+            var firstRun = interactions.ToArray();
+            interactions.Clear();
+            bids.Clear();
+            Assert.That(auction.RestartAuction(), Is.True);
+            auction.Tick(1000);
+            Assert.That(interactions, Is.EqualTo(firstRun));
+        }
+
+        [Test]
+        public void PlayerBidInvalidatesQueuedPriceWithoutWaitingForAiCooldown()
+        {
+            auction = CreateAuction(automaticAi: true);
+            ConfigurePacedPool(100);
+            var settings = new SerializedObject(auction);
+            settings.FindProperty("aiInteractionInterval").floatValue = 0.5f;
+            settings.ApplyModifiedPropertiesWithoutUndo();
+            Assert.That(auction.AiInteractionInterval, Is.EqualTo(2f));
+            Assert.That(auction.StartAuction(), Is.True);
+            auction.Tick(7);
+            Assert.That(auction.CurrentPrice, Is.EqualTo(10));
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 20), Is.True);
+            auction.Tick(2);
+            Assert.That(auction.BidHistory.Count(bid => bid.amount == 20), Is.EqualTo(1));
+            Assert.That(auction.BidHistory.Single(bid => bid.amount == 20).bidderId, Is.EqualTo(BidderIds.Player));
+        }
+
+        [TestCase(2f, 13f, 2f)]
+        [TestCase(12.5f, 3f, 0.5f)]
+        [TestCase(28f, 2f, 0.5f)]
+        public void PacedPlayerReactionUsesAdjustedRemainingTime(float bidAt, float adjustedRemaining, float delay)
+        {
+            ConfigurePacedPool(100);
+            Assert.That(auction.StartAuction(), Is.True);
+            auction.Tick(4);
+            if (bidAt == 28f)
+            {
+                // Model a deadline already extended past the hard cap by late bidding.
+                typeof(AuctionManager).GetField("bidDeadline", BindingFlags.Instance | BindingFlags.NonPublic)
+                    .SetValue(auction, 31d);
+            }
+            auction.Tick(bidAt);
+            var settings = new SerializedObject(auction);
+            settings.FindProperty("enableAutomaticAi").boolValue = true;
+            settings.ApplyModifiedPropertiesWithoutUndo();
+
+            var comments = new List<string>();
+            auction.OnAiDialogue += (id, group, _) =>
+            {
+                if (group.StartsWith("BR-"))
+                    comments.Add(id);
+            };
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 10), Is.True);
+            Assert.That(auction.RemainingTime, Is.EqualTo(adjustedRemaining));
+            auction.Tick(delay - 0.125f);
+            Assert.That(auction.BidHistory, Has.Count.EqualTo(1));
+            auction.Tick(0.125f);
+            Assert.That(auction.BidHistory, Has.Count.EqualTo(2));
+            var reaction = auction.BidHistory.Last();
+            Assert.That(reaction.biddingElapsed, Is.EqualTo((double)bidAt + delay));
+            Assert.That(comments, Is.EqualTo(new[] { reaction.bidderId }));
+        }
+
+        [Test]
+        public void LatestValidPlayerBidReschedulesOthersBeyondTheirExistingCooldown()
+        {
+            auction = CreateAuction(automaticAi: true);
+            ConfigurePacedPool(100);
+            Assert.That(auction.StartAuction(), Is.True);
+            auction.Tick(6);
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 10), Is.True);
+            auction.Tick(2);
+            Assert.That(auction.BidHistory.Last().biddingElapsed, Is.EqualTo(4d));
+            Assert.That(auction.BidHistory.Last().bidderId, Is.Not.EqualTo(BidderIds.Player));
+            auction.Tick(1);
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 30), Is.True);
+            auction.Tick(1);
+            Assert.That(auction.BidHistory, Has.Count.EqualTo(3), "The AI cooldown is over but the new player delay is not.");
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 40), Is.False);
+            auction.Tick(1);
+            Assert.That(auction.BidHistory, Has.Count.EqualTo(4));
+            Assert.That(auction.BidHistory.Last().biddingElapsed, Is.EqualTo(7d));
+            Assert.That(auction.BidHistory.Last().bidderId, Is.Not.EqualTo(BidderIds.Player));
+        }
+
+        [Test]
+        public void ChickenOutWaitsForItsSlotAndSpeaksExactlyOnce()
+        {
+            ConfigurePacedPool(0);
+            SetIntimidation("highBidIntimidation", 100);
+            var withdrawals = new List<string>();
+            auction.OnAiDialogue += (id, group, _) =>
+            {
+                if (group == "WD-01")
+                    withdrawals.Add(id);
+            };
+            Assert.That(auction.StartAuction(), Is.True);
+            auction.Tick(6);
+            string[] active = ActivePoolIds();
+            Assert.That(auction.TryPlaceBid(active[0], 10), Is.True);
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 60), Is.True);
+            var bidder = auction.Opponents.Single(opponent => opponent.Id == active[1]);
+            Decide(bidder);
+            Assert.That(bidder.HasChickenedOut, Is.False);
+            auction.Tick(2);
+            Assert.That(bidder.HasChickenedOut, Is.True);
+            Assert.That(withdrawals, Is.EqualTo(new[] { bidder.Id }));
+            Assert.That(auction.TryPlaceBid(bidder.Id, 70), Is.False);
+        }
+
+        [Test]
+        public void PendingBidIsDiscardedAtHardCapAndCannotSpeakOnNextLot()
+        {
+            auction = CreateAuction(count: 2);
+            ConfigurePacedPool(100);
+            var reactions = new List<string>();
+            auction.OnAiDialogue += (_, group, _) =>
+            {
+                if (group.StartsWith("BR-"))
+                    reactions.Add(auction.CurrentItem.ItemId);
+            };
+            Assert.That(auction.StartAuction(), Is.True);
+            string[] active = ActivePoolIds();
+            auction.Tick(16.5f);
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 10), Is.True);
+            for (int step = 1; step <= 6; step++)
+            {
+                auction.Tick(2.5f);
+                string bidderId = step % 2 == 0 ? BidderIds.Player : active[0];
+                Assert.That(auction.TryPlaceBid(bidderId, 10 * (step + 1)), Is.True);
+            }
+            auction.Tick(1.5f);
+            Assert.That(auction.BiddingElapsed, Is.EqualTo(29d));
+            Assert.That(auction.TryPlaceBid(active[0], 80), Is.True);
+            Decide(auction.Opponents.Single(bidder => bidder.Id == active[1]));
+            int count = reactions.Count;
+            auction.Tick(1);
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Sold));
+            Assert.That(auction.Results.Single().finalPrice, Is.EqualTo(80));
+            auction.Tick(100);
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
+            Assert.That(reactions, Has.Count.EqualTo(count));
+        }
+
+        private double AuctionTime() => (double)typeof(AuctionManager)
+            .GetProperty("AuctionElapsed", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(auction);
+
+        private void ConfigurePacedPool(int interest)
+        {
+            ConfigurePool(1729, 600, 600, 600, 600, 600);
+            var settings = new SerializedObject(auction);
+            settings.FindProperty("paceAiInteractions").boolValue = true;
+            settings.ApplyModifiedPropertiesWithoutUndo();
+            for (int index = 0; index < 5; index++)
+            {
+                var profile = GetPersonalitySettings(index);
+                profile.FindProperty("intimidationResistance").intValue = 0;
+                SetProfile(profile, ItemCategory.Historical, interest, 100);
+            }
+        }
+
         private void ConfigurePool(int seed, params int[] budgets)
         {
             var settings = new SerializedObject(auction);

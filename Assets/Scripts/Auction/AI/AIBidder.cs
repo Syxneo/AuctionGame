@@ -66,6 +66,8 @@ namespace AuctionGame.Auction
         internal void SchedulePlayerBidReaction(double elapsed, double minDelay, double maxDelay) =>
             NextDecision = elapsed + minDelay + ((maxDelay - minDelay) * reactionRandom.NextDouble());
 
+        internal void SchedulePlayerBidReaction(double readyAt) => NextDecision = readyAt;
+
         internal void PrepareItem(AuctionItem item)
         {
             (EffectiveInterest, EffectiveAccuracy) = Personality.GetEffectiveProfile(item.Categories);
@@ -85,7 +87,7 @@ namespace AuctionGame.Auction
         {
             NextDecision = auction.BiddingElapsed + auction.DecisionInterval;
             int amount = auction.GetNextBidAmount();
-            if (amount == 0 || !auction.CanPlaceBid(Id, amount))
+            if (amount == 0 || !auction.CanEvaluateBid(Id, amount))
             {
                 if (auction.DebugLogEnabled)
                     auction.LogAuctionDebug($"{Personality.Name} skipped | Bid chance=0% (no legal bid; Interest={EffectiveInterest}%) | next bid={amount} | budget={AvailableBudget} | bid limit={BidLimit} | leading={auction.HighestBidderId == Id} | chickened out={HasChickenedOut}");
@@ -101,7 +103,7 @@ namespace AuctionGame.Auction
             {
                 if (auction.DebugLogEnabled)
                     auction.LogAuctionDebug($"{Personality.Name} attempting {amount} | Bid chance={EffectiveInterest}% | Interest roll={roll:F4}");
-                auction.TryPlaceBid(Id, amount);
+                auction.RequestAiAction(this, amount);
                 return;
             }
 
@@ -114,11 +116,19 @@ namespace AuctionGame.Auction
 
             double chance = auction.GetIntimidationChance(opponentBid.increment) * (100 - Personality.IntimidationResistance) / 100d;
             double intimidationRoll = intimidationRandom.NextDouble();
-            HasChickenedOut = intimidationRoll < chance;
-            if (HasChickenedOut)
-                auction.NotifyChickenOut(this);
+            bool withdraw = intimidationRoll < chance;
+            if (withdraw)
+                auction.RequestAiAction(this, 0);
             if (auction.DebugLogEnabled)
-                auction.LogAuctionDebug($"{Personality.Name} skipped | Bid chance={EffectiveInterest}% | Interest roll={roll:F4} | intimidation bid #{opponentBid.sequence} (+{opponentBid.increment}) | roll={intimidationRoll:F4} | chance={chance:F4} | chickened out={HasChickenedOut}");
+                auction.LogAuctionDebug($"{Personality.Name} skipped | Bid chance={EffectiveInterest}% | Interest roll={roll:F4} | intimidation bid #{opponentBid.sequence} (+{opponentBid.increment}) | roll={intimidationRoll:F4} | chance={chance:F4} | withdrawal requested={withdraw} | chickened out={HasChickenedOut}");
+        }
+
+        internal void Withdraw() => HasChickenedOut = true;
+
+        internal void ResumeDecisions(double elapsed, double interval)
+        {
+            if (NextDecision <= elapsed)
+                NextDecision = elapsed + interval;
         }
 
         internal void LogEvaluation(AuctionManager auction) =>
