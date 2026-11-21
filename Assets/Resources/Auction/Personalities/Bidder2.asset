@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Bidder2
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AIPersonality
   bidderName: Trickster
+  dialogueProfileId: trickster
   startingBudget: 600
   overestimateBias: 50
   intimidationResistance: 40
@@ -53,6 +54,3 @@ MonoBehaviour:
   - category: 11
     interest: 10
     accuracy: 35
-  bidComments:
-  - That’s my last bid. Probably.
-  - I wouldn’t go much higher if I were you.

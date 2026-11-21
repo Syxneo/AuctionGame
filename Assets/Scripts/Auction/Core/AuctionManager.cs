@@ -11,12 +11,14 @@ namespace AuctionGame.Auction
         public const float InitialBiddingTime = 15f;
         public const float AntiSnipingTime = 3f;
         public const float MaximumBiddingDuration = 30f;
+        private const float DefaultReactionDelay = 1.5f;
         [SerializeField] private int randomSeed = 1729;
         [SerializeField] private bool enableAutomaticAi = true;
+        [SerializeField, Min(0.01f)] private float aiReactionDelay = DefaultReactionDelay;
         [SerializeField] private bool enableAuctionDebugLog;
-        [SerializeField, Min(0.01f)] private float aiDecisionInterval = 3;
-        [SerializeField, Min(0.01f)] private float aiPlayerBidMinReactionDelay = 0.5f;
-        [SerializeField, Min(0.01f)] private float aiPlayerBidMaxReactionDelay = 2f;
+        [SerializeField] private bool enableAiDialogueLog = true;
+        [SerializeField, Min(0)] private float aiDialogueCooldown = 4;
+        [SerializeField] private TextAsset aiDialogueLibrary;
         [SerializeField, Range(0, 100)] private int smallBidIntimidation = 15;
         [SerializeField, Range(0, 100)] private int mediumBidIntimidation = 35;
         [SerializeField, Range(0, 100)] private int highBidIntimidation = 65;
@@ -38,7 +40,7 @@ namespace AuctionGame.Auction
         public string HighestBidderId { get; private set; } = "";
         public PlayerEconomy Economy => economy ? economy : (economy = GetComponent<PlayerEconomy>());
         public float RemainingTime => State == AuctionState.Bidding
-            ? (float)Math.Min(bidDeadline - elapsed, MaximumBiddingDuration - elapsed)
+            ? (float)Math.Max(0, Math.Min(bidDeadline, MaximumBiddingDuration) - elapsed)
             : 0f;
         public double BiddingElapsed => State == AuctionState.Bidding ? elapsed : 0;
         public IReadOnlyList<AuctionResult> Results => results.AsReadOnly();
@@ -55,10 +57,14 @@ namespace AuctionGame.Auction
         private long bidSequence;
         private bool publishingBid;
         internal bool DebugLogEnabled => enableAuctionDebugLog;
-        internal double DecisionInterval => aiDecisionInterval > 0 && !float.IsInfinity(aiDecisionInterval)
-            ? aiDecisionInterval : 3;
         private AIBidder[] opponents = Array.Empty<AIBidder>();
+        private AIBidder[] reactionOrder = Array.Empty<AIBidder>();
+        private System.Random reactionOrderRandom;
+        private readonly List<AIBidder> reactionQueue = new();
+        private int reactionIndex;
+        private double nextReactionAt;
         private IReadOnlyList<AuctionItem> lots;
+        private AuctionDialogue dialogue;
         private ItemDatabase catalog;
 
         public event Action<AuctionItem> OnItemChanged;
@@ -84,6 +90,7 @@ namespace AuctionGame.Auction
             try
             {
                 itemIndex = -1;
+                ClearReactions();
                 results.Clear();
                 opponents = Array.Empty<AIBidder>();
                 Opponents = Array.Empty<AIBidder>();
@@ -124,11 +131,17 @@ namespace AuctionGame.Auction
             catalog = fullCatalog;
             auctionTick = 0;
             bidSequence = 0;
+            dialogue = enableAiDialogueLog
+                ? new AuctionDialogue(this, aiDialogueLibrary ? aiDialogueLibrary :
+                    Resources.Load<TextAsset>("Auction/AiDialogue"), randomSeed, aiDialogueCooldown)
+                : null;
 
             var random = new System.Random(randomSeed);
             opponents = new AIBidder[personalities.Length];
             for (int index = 0; index < personalities.Length; index++)
                 opponents[index] = new AIBidder(BidderIds.ForOpponentIndex(index), personalities[index], random.Next());
+            reactionOrder = new AIBidder[opponents.Length];
+            reactionOrderRandom = new System.Random(random.Next());
             Opponents = Array.AsReadOnly(opponents);
 
             processingTime = true;
@@ -155,7 +168,8 @@ namespace AuctionGame.Auction
         public string GetBidderDisplayName(string bidderId) =>
             FindOpponent(bidderId)?.Personality.Name ?? BidderIds.DisplayName(bidderId);
 
-        private void Update() => Tick(Time.deltaTime);
+        // UI clicks are dispatched in Update. Advance the AI clock after those inputs.
+        private void LateUpdate() => Tick(Time.deltaTime);
 
         public void Tick(float deltaTime)
         {
@@ -176,18 +190,10 @@ namespace AuctionGame.Auction
                         _ => ResultDuration
                     };
 
-                    // Expiration wins ties. Equal AI decision times retain opponent order.
-                    AIBidder nextOpponent = null;
-                    if (State == AuctionState.Bidding && enableAutomaticAi)
-                    {
-                        foreach (AIBidder opponent in opponents)
-                        {
-                            if (opponent.NextDecision >= boundary)
-                                continue;
-                            boundary = opponent.NextDecision;
-                            nextOpponent = opponent;
-                        }
-                    }
+                    // A bid or reaction due exactly at expiration does not execute.
+                    bool runReaction = State == AuctionState.Bidding && HasPendingReaction && nextReactionAt < boundary;
+                    if (runReaction)
+                        boundary = nextReactionAt;
 
                     double untilBoundary = boundary - elapsed;
                     if (remainingStep < untilBoundary)
@@ -198,9 +204,11 @@ namespace AuctionGame.Auction
 
                     remainingStep -= untilBoundary;
                     elapsed = boundary;
-                    if (nextOpponent != null)
+                    if (runReaction)
                     {
-                        nextOpponent.Decide(this);
+                        AIBidder candidate = reactionQueue[reactionIndex++];
+                        nextReactionAt = elapsed + ReactionDelay;
+                        candidate.Decide(this);
                         continue;
                     }
 
@@ -212,10 +220,13 @@ namespace AuctionGame.Auction
                                 LogAuctionDebug($"Bidding opened | true value=${CurrentItem.TrueValue} | opening=${CurrentItem.StartingPrice}");
                             foreach (AIBidder opponent in opponents)
                             {
-                                opponent.BeginItem(CurrentItem, DecisionInterval);
+                                opponent.BeginItem(CurrentItem);
                                 if (enableAuctionDebugLog)
                                     opponent.LogEvaluation(this);
                             }
+                            dialogue?.OpenLot(itemIndex + 1, opponents);
+                            ShuffleReactionOrder();
+                            StartReactionQueue("", 0);
                             SetState(AuctionState.Bidding);
                             break;
                         case AuctionState.Bidding:
@@ -247,11 +258,9 @@ namespace AuctionGame.Auction
             if (bidDeadline - elapsed <= AntiSnipingTime)
                 bidDeadline = elapsed + AntiSnipingTime;
 
-            AIBidder bidder = FindOpponent(bidderId);
-            bidder?.RecordAcceptedBid(amount);
-            var bid = new BidRecord(CurrentItem.ItemId, bidderId, amount, elapsed,
-                bidder?.GetBidComment() ?? "", ++bidSequence, increment);
+            var bid = new BidRecord(CurrentItem.ItemId, bidderId, amount, elapsed, ++bidSequence, increment);
             bidHistory.Add(bid);
+            StartReactionQueue(bidderId, elapsed);
             if (enableAuctionDebugLog)
                 LogAuctionDebug($"Bid accepted | {GetBidderDisplayName(bidderId)} | ${previousPrice} → ${amount} | remaining={RemainingTime:F3}s");
             bool wasProcessing = processingTime;
@@ -259,6 +268,7 @@ namespace AuctionGame.Auction
             publishingBid = true;
             try
             {
+                dialogue?.AcceptedBid(bid, opponents);
                 OnBidPlaced?.Invoke(bid);
             }
             finally
@@ -267,25 +277,18 @@ namespace AuctionGame.Auction
                 processingTime = wasProcessing;
             }
 
-            if (bidderId == BidderIds.Player && enableAutomaticAi)
-            {
-                double minDelay = aiPlayerBidMinReactionDelay > 0 && !float.IsInfinity(aiPlayerBidMinReactionDelay)
-                    ? aiPlayerBidMinReactionDelay : 0.5;
-                double maxDelay = aiPlayerBidMaxReactionDelay >= minDelay && !float.IsInfinity(aiPlayerBidMaxReactionDelay)
-                    ? aiPlayerBidMaxReactionDelay : Math.Max(minDelay, 2);
-                foreach (AIBidder opponent in opponents)
-                    opponent.SchedulePlayerBidReaction(elapsed, minDelay, maxDelay);
-            }
             return true;
         }
 
         internal void LogAuctionDebug(string message) =>
             Debug.Log($"[Auction Debug] lot {itemIndex + 1} ({CurrentItem.ItemId}) | tick {auctionTick} | frame {Time.frameCount} | t={BiddingElapsed:F3}s | {message}", this);
 
+        internal void NotifyChickenOut(AIBidder bidder) => dialogue?.ChickenOut(bidder, BiddingElapsed);
+
         public bool CanPlaceBid(string bidderId, int amount)
         {
-            if (State != AuctionState.Bidding || elapsed >= bidDeadline ||
-                elapsed >= MaximumBiddingDuration || string.IsNullOrEmpty(bidderId) ||
+            if (State != AuctionState.Bidding || elapsed >= bidDeadline || elapsed >= MaximumBiddingDuration ||
+                string.IsNullOrEmpty(bidderId) ||
                 bidderId == HighestBidderId || !IsLegalAmount(amount))
                 return false;
 
@@ -353,24 +356,69 @@ namespace AuctionGame.Auction
             _ => 0
         }, 0, 100) / 100d;
 
+        private bool HasPendingReaction => enableAutomaticAi && reactionIndex < reactionQueue.Count;
+        private double ReactionDelay => aiReactionDelay > 0 && !float.IsInfinity(aiReactionDelay)
+            ? aiReactionDelay : DefaultReactionDelay;
+
+        private void ShuffleReactionOrder()
+        {
+            Array.Copy(opponents, reactionOrder, opponents.Length);
+            for (int index = reactionOrder.Length - 1; index > 0; index--)
+            {
+                int swap = reactionOrderRandom.Next(index + 1);
+                (reactionOrder[index], reactionOrder[swap]) = (reactionOrder[swap], reactionOrder[index]);
+            }
+        }
+
+        private void StartReactionQueue(string author, double at)
+        {
+            // Replacing the only queue invalidates all earlier entries; there are no pending callbacks.
+            reactionQueue.Clear();
+            reactionIndex = 0;
+            nextReactionAt = at + ReactionDelay;
+            if (!enableAutomaticAi)
+                return;
+
+            foreach (AIBidder bidder in reactionOrder)
+            {
+                if (bidder.Id == author || bidder.HasChickenedOut)
+                    continue;
+                if (author.Length == 0 && bidder.BidLimit < CurrentItem.StartingPrice)
+                    continue;
+                reactionQueue.Add(bidder);
+            }
+        }
+
+        private void ClearReactions()
+        {
+            reactionQueue.Clear();
+            reactionIndex = 0;
+            nextReactionAt = 0;
+        }
+
         private void CloseItem()
         {
             if (State != AuctionState.Bidding)
                 return;
 
+            ClearReactions();
             var result = new AuctionResult(CurrentItem.ItemId, HighestBidderId, CurrentPrice);
+            AIBidder winner = result.sold ? FindOpponent(result.winnerId) : null;
             if (result.winnerId == BidderIds.Player)
                 Economy.RecordPurchase(CurrentItem, result.finalPrice);
-            else if (result.sold)
-                FindOpponent(result.winnerId).RecordWin(CurrentItem, result.finalPrice);
+            else
+                winner?.RecordWin(CurrentItem, result.finalPrice);
 
             results.Add(result);
+            double settledAt = elapsed;
             SetState(result.sold ? AuctionState.Sold : AuctionState.Unsold);
+            dialogue?.EndLot(result, winner, settledAt);
             OnAuctionEnded?.Invoke(result);
         }
 
         private void AdvanceItem()
         {
+            ClearReactions();
             itemIndex++;
             bidHistory.Clear();
             CurrentPrice = 0;

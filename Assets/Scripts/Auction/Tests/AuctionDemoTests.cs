@@ -95,11 +95,13 @@ namespace AuctionGame.Auction.Tests
             var successfulReport = reportUI.Report;
             Assert.That(successfulReport, Is.Not.Null.And.Not.SameAs(report));
             Assert.That(successfulReport.Succeeded, Is.True);
-            Assert.That(successfulReport.Purchases.Count, Is.EqualTo(2));
-            Assert.That(successfulReport.TotalProfit, Is.EqualTo(365));
+            var profitableLots = level.CreateRun().Where(item => item.TrueValue > item.StartingPrice).ToArray();
+            int expectedProfit = profitableLots.Sum(item => item.TrueValue - item.StartingPrice);
+            Assert.That(successfulReport.Purchases.Count, Is.EqualTo(profitableLots.Length));
+            Assert.That(successfulReport.TotalProfit, Is.EqualTo(expectedProfit));
             var labels = GameObject.Find("SALE Report").GetComponentsInChildren<TMP_Text>().Select(label => label.text);
             Assert.That(labels, Does.Contain("SUCCESS").And.Contain(successfulReport.Purchases[0].ItemName).And.Contain("GOOD BUY")
-                .And.Contain("$150").And.Contain("Total profit  $365")
+                .And.Contain("$" + profitableLots[0].StartingPrice).And.Contain("Total profit  $" + expectedProfit)
                 .And.Contain("Výborne. Dosiahol si požadovaný zisk. Zdá sa, že máš na obchod dobrý nos."));
             Assert.That(GameObject.Find("Retry Button"), Is.Null);
 
@@ -117,13 +119,12 @@ namespace AuctionGame.Auction.Tests
         {
             Click("Auction Newspaper");
             Assert.That(newspaper.IsOpen, Is.True);
-            auction.Tick(5);
+            auction.Tick(3.5f);
             Assert.That(auction.State, Is.EqualTo(AuctionState.Bidding));
-            Assert.That(auction.BiddingElapsed, Is.GreaterThanOrEqualTo(3));
-            var nextDecision = typeof(AIBidder).GetProperty("NextDecision",
+            Assert.That(auction.BiddingElapsed, Is.EqualTo(1.5));
+            var nextReaction = typeof(AuctionManager).GetField("nextReactionAt",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            foreach (AIBidder bidder in auction.Opponents)
-                Assert.That(nextDecision.GetValue(bidder), Is.EqualTo(6d));
+            Assert.That(nextReaction.GetValue(auction), Is.EqualTo(3d));
             Click("Close Newspaper");
         }
 
@@ -134,7 +135,7 @@ namespace AuctionGame.Auction.Tests
             config.ApplyModifiedPropertiesWithoutUndo();
             auction.OnStateChanged += state =>
             {
-                if (state == AuctionState.Bidding && auction.CurrentItem.ItemId is "clay-tablet" or "blue-horse")
+                if (state == AuctionState.Bidding && auction.CurrentItem.TrueValue > auction.CurrentItem.StartingPrice)
                     Assert.That(auction.TryPlaceBid(BidderIds.Player, auction.CurrentItem.StartingPrice), Is.True);
             };
         }

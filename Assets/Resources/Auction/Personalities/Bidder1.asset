@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Bidder1
   m_EditorClassIdentifier: AuctionGame.Auction::AuctionGame.Auction.AIPersonality
   bidderName: Collector
+  dialogueProfileId: collector
   startingBudget: 600
   overestimateBias: 55
   intimidationResistance: 70
@@ -53,4 +54,3 @@ MonoBehaviour:
   - category: 11
     interest: 10
     accuracy: 65
-  bidComments: []

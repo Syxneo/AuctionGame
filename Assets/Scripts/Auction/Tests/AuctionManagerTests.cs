@@ -156,84 +156,135 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction.Opponents[0].EffectiveAccuracy, Is.Zero);
         }
 
-        [Test]
-        public void ScheduledDecisionsOccurEveryThreeSeconds()
+        [TestCase(1f)]
+        [TestCase(1.5f)]
+        public void OpeningAndReactionQueuesUseTheConfiguredDelay(float delay)
         {
-            auction = CreateAuction(automaticAi: true);
+            auction = CreateAuction(automaticAi: true, reactionDelay: delay == 1.5f ? null : delay);
             ConfigureBidders(100, 100, 100);
             BeginBidding();
-            auction.Tick(2.5f);
+            var order = ReadReactionOrder();
+            auction.Tick(delay - 0.25f);
             Assert.That(auction.BidHistory, Is.Empty);
-            auction.Tick(0.5f);
-            Assert.That(auction.BidHistory.Select(bid => bid.amount), Is.EqualTo(new[] { 100, 110, 120 }));
-            Assert.That(auction.BidHistory.All(bid => bid.biddingElapsed == 3), Is.True);
-            auction.Tick(3);
-            Assert.That(auction.BidHistory.Skip(3).Select(bid => bid.biddingElapsed), Is.EqualTo(new[] { 6d, 6d, 6d }));
+            auction.Tick(0.25f);
+            Assert.That(auction.BidHistory.Single().bidderId, Is.EqualTo(order[0].Id));
+            Assert.That(auction.BidHistory.Single().amount, Is.EqualTo(100));
+            auction.Tick(3 * delay);
+            Assert.That(auction.BidHistory.Select(bid => bid.biddingElapsed),
+                Is.EqualTo(Enumerable.Range(1, 4).Select(index => (double)index * delay)));
+            Assert.That(auction.BidHistory.Select(bid => bid.bidderId),
+                Is.EqualTo(new[] { order[0].Id, order[1].Id, order[0].Id, order[1].Id }));
+            Assert.That(auction.BidHistory.Select(bid => bid.amount), Is.EqualTo(new[] { 100, 110, 120, 130 }));
         }
 
         [Test]
-        public void PlayerBidDelaysAiDecisionsAndResetsTheirSchedule()
+        public void DeclinedOpeningAdvancesInShuffledOrderAndDoesNotRepeat()
+        {
+            auction = CreateAuction(automaticAi: true);
+            ConfigureBidders(0, 100, 100);
+            BeginBidding();
+            var order = ReadReactionOrder();
+            var settings = new SerializedObject(order[1].Personality);
+            SetProfile(settings, ItemCategory.Historical, 100, 100);
+            // Effective Interest is fixed at reveal, so apply the changed profile on a fresh run.
+            auction.Tick(18);
+            Assert.That(auction.Results.Single().sold, Is.False);
+            Assert.That(auction.RestartAuction(), Is.True);
+            auction.Tick(3.75f);
+            Assert.That(auction.BidHistory, Is.Empty);
+            auction.Tick(0.25f);
+            Assert.That(auction.BidHistory.Single().bidderId, Is.EqualTo(order[1].Id));
+            Assert.That(auction.BidHistory.Single().biddingElapsed, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void PlayerBidReplacesPendingQueueButInvalidBidDoesNot()
         {
             auction = CreateAuction(automaticAi: true);
             ConfigureBidders(100, 100, 100);
             BeginBidding();
-            auction.Tick(1);
+            auction.Tick(0.75f);
             Assert.That(auction.TryPlaceBid(BidderIds.Player, 110), Is.False);
-            Assert.That(auction.BidHistory, Is.Empty);
             Assert.That(auction.TryPlaceBid(BidderIds.Player, 100), Is.True);
-            Assert.That(auction.BidHistory.Count, Is.EqualTo(1));
             auction.Tick(0.25f);
             Assert.That(auction.BidHistory.Count, Is.EqualTo(1));
-            auction.Tick(1.75f);
-            Assert.That(auction.BidHistory.Select(bid => bid.amount), Is.EqualTo(new[] { 100, 110, 120, 130 }));
-            var reactionTimes = auction.BidHistory.Skip(1).Select(bid => bid.biddingElapsed).ToArray();
-            Assert.That(reactionTimes.All(time => time >= 1.5 && time <= 3), Is.True);
-            Assert.That(reactionTimes, Is.Unique);
-            auction.Tick(1);
+            auction.Tick(0.75f);
+            Assert.That(auction.BidHistory.Last().biddingElapsed, Is.EqualTo(1.75));
+            auction.Tick(0.75f);
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 115), Is.False);
+            auction.Tick(0.25f);
+            Assert.That(auction.BidHistory.Last().biddingElapsed, Is.EqualTo(2.75));
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 130), Is.True);
+            auction.Tick(0.75f);
             Assert.That(auction.BidHistory.Count, Is.EqualTo(4));
-            auction.Tick(2);
-            Assert.That(auction.BidHistory[4].biddingElapsed, Is.EqualTo(reactionTimes[0] + 3));
+            auction.Tick(0.25f);
+            Assert.That(auction.BidHistory.Last().biddingElapsed, Is.EqualTo(3.75));
         }
 
         [Test]
-        public void PlayerBidDoesNotForceAnAiResponseWhenInterestFails()
+        public void DeclinedReactionsAreExhaustedWithoutPolling()
         {
             auction = CreateAuction(automaticAi: true);
             ConfigureBidders(0, 100, 100);
             BeginBidding();
             Assert.That(auction.TryPlaceBid(BidderIds.Player, 100), Is.True);
-            auction.Tick(2);
+            auction.Tick(14);
             Assert.That(auction.BidHistory.Select(bid => bid.bidderId), Is.EqualTo(new[] { BidderIds.Player }));
+            Assert.That(typeof(AuctionManager).GetField("reactionIndex", BindingFlags.Instance | BindingFlags.NonPublic)
+                .GetValue(auction), Is.EqualTo(3));
+            auction.Tick(1);
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Sold));
+        }
+
+        private AIBidder[] ReadReactionOrder() =>
+            ((AIBidder[])typeof(AuctionManager).GetField("reactionOrder", BindingFlags.Instance | BindingFlags.NonPublic)
+                .GetValue(auction)).ToArray();
+
+        [Test]
+        public void NormalDeadlineCancelsAReactionDueAtTheSameTime()
+        {
+            auction = CreateAuction(automaticAi: true);
+            ConfigureBidders(100, 100, 100);
+            BeginBidding();
+            typeof(AuctionManager).GetField("nextReactionAt", BindingFlags.Instance | BindingFlags.NonPublic)
+                .SetValue(auction, 15d);
+            auction.Tick(15);
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Unsold));
+            Assert.That(auction.BidHistory, Is.Empty);
         }
 
         [Test]
-        public void LastBidAllowsStandardIncrementAboveEstimateAndIsOnlyConsumedOnAcceptance()
+        public void BidderCanMatchEstimateButCannotBidAboveIt()
         {
             auction = CreateAuction(value: 100);
             ConfigureBidders(100, 100, 100);
             BeginBidding();
             var bidder = auction.Opponents[0];
             Assert.That(auction.TryPlaceBid(bidder.Id, 100), Is.True);
-            Assert.That(bidder.HasUsedLastBid, Is.False);
-            Assert.That(auction.TryPlaceBid(BidderIds.Player, 150), Is.True);
-            Assert.That(auction.TryPlaceBid(bidder.Id, 151), Is.False);
-            Assert.That(bidder.HasUsedLastBid, Is.False);
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 110), Is.True);
+            Assert.That(auction.TryPlaceBid(bidder.Id, 120), Is.False);
             Decide(bidder);
-            Assert.That(auction.CurrentPrice, Is.EqualTo(160));
-            Assert.That(bidder.HasUsedLastBid, Is.True);
-            Assert.That(auction.TryPlaceBid(BidderIds.Player, 170), Is.True);
-            Assert.That(auction.TryPlaceBid(bidder.Id, 180), Is.False);
-            auction.Tick(17);
-            Assert.That(auction.RestartAuction(), Is.True);
-            auction.Tick(2);
-            Assert.That(auction.Opponents[0].HasUsedLastBid, Is.False);
+            Assert.That(auction.CurrentPrice, Is.EqualTo(110));
+            Assert.That(bidder.AvailableBudget, Is.EqualTo(600));
+        }
+
+        [Test]
+        public void BidderCannotOpenAboveItsEstimate()
+        {
+            auction = CreateAuction(value: 90);
+            ConfigureBidders(100, 100, 100);
+            BeginBidding();
+            var bidder = auction.Opponents[0];
+            Assert.That(auction.TryPlaceBid(bidder.Id, 100), Is.False);
+            Decide(bidder);
+            Assert.That(auction.BidHistory, Is.Empty);
         }
 
         [TestCase(BidderIds.Player)]
         [TestCase(BidderIds.Trickster)]
         public void FailedInterestCanWithdrawFromPlayerOrAiBidAndResetsNextLot(string opposingBidder)
         {
-            auction = CreateAuction(count: 2, value: 100);
+            auction = CreateAuction(count: 2);
             ConfigureBidders(0, 100, 0);
             SetIntimidation("highBidIntimidation", 100);
             BeginBidding();
@@ -245,7 +296,6 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction.TryPlaceBid(opposingBidder, 150), Is.True);
             Decide(bidder);
             Assert.That(bidder.HasChickenedOut, Is.True);
-            Assert.That(bidder.HasUsedLastBid, Is.False);
             Assert.That(auction.TryPlaceBid(bidder.Id, 160), Is.False);
             Assert.That(bidder.AvailableBudget, Is.EqualTo(600));
             auction.Tick(19);
@@ -298,9 +348,9 @@ namespace AuctionGame.Auction.Tests
         }
 
         [Test]
-        public void UnaffordableBidDoesNotConsumeLastBidOrRollIntimidation()
+        public void UnaffordableBidDoesNotRollIntimidation()
         {
-            auction = CreateAuction(value: 100);
+            auction = CreateAuction();
             ConfigureBidders(0, 100, 0);
             var profile = GetPersonalitySettings(0);
             profile.FindProperty("startingBudget").intValue = 149;
@@ -312,7 +362,6 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction.TryPlaceBid(BidderIds.Player, 150), Is.True);
             Decide(bidder);
             Assert.That(bidder.HasChickenedOut, Is.False);
-            Assert.That(bidder.HasUsedLastBid, Is.False);
             Assert.That(auction.BidHistory.Count, Is.EqualTo(2));
         }
 
@@ -360,7 +409,8 @@ namespace AuctionGame.Auction.Tests
             Assert.That(messages.Count(message => message.Contains("evaluation | estimate=") && message.Contains("Accuracy=")), Is.EqualTo(3));
             Assert.That(messages.Any(message => message.Contains("Bid accepted | You") && message.Contains("$100")), Is.True);
             Assert.That(messages.Any(message => message.Contains("tick 2") && message.Contains("t=") &&
-                message.Contains("attempting") && message.Contains("Interest roll=")), Is.True);
+                message.Contains("attempting") && message.Contains("Bid chance=100%") &&
+                message.Contains("Interest roll=")), Is.True);
         }
 
         [Test]
@@ -483,7 +533,7 @@ namespace AuctionGame.Auction.Tests
         public void FixedSeedProducesIdenticalBidsAndResultsAcrossStepSizes()
         {
             var large = RunAiAuction(1000);
-            var small = RunAiAuction(0.125f);
+            var small = RunAiAuction(0.125f, dialogueEnabled: false);
             Assert.That(large.bids.Count, Is.GreaterThan(6));
             Assert.That(large.bids, Is.EqualTo(small.bids));
             Assert.That(large.results, Is.EqualTo(small.results));
@@ -491,33 +541,194 @@ namespace AuctionGame.Auction.Tests
         }
 
         [Test]
-        public void TricksterCommentIsPublishedWithTheAcceptedBid()
+        public void OpeningDialogueIgnoresPriceEstimateAndBudget()
         {
-            BeginBidding();
-            Assert.That(auction.TryPlaceBid(BidderIds.Trickster, 100), Is.True);
-            Assert.That(auction.BidHistory.Single().comment, Is.Not.Empty);
-        }
-
-        [TestCase(14.75, true)]
-        [TestCase(15, false)]
-        public void AiCanExtendBiddingBeforeDeadlineButLosesExactTie(double decisionTime, bool expectedBid)
-        {
-            auction = CreateAuction(automaticAi: true);
-            ConfigureBidders(100, 100, 100);
-            BeginBidding();
-            // Force only the deadline-adjacent decision.
-            const BindingFlags privateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
-            var opponents = (Array)typeof(AuctionManager).GetField("opponents", privateInstance).GetValue(auction);
-            for (int index = 0; index < opponents.Length; index++)
+            List<string> OpenWith(int value, int price, int budget)
             {
-                object opponent = opponents.GetValue(index);
-                opponent.GetType().GetProperty("NextDecision", privateInstance).SetValue(opponent, index == 0 ? decisionTime : 30d);
+                auction = CreateAuction(value: value);
+                ConfigureBidders(75, 100, 100);
+                var profile = GetPersonalitySettings(0);
+                profile.FindProperty("startingBudget").intValue = budget;
+                profile.ApplyModifiedPropertiesWithoutUndo();
+                return CaptureDialogue(() =>
+                {
+                    Assert.That(auction.StartAuction(), Is.True);
+                    var item = new SerializedObject(auction.CurrentItem);
+                    item.FindProperty("startingPrice").intValue = price;
+                    item.ApplyModifiedPropertiesWithoutUndo();
+                    auction.Tick(2);
+                });
             }
 
-            auction.Tick(15);
-            Assert.That(auction.BidHistory.Count, Is.EqualTo(expectedBid ? 1 : 0));
-            Assert.That(auction.State, Is.EqualTo(expectedBid ? AuctionState.Bidding : AuctionState.Unsold));
-            Assert.That(auction.RemainingTime, Is.EqualTo(expectedBid ? 2.75f : 0));
+            var affordable = OpenWith(400, 100, 600);
+            var blocked = OpenWith(0, 200, 0);
+            Assert.That(affordable.Count, Is.EqualTo(3));
+            Assert.That(blocked, Is.EqualTo(affordable));
+        }
+
+        [TestCase(0, 24, "Tento predmet ma vôbec neoslovuje.", "Toto je nuda aj na moje pomery.", "Predmet má pre mňa minimálnu prioritu.")]
+        [TestCase(25, 49, "Nie je to práve môj vkus.", "Heh, už som videl aj zaujímavejšie veci.", "Môj záujem o tento predmet je obmedzený.")]
+        [TestCase(50, 74, "Tento kus by moju zbierku pekne doplnil.", "Toto by mohla byť celkom dobrá zábava.", "Predmet zodpovedá mojim preferenciám.")]
+        [TestCase(75, 100, "Takýto predmet vo svojej zbierke jednoducho chcem.", "Okej, toto sa mi fakt páči.", "Tento predmet ma výrazne zaujíma.")]
+        public void OpeningDialogueInterestBandsUseThreeVariantsPerBidder(int low, int high,
+            string collector, string trickster, string analyst)
+        {
+            string[] OpenLots(int interest)
+            {
+                auction = CreateAuction(count: 4);
+                ConfigureBidders(interest, 100, 100);
+                return CaptureDialogue(() =>
+                {
+                    BeginBidding();
+                    auction.Tick(1000);
+                }).Where(line => line.Contains("[OPENING]")).ToArray();
+            }
+
+            var lowLines = OpenLots(low);
+            Assert.That(OpenLots(high), Is.EqualTo(lowLines));
+            Assert.That(lowLines.Length, Is.EqualTo(12));
+            foreach (var (name, example) in new[] { ("Collector", collector), ("Trickster", trickster), ("Analyst", analyst) })
+            {
+                var lines = lowLines.Where(line => line.Contains($"[{name}]")).Select(line => line.Substring(line.IndexOf('„'))).ToArray();
+                Assert.That(lines.Take(3), Is.Unique);
+                Assert.That(lines.Take(3), Does.Contain($"„{example}“"));
+                Assert.That(lines[3], Is.Not.EqualTo(lines[2]));
+            }
+        }
+
+        [Test]
+        public void DialogueOpeningAndSaleShuffleBagAreIndependentAcrossLots()
+        {
+            auction = CreateAuction(count: 5);
+            var messages = CaptureDialogue(() =>
+            {
+                BeginBidding();
+                auction.Tick(1000);
+                auction.Tick(1000);
+            });
+            Assert.That(messages.Count(line => line.Contains("[OPENING]")), Is.EqualTo(15));
+            var sales = messages.Where(line => line.Contains("[Dražobník] [SALE-02]"))
+                .Select(line => line.Substring(line.IndexOf('„'))).ToArray();
+            Assert.That(sales.Length, Is.EqualTo(5));
+            Assert.That(sales.Take(4), Is.Unique);
+            Assert.That(sales[4], Is.Not.EqualTo(sales[3]));
+        }
+
+        [Test]
+        public void DialogueUsesFinalWinnerBudgetAndAnnouncesPlayerSalesSeparately()
+        {
+            auction = CreateAuction(count: 2);
+            ConfigureBidders(100, 100, 100);
+            var profile = GetPersonalitySettings(0);
+            profile.FindProperty("startingBudget").intValue = 110;
+            profile.ApplyModifiedPropertiesWithoutUndo();
+            var messages = CaptureDialogue(() =>
+            {
+                BeginBidding();
+                Assert.That(auction.TryPlaceBid(BidderIds.Collector, 100), Is.True);
+                auction.Tick(19);
+                Assert.That(auction.Opponents[0].AvailableBudget, Is.EqualTo(10));
+                Assert.That(auction.TryPlaceBid(BidderIds.Player, 100), Is.True);
+                auction.Tick(17);
+            });
+            Assert.That(messages.Count(line => line.Contains("[Collector] [WIN-04]")), Is.EqualTo(1));
+            Assert.That(messages.Count(line => line.Contains("[Dražobník] [SALE-01]")), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void DialogueOnlyConfirmsWithdrawalAfterChickenOut()
+        {
+            ConfigureBidders(0, 100, 0);
+            SetIntimidation("highBidIntimidation", 100);
+            var messages = CaptureDialogue(() =>
+            {
+                BeginBidding();
+                var bidder = auction.Opponents[0];
+                Decide(bidder);
+                Assert.That(auction.TryPlaceBid(BidderIds.Trickster, 100), Is.True);
+                Decide(bidder);
+                Assert.That(bidder.HasChickenedOut, Is.False);
+                Assert.That(auction.TryPlaceBid(BidderIds.Player, 150), Is.True);
+                Decide(bidder);
+                Decide(bidder);
+            });
+            Assert.That(messages.Count(line => line.Contains("[Collector] [WD-01]")), Is.EqualTo(1));
+            Assert.That(messages.Any(line => line.Contains("[WD-02]") || line.Contains("[WD-03]")), Is.False);
+        }
+
+        [TestCase(600, "BR-04")]
+        [TestCase(105, "BR-04/05")]
+        public void DialogueReportsTheNextBidLimitOnceWithoutDeclaringWithdrawal(int budget, string category)
+        {
+            auction = CreateAuction(value: 100);
+            ConfigureBidders(100, 100, 100);
+            var profile = GetPersonalitySettings(0);
+            profile.FindProperty("startingBudget").intValue = budget;
+            profile.ApplyModifiedPropertiesWithoutUndo();
+            var messages = CaptureDialogue(() =>
+            {
+                BeginBidding();
+                Assert.That(auction.TryPlaceBid(BidderIds.Player, 110), Is.False);
+                Assert.That(auction.TryPlaceBid(BidderIds.Player, 100), Is.True);
+                Decide(auction.Opponents[0]);
+                auction.Tick(5);
+            });
+            Assert.That(messages.Count(line => line.Contains("[BR-")), Is.EqualTo(1));
+            Assert.That(messages.Any(line => line.Contains($"[Collector] [{category}]")), Is.True);
+            Assert.That(messages.Any(line => line.Contains("[WD-")), Is.False);
+        }
+
+        private static List<string> CaptureDialogue(Action action)
+        {
+            var messages = new List<string>();
+            void Capture(string message, string stackTrace, LogType type)
+            {
+                if (message.StartsWith("[AI Dialogue]", StringComparison.Ordinal))
+                    messages.Add(message);
+            }
+
+            Application.logMessageReceived += Capture;
+            try
+            {
+                action();
+                return messages;
+            }
+            finally
+            {
+                Application.logMessageReceived -= Capture;
+            }
+        }
+
+        [TestCase(0.5f)]
+        [TestCase(1.5f)]
+        public void HardCapCancelsReactionsDueAtOrAfterThirtySeconds(float delay)
+        {
+            ConfigureBidders(100, 100, 100);
+            BeginBidding();
+            auction.Tick(14);
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 100), Is.True);
+            for (int index = 1; index <= 7; index++)
+            {
+                auction.Tick(2);
+                string bidder = index % 2 == 1 ? BidderIds.Collector : BidderIds.Player;
+                Assert.That(auction.TryPlaceBid(bidder, 100 + index * 10), Is.True);
+            }
+
+            auction.Tick(1.5f);
+            var settings = new SerializedObject(auction);
+            settings.FindProperty("enableAutomaticAi").boolValue = true;
+            settings.FindProperty("aiReactionDelay").floatValue = delay;
+            settings.ApplyModifiedPropertiesWithoutUndo();
+            Assert.That(auction.TryPlaceBid(BidderIds.Player, 180), Is.True);
+            int acceptedBids = auction.BidHistory.Count;
+            auction.Tick(0.5f);
+            Assert.That(auction.State, Is.EqualTo(AuctionState.Sold));
+            Assert.That(auction.RemainingTime, Is.Zero);
+            Assert.That(auction.TryPlaceBid(BidderIds.Trickster, 190), Is.False);
+            Assert.That(auction.BidHistory.Count, Is.EqualTo(acceptedBids));
+            Assert.That(auction.Results.Single().finalPrice, Is.EqualTo(180));
+            auction.Tick(100);
+            Assert.That(auction.Results.Count, Is.EqualTo(1));
         }
 
         [Test]
@@ -640,9 +851,13 @@ namespace AuctionGame.Auction.Tests
             auction.Tick(2);
         }
 
-        private (List<(string, string, int, double)> bids, string[] results, List<int> estimates) RunAiAuction(float step)
+        private (List<(string, string, int, double)> bids, string[] results, List<int> estimates) RunAiAuction(
+            float step, bool dialogueEnabled = true)
         {
             var manager = CreateAuction(count: 6, automaticAi: true);
+            var settings = new SerializedObject(manager);
+            settings.FindProperty("enableAiDialogueLog").boolValue = dialogueEnabled;
+            settings.ApplyModifiedPropertiesWithoutUndo();
             var bids = new List<(string, string, int, double)>();
             var estimates = new List<int>();
             manager.OnBidPlaced += bid => bids.Add((bid.itemId, bid.bidderId, bid.amount, bid.biddingElapsed));
@@ -659,13 +874,16 @@ namespace AuctionGame.Auction.Tests
             return (bids, manager.Results.Select(result => $"{result.itemId}/{result.winnerId}/{result.finalPrice}").ToArray(), estimates);
         }
 
-        private AuctionManager CreateAuction(int count = 1, int budget = 600, int value = 1000, bool automaticAi = false)
+        private AuctionManager CreateAuction(int count = 1, int budget = 600, int value = 1000,
+            bool automaticAi = false, float? reactionDelay = 1)
         {
             var gameObject = new GameObject("Auction test");
             objects.Add(gameObject);
             var manager = gameObject.AddComponent<AuctionManager>();
             var config = new SerializedObject(manager);
             config.FindProperty("enableAutomaticAi").boolValue = automaticAi;
+            if (reactionDelay.HasValue)
+                config.FindProperty("aiReactionDelay").floatValue = reactionDelay.Value;
             var items = config.FindProperty("items");
             items.arraySize = count;
             for (int index = 0; index < count; index++)

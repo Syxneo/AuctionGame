@@ -1,0 +1,481 @@
+{
+  "durationSeconds": {
+    "opening": 3,
+    "ordinaryReaction": 2.5,
+    "nearLimit": 3,
+    "withdrawal": 3.5,
+    "winnerOrSale": 4
+  },
+  "profiles": [
+    {
+      "id": "collector",
+      "groups": [
+        {
+          "key": "interest.very-low",
+          "lines": [
+            "Tento predmet ma vôbec neoslovuje.",
+            "V mojej zbierke si ho neviem predstaviť.",
+            "Na tento kus sa viem pozrieť aj bez obdivu."
+          ]
+        },
+        {
+          "key": "interest.low",
+          "lines": [
+            "Nie je to práve môj vkus.",
+            "Má čosi do seba, no veľmi ma neláka.",
+            "V mojej zbierke by to nebol výrazný kus."
+          ]
+        },
+        {
+          "key": "interest.high",
+          "lines": [
+            "Tento kus by moju zbierku pekne doplnil.",
+            "Tento predmet by si u mňa našiel miesto.",
+            "Na takýto kus mám istú slabosť."
+          ]
+        },
+        {
+          "key": "interest.very-high",
+          "lines": [
+            "Takýto predmet vo svojej zbierke jednoducho chcem.",
+            "Tomuto kusu by som vo svojej zbierke vyhradil čestné miesto.",
+            "Presne takýto kus hľadám do svojej zbierky."
+          ]
+        },
+        {
+          "key": "BR-01",
+          "lines": [
+            "Cena ma zatiaľ nijako neznepokojuje.",
+            "Podľa môjho odhadu je to stále priaznivá cena.",
+            "Stále prijateľná cena za takýto kus."
+          ]
+        },
+        {
+          "key": "BR-02",
+          "lines": [
+            "Začína to byť drahší vkus, než som plánoval.",
+            "Krásny kus. Už však nie taká krásna suma.",
+            "Táto cena už vyžaduje rešpekt."
+          ]
+        },
+        {
+          "key": "BR-03",
+          "lines": [
+            "Ešte trochu a ďalšia ponuka bude nad mojím odhadom.",
+            "Moja trpezlivosť má hranice. Rovnako ako hodnota predmetu.",
+            "Krása má svoju cenu. Toto je už takmer priveľa."
+          ]
+        },
+        {
+          "key": "BR-04",
+          "lines": [
+            "Ďalšia ponuka je už nad mojím odhadom.",
+            "Tak vysoko tento kus neoceňujem.",
+            "Na ďalšiu ponuku by som musel prekročiť svoj odhad."
+          ]
+        },
+        {
+          "key": "BR-05",
+          "lines": [
+            "Na ďalšiu ponuku mi rozpočet nestačí.",
+            "Ďalší príhoz je nad mojou finančnou rezervou.",
+            "Moje dostupné prostriedky ďalšiu ponuku nepokryjú."
+          ]
+        },
+        {
+          "key": "BR-04/05",
+          "lines": [
+            "Ďalšia ponuka by presiahla môj odhad aj rozpočet.",
+            "Nasledujúcu sumu nepodporuje môj odhad ani moja rezerva.",
+            "Pri ďalšom príhoze narážam na odhad aj na rozpočet."
+          ]
+        },
+        {
+          "key": "WD-01",
+          "lines": [
+            "Takéto správanie je pod moju úroveň. Končím.",
+            "Moja zbierka nepotrebuje predmet za cenu mojej dôstojnosti.",
+            "Nechám vám ho. Nie každý má môj vkus."
+          ]
+        },
+        {
+          "key": "WD-02",
+          "lines": [
+            "Tá cena je nad mojím odhadom. Odstupujem.",
+            "Cenovú hranicu neprekročím. Končím.",
+            "Za túto cenu sa už dražby nezúčastním."
+          ]
+        },
+        {
+          "key": "WD-03",
+          "lines": [
+            "Môj rozpočet ďalší príhoz nepokryje. Odstupujem.",
+            "Rozpočet rozhodol. Končím.",
+            "Tento kus moju zbierku dnes nedoplní. Odstupujem pre nedostatok prostriedkov."
+          ]
+        },
+        {
+          "key": "WD-04",
+          "lines": [
+            "Cena je nad mojím odhadom aj rozpočtom. Odstupujem.",
+            "Odhad aj rozpočet hovoria dosť. Končím.",
+            "Obe hranice sú prekročené. Ďalej nepokračujem."
+          ]
+        },
+        {
+          "key": "WIN-01",
+          "lines": [
+            "Výborný prírastok do zbierky. A môj účet si to sotva všimol.",
+            "Konečne je tam, kam patrí. Moje možnosti zostávajú veľkorysé.",
+            "Vkus sa nedá kúpiť. Tento predmet našťastie áno a rezerva zostáva veľká."
+          ]
+        },
+        {
+          "key": "WIN-02",
+          "lines": [
+            "Kúsok je môj. A na ďalšie poklady ešte zostalo.",
+            "Moja zbierka rastie. Rozpočet to zatiaľ zvláda.",
+            "Výborné. Trochu to stálo, ale ešte mám rezervu."
+          ]
+        },
+        {
+          "key": "WIN-03",
+          "lines": [
+            "Je môj. Účtovník bude potrebovať dovolenku.",
+            "Kus je môj. Teraz budem musieť dávať na rozpočet pozor.",
+            "Moja zbierka je bohatšia. Ja o dosť menej."
+          ]
+        },
+        {
+          "key": "WIN-04",
+          "lines": [
+            "Je môj. Teraz už len predať zvyšok nábytku.",
+            "Moja zbierka získala poklad. Môj účet utrpel tragédiu.",
+            "Vlastníctvo je večné. Peniaze očividne nie."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trickster",
+      "groups": [
+        {
+          "key": "interest.very-low",
+          "lines": [
+            "Toto je nuda aj na moje pomery.",
+            "S týmto by som sa nudil skôr, než by som to rozbalil.",
+            "Heh, na tomto ma nebaví skoro nič."
+          ]
+        },
+        {
+          "key": "interest.low",
+          "lines": [
+            "Heh, už som videl aj zaujímavejšie veci.",
+            "Možno by ma to zabavilo na chvíľu.",
+            "Niečo na tom je, ale veľa smiechu z toho nebude."
+          ]
+        },
+        {
+          "key": "interest.high",
+          "lines": [
+            "Toto by mohla byť celkom dobrá zábava.",
+            "Heh, s týmto by som sa vedel zabaviť.",
+            "Tento kúsok mi začína byť sympatický."
+          ]
+        },
+        {
+          "key": "interest.very-high",
+          "lines": [
+            "Okej, toto sa mi fakt páči.",
+            "Heh, tak z tohto by bola parádna hračka.",
+            "Tak toto chcem. Už len pre tú zábavu."
+          ]
+        },
+        {
+          "key": "BR-01",
+          "lines": [
+            "Heh, stále celkom lacná zábava.",
+            "No tak, tá cena ma ešte nevystrašila.",
+            "Za tieto peniaze? Stále celkom pekná hra."
+          ]
+        },
+        {
+          "key": "BR-02",
+          "lines": [
+            "Heh, niekto tu začína brať zábavu vážne.",
+            "Tá cenovka už začína mať zuby.",
+            "Ešte to nie je tragédia. Ale už sa pripravuje."
+          ]
+        },
+        {
+          "key": "BR-03",
+          "lines": [
+            "Heh, ešte kúsok a cena prekročí môj odhad.",
+            "Tá cena už nie je vtipná. A to je odo mňa čo povedať.",
+            "Na ďalšie zdražovanie mi v odhade ostáva len kúsok miesta."
+          ]
+        },
+        {
+          "key": "BR-04",
+          "lines": [
+            "Ďalší príhoz je nad tým, čo to podľa mňa stojí.",
+            "Heh, tá ďalšia suma už je nad mojím odhadom.",
+            "V mojom odhade na ďalší príhoz nie je miesto."
+          ]
+        },
+        {
+          "key": "BR-05",
+          "lines": [
+            "Na ďalší príhoz mi peňaženka nedosiahne.",
+            "Heh, na nasledujúcu ponuku mi chýbajú peniaze.",
+            "Ďalšia suma je väčšia než moja rezerva."
+          ]
+        },
+        {
+          "key": "BR-04/05",
+          "lines": [
+            "Ďalšia suma je nad mojím odhadom aj obsahom peňaženky.",
+            "Na ďalší príhoz nestačí peňaženka ani odhad.",
+            "Heh, ďalšiu sumu nezvládne môj odhad ani účet."
+          ]
+        },
+        {
+          "key": "WD-01",
+          "lines": [
+            "Heh... dobre, dobre. Túto hru už hrať nebudem.",
+            "Okej, toto prestalo byť vtipné. Som vonku.",
+            "Vyhrali ste. Aspoň zatiaľ. Ja končím."
+          ]
+        },
+        {
+          "key": "WD-02",
+          "lines": [
+            "Ďalšia suma je nad mojím odhadom. Končím.",
+            "Pre mňa to toľko nestojí. Som vonku.",
+            "Heh, cenový vtip sa skončil. Odstupujem."
+          ]
+        },
+        {
+          "key": "WD-03",
+          "lines": [
+            "Peňaženka už na ďalší príhoz nestačí. Končím.",
+            "Na ďalšiu ponuku nemám. Som vonku.",
+            "Heh, peniaze rozhodli. Odstupujem."
+          ]
+        },
+        {
+          "key": "WD-04",
+          "lines": [
+            "Nad odhadom aj nad rozpočtom. Som vonku.",
+            "Odhad aj peňaženka kričia dosť. Končím.",
+            "Heh, ani odhad, ani účet to nepokryje. Odstupujem."
+          ]
+        },
+        {
+          "key": "WIN-01",
+          "lines": [
+            "Heh, mám novú hračku. A ešte dosť peňazí na problémy.",
+            "Moje! A peňaženka ešte ani nezačala kričať.",
+            "To bola zábava. Na ďalšiu mi zostala veľká rezerva."
+          ]
+        },
+        {
+          "key": "WIN-02",
+          "lines": [
+            "Heh, mám to! A stále si môžem dovoliť ďalšiu hlúposť.",
+            "Nová hračka, menej peňazí. Stále mám rezervu.",
+            "Peňaženka schudla, ale ešte žije."
+          ]
+        },
+        {
+          "key": "WIN-03",
+          "lines": [
+            "Heh, vyhral som. Moja peňaženka prehrala.",
+            "Mám to! Teraz už budem musieť trochu šetriť.",
+            "Stálo to dosť. Mám nový problém a malú rezervu."
+          ]
+        },
+        {
+          "key": "WIN-04",
+          "lines": [
+            "Heh, vyhral som! Má niekto drobné na autobus?",
+            "Mám to. A teraz som oficiálne chudobný génius.",
+            "Mám novú hračku a skoro prázdnu peňaženku."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "analyst",
+      "groups": [
+        {
+          "key": "interest.very-low",
+          "lines": [
+            "Predmet má pre mňa minimálnu prioritu.",
+            "Tento predmet ma zaujíma len okrajovo.",
+            "Môj záujem o tento variant je zanedbateľný."
+          ]
+        },
+        {
+          "key": "interest.low",
+          "lines": [
+            "Môj záujem o tento predmet je obmedzený.",
+            "Predmet je v mojom výbere skôr okrajový.",
+            "Tento variant má v mojom výbere nižšiu prioritu."
+          ]
+        },
+        {
+          "key": "interest.high",
+          "lines": [
+            "Predmet zodpovedá mojim preferenciám.",
+            "Tento variant patrí medzi položky, ktoré ma zaujímajú.",
+            "Predmet má v mojom výbere vysokú prioritu."
+          ]
+        },
+        {
+          "key": "interest.very-high",
+          "lines": [
+            "Tento predmet ma výrazne zaujíma.",
+            "Tento variant patrí medzi moje najvyššie priority.",
+            "Predmet veľmi dobre zodpovedá tomu, čo hľadám."
+          ]
+        },
+        {
+          "key": "BR-01",
+          "lines": [
+            "Aktuálna cena zostáva výrazne pod mojím odhadom.",
+            "Cenová rezerva je stále dostatočná.",
+            "Pomer ceny k odhadovanej hodnote zostáva priaznivý."
+          ]
+        },
+        {
+          "key": "BR-02",
+          "lines": [
+            "Cenová rezerva sa znižuje.",
+            "Aktuálna cena sa približuje k môjmu odhadu.",
+            "Priestor na ďalšie zvyšovanie ceny je obmedzenejší."
+          ]
+        },
+        {
+          "key": "BR-03",
+          "lines": [
+            "Cena sa nachádza blízko môjho limitu.",
+            "Zostávajúci cenový priestor je malý.",
+            "Výraznejšie zvýšenie ceny by prekročilo môj odhad."
+          ]
+        },
+        {
+          "key": "BR-04",
+          "lines": [
+            "Ďalšia platná suma presahuje môj odhad.",
+            "Nasledujúca ponuka je nad odhadovanou hodnotou.",
+            "Na ďalší príhoz môj odhad nestačí."
+          ]
+        },
+        {
+          "key": "BR-05",
+          "lines": [
+            "Dostupný kapitál nestačí na nasledujúcu ponuku.",
+            "Ďalšia ponuka prekračuje rozpočtový limit.",
+            "Nasledujúci príhoz presahuje aktuálnu rozpočtovú rezervu."
+          ]
+        },
+        {
+          "key": "BR-04/05",
+          "lines": [
+            "Nasledujúca ponuka presahuje odhad aj rozpočet.",
+            "Ďalší príhoz je nad odhadovanou hodnotou aj dostupným kapitálom.",
+            "Ďalšia platná suma prekračuje oba limity."
+          ]
+        },
+        {
+          "key": "WD-01",
+          "lines": [
+            "Aktuálne podmienky prekračujú moju toleranciu rizika. Odstupujem.",
+            "Pokračovanie už nie je prijateľné. Ukončujem účasť.",
+            "Vyhodnotenie rizika sa zmenilo. Ďalej nepokračujem."
+          ]
+        },
+        {
+          "key": "WD-02",
+          "lines": [
+            "Ďalšia ponuka presahuje môj odhad. Odstupujem.",
+            "Cenový limit bol prekročený. Ukončujem účasť.",
+            "Ďalej nepokračujem, nasledujúca suma je nad odhadom."
+          ]
+        },
+        {
+          "key": "WD-03",
+          "lines": [
+            "Dostupný kapitál na ďalší príhoz nestačí. Odstupujem.",
+            "Ďalšia ponuka je nad rozpočtom. Ukončujem účasť.",
+            "Rozpočtový limit nepovoľuje pokračovanie. Odstupujem."
+          ]
+        },
+        {
+          "key": "WD-04",
+          "lines": [
+            "Ďalšia suma presahuje odhad aj rozpočet. Odstupujem.",
+            "Oba limity boli prekročené. Ukončujem účasť.",
+            "Odhad ani dostupný kapitál ďalšiu ponuku nepokryje. Odstupujem."
+          ]
+        },
+        {
+          "key": "WIN-01",
+          "lines": [
+            "Akvizícia dokončená. Finančná rezerva zostáva vysoká.",
+            "Predmet získaný. Väčšina kapitálu je stále dostupná.",
+            "Transakcia uzavretá. Rozpočtová kapacita je stále výrazná."
+          ]
+        },
+        {
+          "key": "WIN-02",
+          "lines": [
+            "Akvizícia úspešná. Zostávajúci kapitál je postačujúci.",
+            "Predmet získaný. Rozpočtová rezerva zostáva stabilná.",
+            "Transakcia dokončená. Finančná flexibilita je zachovaná."
+          ]
+        },
+        {
+          "key": "WIN-03",
+          "lines": [
+            "Akvizícia dokončená. Zostávajúci kapitál je obmedzený.",
+            "Predmet získaný. Finančná rezerva sa výrazne znížila.",
+            "Transakcia úspešná. Ďalšie nákupy budú vyžadovať opatrnosť."
+          ]
+        },
+        {
+          "key": "WIN-04",
+          "lines": [
+            "Akvizícia dokončená. Rozpočtová rezerva je kritická.",
+            "Predmet získaný. Zostávajúci kapitál je takmer vyčerpaný.",
+            "Transakcia úspešná. Finančná flexibilita je prakticky nulová."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sale",
+      "groups": [
+        {
+          "key": "SALE-01",
+          "lines": [
+            "Predané! Gratulujem. Dúfam, že viete, čo ste si práve kúpili.",
+            "Predané! Nový majiteľ, nové starosti.",
+            "Gratulujem k nákupu. Reklamácie neprijímame.",
+            "Predané! Niektoré veci je lepšie nevlastniť. Ale už je neskoro."
+          ]
+        },
+        {
+          "key": "SALE-02",
+          "lines": [
+            "Nepredané. Zdá sa, že dnes má každý aspoň trochu rozumu.",
+            "Nikto? Výborne. Predmet zostáva tam, kde môže ďalej spôsobovať problémy.",
+            "Nepredané. Ani peniaze nedokážu vyriešiť všetko.",
+            "Žiadny záujemca. To je možno prvé dobré rozhodnutie dneška."
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -121,8 +121,6 @@ namespace AuctionGame.Auction
             {
                 BidRecord bid = bids[index];
                 lines.Append($"{manager.GetBidderDisplayName(bid.bidderId)}  ${bid.amount}");
-                if (!string.IsNullOrEmpty(bid.comment))
-                    lines.Append($" · {bid.comment}");
                 lines.AppendLine();
             }
             history.text = lines.Length == 0 ? "No bids yet" : lines.ToString().TrimEnd();
