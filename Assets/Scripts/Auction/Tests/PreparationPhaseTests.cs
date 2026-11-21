@@ -96,7 +96,7 @@ namespace AuctionGame.Auction.Tests
 
             PointerClick(read);
             Assert.That(newspaper.IsOpen, Is.True);
-            Assert.That(Text("Masthead"), Is.EqualTo("NOVINKY"));
+            Assert.That(Text("Masthead"), Is.EqualTo("NEWSSSS"));
             Assert.That(Text("Subtitle"), Is.EqualTo("SVETOVÉ ŠPECIÁLNE SPRÁVY"));
             Assert.That(GameObject.Find("Reporter"), Is.Not.Null);
             VerifyNewsLayout(newspaper);

@@ -24,6 +24,14 @@ namespace AuctionGame.Auction
         [SerializeField, Min(0.01f)] private float gavelDuration = 0.28f;
         [SerializeField] private AudioClip gavelImpactClip;
 
+        [Header("Countdown Tension")]
+        [SerializeField] private bool enableCountdownTension = true;
+        [SerializeField, Range(0f, AuctionManager.AntiSnipingTime)] private float warningThreshold = 3f;
+        [SerializeField, Min(0.01f)] private float warningPulseDuration = 1f;
+        [SerializeField, Min(1f)] private float warningPulseScale = 1.10f;
+
+        private Vector3 dialogueRestScale;
+        private bool warningActive;
         private SpriteRenderer sprite;
         private BidderSpeechBubble bubble;
         private BidderSpeechBubble priceBubble;
@@ -138,6 +146,7 @@ namespace AuctionGame.Auction
             int bidsFromSide = player ? ++playerBids : ++aiBids;
             if (bid.extendedTimer)
             {
+                ResetCountdownTension();
                 countdown = 0;
                 priceAnnouncementUntil = auction.BiddingElapsed + 0.65;
                 Speak($"Óóó, nová cena je ${bid.amount}!", true);
@@ -157,6 +166,9 @@ namespace AuctionGame.Auction
 
         private void UpdateCountdown()
         {
+            if (auction.RemainingTime > warningThreshold)
+                ResetCountdownTension();
+
             if (auction.BiddingElapsed < priceAnnouncementUntil)
                 return;
             priceAnnouncementUntil = 0;
@@ -254,7 +266,11 @@ namespace AuctionGame.Auction
             if (!dialogue)
                 return;
             if (!bubble)
+            {
                 bubble = dialogue.CreateBubble("SALE Bubble");
+                if (bubble)
+                    dialogueRestScale = bubble.Label.rectTransform.localScale;
+            }
             if (!bubble)
                 return;
 
@@ -268,6 +284,7 @@ namespace AuctionGame.Auction
 
         internal void ClearBubble()
         {
+            ResetCountdownTension();
             ends = 0;
             cuePending = false;
             if (bubble)
@@ -284,6 +301,33 @@ namespace AuctionGame.Auction
             ResultLine = null;
             CurrentPose = Pose.Idle;
             RestorePose();
+        }
+
+        private void UpdateCountdownTension(bool speaking)
+        {
+            float remaining = auction.RemainingTime;
+            if (!enableCountdownTension || warningThreshold <= 0f || !speaking || countdown <= 0 ||
+                auction.State != AuctionState.Bidding || remaining > warningThreshold)
+            {
+                ResetCountdownTension();
+                return;
+            }
+
+            warningActive = true;
+            // Keep the pulse aligned to the auction clock, including after a late bid.
+            float phase = Mathf.Repeat(remaining, warningPulseDuration) / warningPulseDuration;
+            float pulse = 0.5f - 0.5f * Mathf.Cos(2f * Mathf.PI * phase);
+            bubble.Label.rectTransform.localScale = dialogueRestScale * Mathf.Lerp(1f, warningPulseScale, pulse);
+        }
+
+        private void ResetCountdownTension()
+        {
+            if (!warningActive)
+                return;
+
+            warningActive = false;
+            if (bubble)
+                bubble.Label.rectTransform.localScale = dialogueRestScale;
         }
 
         private void RestorePose()
@@ -345,6 +389,7 @@ namespace AuctionGame.Auction
             else if (bubble && bubble.gameObject.activeSelf)
                 ClearBubble();
 
+            UpdateCountdownTension(speaking);
             RestorePose();
             CurrentPose = now < effectEnds ? effect : speaking ? Pose.Speaking : Pose.Idle;
             float slam = (float)((now - gavelStarted) / gavelDuration);

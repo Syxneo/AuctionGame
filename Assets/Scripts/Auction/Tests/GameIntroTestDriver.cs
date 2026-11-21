@@ -8,10 +8,32 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.TestTools;
 using UnityEngine.UI;
 
 namespace AuctionGame.Auction.Tests
 {
+    public sealed class IntroNewsEffectsTests
+    {
+        [UnityTest]
+        public IEnumerator IntegratedIntroNewsAndBothCalls()
+        {
+            yield return new EnterPlayMode();
+            GameIntroTestDriver.LoadIntegratedScene();
+            yield return null;
+            yield return GameIntroTestDriver.OpenNewsFromIntro();
+            yield return GameIntroTestDriver.ReadBroadcast();
+
+            var intro = Object.FindFirstObjectByType<GameIntroFlow>();
+            intro.ShowEndCall(false, _ => { });
+            yield return GameIntroTestDriver.CheckRingLines("SALE Telephone");
+            GameObject.Find("Pick Up SALE Call").GetComponent<Button>().onClick.Invoke();
+            Assert.That(GameObject.Find("Telephone Ring Lines"), Is.Null);
+            Assert.That(GameObject.Find("SALE Line"), Is.Not.Null);
+            yield return new ExitPlayMode();
+        }
+    }
+
     internal static class GameIntroTestDriver
     {
         internal static void LoadIntegratedScene(int? dailySeed = null, bool campaign = false)
@@ -47,8 +69,32 @@ namespace AuctionGame.Auction.Tests
             Assert.That(Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
             AssertSprite("Logo");
             var play = GameObject.Find("PLAY").GetComponent<Button>();
+            Canvas.ForceUpdateCanvases();
+            var dust = GameObject.Find("Paper Dust").GetComponentsInChildren<Image>();
+            Assert.That(dust.Length, Is.InRange(4, 8));
+            Assert.That(dust.All(speck => !speck.raycastTarget), Is.True);
+            var press = play.GetComponent<BidButtonPress>();
+            var playRect = (RectTransform)play.transform;
+            Vector2 edge = RectTransformUtility.WorldToScreenPoint(null, playRect.TransformPoint(
+                new Vector2(playRect.rect.xMax - 2, playRect.rect.center.y)));
+            var pointer = new PointerEventData(EventSystem.current)
+            {
+                button = PointerEventData.InputButton.Left, position = edge
+            };
+            play.interactable = false;
+            press.OnPointerDown(pointer);
+            Assert.That(playRect.localScale, Is.EqualTo(Vector3.one));
+            play.interactable = true;
+            press.OnPointerDown(pointer);
+            Assert.That(playRect.localScale.x, Is.EqualTo(.94f).Within(.001f));
+            var hits = new List<RaycastResult>();
+            EventSystem.current.RaycastAll(pointer, hits);
+            Assert.That(hits[0].gameObject, Is.SameAs(play.gameObject));
+            press.OnPointerUp(pointer);
             play.onClick.Invoke();
             play.onClick.Invoke();
+            Assert.That(playRect.localScale, Is.EqualTo(Vector3.one));
+            Assert.That(GameObject.Find("Paper Dust"), Is.Null);
             Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.IncomingCall));
 
             AssertSprite("Incoming Telephone");
@@ -58,7 +104,9 @@ namespace AuctionGame.Auction.Tests
             Assert.That(source.loop, Is.True);
 
             var phone = GameObject.Find("Incoming Telephone");
+            yield return CheckRingLines("Incoming Telephone");
             Click("Pick Up Phone");
+            Assert.That(GameObject.Find("Telephone Ring Lines"), Is.Null);
             Assert.That(source.loop, Is.False);
             AssertSprite("Picked Up Telephone");
             Assert.That(phone.activeInHierarchy, Is.False);
@@ -97,6 +145,28 @@ namespace AuctionGame.Auction.Tests
             Assert.That(GameObject.Find("NewsBodyText"), Is.Null);
             AssertSprite("Reporter");
             Assert.That(GameObject.Find("SALE briefing"), Is.Null);
+            var headline = GameObject.Find("BreakingNewsHeader").GetComponent<CanvasGroup>();
+            Assert.That(headline.alpha, Is.LessThan(1));
+            yield return new WaitForSecondsRealtime(.4f);
+            Assert.That(headline.alpha, Is.EqualTo(1));
+            Assert.That(headline.transform.localScale, Is.EqualTo(Vector3.one));
+            Assert.That(GameObject.Find("Presenter Dialogue"), Is.Not.Null);
+            Vector3[] reporterCorners = new Vector3[4];
+            ((RectTransform)GameObject.Find("Reporter").transform).GetWorldCorners(reporterCorners);
+            Assert.That(RectTransformUtility.WorldToScreenPoint(null, reporterCorners[0]).y,
+                Is.EqualTo(0).Within(1));
+        }
+
+        internal static IEnumerator CheckRingLines(string phoneName)
+        {
+            var phone = GameObject.Find(phoneName);
+            var lines = phone.transform.Find("Telephone Ring Lines").GetComponent<CanvasGroup>();
+            Assert.That(lines.transform.childCount, Is.EqualTo(2));
+            Assert.That(lines.GetComponentsInChildren<Image>().All(stroke => !stroke.raycastTarget), Is.True);
+            float deadline = Time.realtimeSinceStartup + 1;
+            while (lines.alpha <= .1f && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(lines.alpha, Is.GreaterThan(.1f));
         }
 
         internal static IEnumerator ReadBroadcast(System.Action duringOpening = null)
@@ -135,8 +205,28 @@ namespace AuctionGame.Auction.Tests
                 EventSystem.current.RaycastAll(pointer, hits);
                 Assert.That(hits, Is.Not.Empty);
                 Assert.That(hits[0].gameObject, Is.SameAs(tap.gameObject));
+                var previous = view.CurrentCard;
                 ExecuteEvents.Execute(tap.gameObject, pointer, ExecuteEvents.pointerClickHandler);
                 tap.onClick.Invoke();
+                if (previous != null)
+                {
+                    Assert.That(view.CurrentCard, Is.SameAs(previous));
+                    yield return null;
+                    tap.onClick.Invoke();
+                    float transitionDeadline = Time.realtimeSinceStartup + 2;
+                    var staticOverlay = GameObject.Find("TV Static").GetComponent<RawImage>();
+                    bool sawStatic = false;
+                    while (Time.realtimeSinceStartup < transitionDeadline)
+                    {
+                        sawStatic |= staticOverlay.enabled;
+                        if (view.CurrentCard == card && !staticOverlay.enabled && sawStatic)
+                            break;
+                        yield return null;
+                    }
+                    Assert.That(sawStatic, Is.True);
+                    Assert.That(staticOverlay.enabled, Is.False);
+                    yield return new WaitForSecondsRealtime(.08f);
+                }
                 Assert.That(view.CurrentCard, Is.SameAs(card));
                 Assert.That(GameObject.Find("Reporter"), Is.Null);
                 Assert.That(GameObject.Find("RetroTVFrame").GetComponent<Image>().sprite, Is.Not.Null);
@@ -144,6 +234,11 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(image.sprite == card.Image, Is.True, card.Id);
                 Assert.That(image.preserveAspect, Is.True);
                 Assert.That(image.gameObject, Is.Not.SameAs(GameObject.Find("RetroTVFrame")));
+                var scanlines = GameObject.Find("TV Scanlines").GetComponent<RawImage>();
+                Assert.That(scanlines.raycastTarget, Is.False);
+                Assert.That(scanlines.GetComponentInParent<RectMask2D>(), Is.SameAs(
+                    image.GetComponentInParent<RectMask2D>()));
+                Assert.That(GameObject.Find("TV Static").GetComponent<RawImage>().raycastTarget, Is.False);
                 var label = GameObject.Find("NewsBodyText").GetComponent<TMP_Text>();
                 Assert.That(label.text, Is.EqualTo(card.Body));
                 Assert.That(label.GetComponentInParent<BidderSpeechBubble>(), Is.Not.Null);
@@ -258,25 +353,26 @@ namespace AuctionGame.Auction.Tests
             Click("Pick Up SALE Call");
             Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.EndConversation));
             Assert.That(intro.GetComponent<AudioSource>().loop, Is.False);
-            var line = GameObject.Find("SALE Line").GetComponent<TMP_Text>();
+            var history = GameObject.Find("SALE Dialogue").GetComponent<ScrollRect>().content;
+            var line = history.GetChild(0).GetComponentInChildren<TMP_Text>();
             if (success.HasValue)
-                Assert.That(line.text, Does.StartWith(success.Value ? "Well, well, well" : "You did terrible"));
+                Assert.That(line.text, Does.StartWith(success.Value ? "Ale, ale, ale" : "To bola bieda"));
             string first = line.text;
             Click("Advance SALE Call");
-            Assert.That(line.text, Is.EqualTo(first), "Pickup and an advance in the same frame count as one tap.");
-            for (int index = 0; index < 3; index++)
+            Assert.That(history.childCount, Is.EqualTo(1), "Pickup and an advance in the same frame count as one tap.");
+            for (int index = 0; index < 2; index++)
             {
                 yield return null;
-                string before = line.text;
+                float oldPosition = line.rectTransform.position.y;
                 Click("Advance SALE Call");
-                if (index < 2)
-                {
-                    Click("Advance SALE Call");
-                    yield return new WaitForSecondsRealtime(.25f);
-                    Assert.That(line.text, Is.Not.EqualTo(before));
-                    Assert.That(report.Report, Is.Null);
-                }
+                Click("Advance SALE Call");
+                Assert.That(history.childCount, Is.EqualTo(index + 2));
+                Assert.That(line.text, Is.EqualTo(first));
+                Assert.That(line.rectTransform.position.y, Is.GreaterThan(oldPosition));
+                Assert.That(report.Report, Is.Null);
             }
+            yield return null;
+            Click("Advance SALE Call");
             Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.EndTransition));
             float deadline = Time.realtimeSinceStartup + 5;
             while (GameObject.Find("Intro Fade") && Time.realtimeSinceStartup < deadline)
@@ -285,6 +381,17 @@ namespace AuctionGame.Auction.Tests
             Assert.That(GameObject.Find("SALE Telephone"), Is.Null);
             Assert.That(GameObject.Find("SALE Report").GetComponentInParent<Canvas>().targetDisplay, Is.Zero);
             Assert.That(report.Report, Is.Not.Null);
+            if (report.Report.Purchases.Count > 0)
+            {
+                var profit = GameObject.Find("Celkový zisk Value").GetComponent<TMP_Text>();
+                var content = GameObject.Find("Purchases").GetComponent<ScrollRect>().content;
+                Assert.That(profit.alpha, Is.Zero);
+                Assert.That(content.GetChild(content.childCount - 1).GetComponent<CanvasGroup>().alpha, Is.LessThan(1));
+                deadline = Time.realtimeSinceStartup + 5;
+                while (profit.alpha == 0 && Time.realtimeSinceStartup < deadline)
+                    yield return null;
+                Assert.That(profit.alpha, Is.GreaterThan(0));
+            }
             VerifyReportRows(report.Report);
             VerifyPortraitLayout();
         }
@@ -339,7 +446,7 @@ namespace AuctionGame.Auction.Tests
         {
             if (report.Purchases.Count == 0)
             {
-                Assert.That(GameObject.Find("Empty State").GetComponent<TMP_Text>().text, Is.EqualTo("No items purchased."));
+                Assert.That(GameObject.Find("Empty State").GetComponent<TMP_Text>().text, Is.EqualTo("Žiadne nákupy"));
                 Assert.That(report.TotalProfit, Is.Zero);
                 return;
             }
@@ -348,11 +455,12 @@ namespace AuctionGame.Auction.Tests
             Assert.That(scroll.vertical && !scroll.horizontal, Is.True);
             Assert.That(scroll.content.childCount, Is.EqualTo(report.Purchases.Count));
             if (scroll.content.rect.height > scroll.viewport.rect.height)
-                Assert.That(scroll.verticalNormalizedPosition, Is.EqualTo(1).Within(.001f));
+                Assert.That(scroll.verticalNormalizedPosition, Is.EqualTo(0).Within(.001f));
             for (int index = 0; index < report.Purchases.Count; index++)
             {
                 var purchase = report.Purchases[index];
                 var row = scroll.content.GetChild(index);
+                Assert.That(row.GetComponent<CanvasGroup>().alpha, Is.EqualTo(1));
                 if (purchase.Sprite)
                     Assert.That(row.Find("Item sprite").GetComponent<Image>().sprite, Is.SameAs(purchase.Sprite));
                 Assert.That(row.Find("Your Bid").GetComponent<TMP_Text>().text, Is.EqualTo("$" + purchase.PurchasePrice));

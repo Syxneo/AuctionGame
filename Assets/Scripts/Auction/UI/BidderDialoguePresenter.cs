@@ -33,6 +33,8 @@ namespace AuctionGame.Auction
             public Vector3 RestPosition { get; set; }
             public Quaternion RestRotation { get; set; }
             public Vector3 RestScale { get; set; }
+            public double ReactionStarted { get; set; } = double.NegativeInfinity;
+            public bool Withdrawn { get; set; }
         }
 
         [SerializeField] private AuctionManager auction;
@@ -69,6 +71,15 @@ namespace AuctionGame.Auction
         [SerializeField, Min(0.01f)] private float limitDuration = 3;
         [SerializeField, Min(0.01f)] private float withdrawalDuration = 3.5f;
         [SerializeField, Min(0.01f)] private float winnerDuration = 4;
+
+        [Header("Bidder Reactions")]
+        [SerializeField] private bool enableBidderFocus = true;
+        [SerializeField] private bool enableWithdrawalReaction = true;
+        [SerializeField, Min(0.01f)] private float reactionDuration = 0.3f;
+        [SerializeField, Min(0f)] private float bidBounceDistance = 0.16f;
+        [SerializeField, Min(0f)] private float withdrawalDistance = 0.12f;
+        [SerializeField, Min(1f)] private float bidFocusScale = 1.06f;
+        [SerializeField, Range(0.8f, 1f)] private float withdrawalScale = 0.95f;
 
         private readonly List<Binding> visible = new();
         private readonly List<Rect> occupied = new();
@@ -203,6 +214,8 @@ namespace AuctionGame.Auction
             if (showParticipation)
             {
                 auction.OnStateChanged += ClearParticipation;
+                auction.OnBidPlaced += ReactToBid;
+                auction.OnBidderChickenedOut += ReactToWithdrawal;
                 if (auction.CurrentItem)
                     UpdateParticipation();
             }
@@ -217,6 +230,8 @@ namespace AuctionGame.Auction
             auction.OnAuctionEnded -= EndLot;
             auction.OnAuctionPhaseFinished -= Clear;
             auction.OnStateChanged -= ClearParticipation;
+            auction.OnBidPlaced -= ReactToBid;
+            auction.OnBidderChickenedOut -= ReactToWithdrawal;
             ClearParticipation(AuctionState.Idle);
             Clear();
         }
@@ -254,11 +269,14 @@ namespace AuctionGame.Auction
             foreach (Binding binding in bidders)
             {
                 binding.Bidder = null;
+                binding.ReactionStarted = double.NegativeInfinity;
+                binding.Withdrawn = false;
                 foreach (AIBidder bidder in auction.Opponents)
                 {
                     if (binding.bidderId == bidder.Id)
                     {
                         binding.Bidder = bidder;
+                        binding.Withdrawn = bidder.HasChickenedOut;
                         break;
                     }
                 }
@@ -272,8 +290,35 @@ namespace AuctionGame.Auction
                 return;
 
             foreach (Binding binding in bidders)
+            {
                 binding.Bidder = null;
+                binding.Withdrawn = false;
+                binding.ReactionStarted = double.NegativeInfinity;
+            }
             UpdateCharacters(Time.timeAsDouble);
+        }
+
+        private void ReactToBid(BidRecord bid)
+        {
+            if (!enableBidderFocus || bid.bidderId == BidderIds.Player)
+                return;
+
+            foreach (Binding binding in bidders)
+                if (binding.Bidder?.Id == bid.bidderId && !binding.Withdrawn)
+                    binding.ReactionStarted = Time.unscaledTimeAsDouble;
+        }
+
+        private void ReactToWithdrawal(AIBidder bidder)
+        {
+            foreach (Binding binding in bidders)
+            {
+                if (binding.Bidder != bidder || binding.Withdrawn)
+                    continue;
+
+                binding.Withdrawn = true;
+                binding.ReactionStarted = enableWithdrawalReaction
+                    ? Time.unscaledTimeAsDouble : double.NegativeInfinity;
+            }
         }
 
         private void UpdateCharacters(double now)
@@ -285,7 +330,7 @@ namespace AuctionGame.Auction
                 if (!binding.sprite)
                     continue;
 
-                bool inactive = binding.Bidder != null && !binding.Bidder.IsActiveForLot;
+                bool inactive = binding.Bidder != null && (!binding.Bidder.IsActiveForLot || binding.Withdrawn);
                 bool moving = animate && binding.Bidder != null && !inactive;
                 bool leading = !inactive && binding.Bidder != null && binding.bidderId == auction.HighestBidderId;
                 Material material = inactive && inactiveMaterial ? inactiveMaterial : binding.OriginalMaterial;
@@ -298,10 +343,22 @@ namespace AuctionGame.Auction
                 float phase = (float)(now * 2.2 + index * 1.35);
                 float sway = moving ? swayDegrees * Mathf.Sin(phase) : 0f;
                 float hop = moving ? hopHeight * Mathf.Pow(Mathf.Max(0f, Mathf.Sin(phase * 1.5f)), 2f) : 0f;
+                float scale = leading ? leaderScale : 1f;
+                float progress = (float)((Time.unscaledTimeAsDouble - binding.ReactionStarted) / reactionDuration);
+                bool reactionEnabled = binding.Withdrawn ? enableWithdrawalReaction : enableBidderFocus;
+                if (auction.State == AuctionState.Bidding && reactionEnabled && progress < 1f)
+                {
+                    float pulse = Mathf.Sin(Mathf.PI * progress);
+                    hop = Mathf.Lerp(hop, binding.Withdrawn ? -withdrawalDistance : bidBounceDistance, pulse);
+                    scale = Mathf.Lerp(scale, binding.Withdrawn ? withdrawalScale : scale * bidFocusScale, pulse);
+                }
+                else
+                    binding.ReactionStarted = double.NegativeInfinity;
+
                 Transform character = binding.sprite.transform;
                 character.localPosition = binding.RestPosition + Vector3.up * hop;
                 character.localRotation = binding.RestRotation * Quaternion.Euler(0f, 0f, sway);
-                character.localScale = binding.RestScale * (leading ? leaderScale : 1f);
+                character.localScale = binding.RestScale * scale;
             }
         }
 

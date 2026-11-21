@@ -28,7 +28,7 @@ namespace AuctionGame.Auction
             public Color textPanelColor = new(0.88f, 0.87f, 0.84f);
             public Color pictureColor = new(0.73f, 0.73f, 0.69f);
             public Color textColor = PreparationUi.Ink;
-            public string continuePrompt = "klepni pre pokračovanie";
+            public string continuePrompt = "Klepni a pokračuj";
         }
 
         private static readonly Vector2 PageSize = new(400, 650);
@@ -54,7 +54,7 @@ namespace AuctionGame.Auction
             var paper = PreparationUi.Surface(page, appearance.paperColor);
             paper.sprite = appearance.paperSprite;
 
-            var masthead = PreparationUi.Label(Row("Masthead", page, 22, 16, 80), "NOVINKY",
+            var masthead = PreparationUi.Label(Row("Masthead", page, 22, 16, 80), "NEWSSSS",
                 59, appearance.textColor, FontStyles.Bold);
             if (appearance.mastheadFont)
                 masthead.font = appearance.mastheadFont;

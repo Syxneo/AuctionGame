@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -20,6 +21,12 @@ namespace AuctionGame.Auction
             "Nesplnil si požadovaný zisk. V tomto biznise sa za chyby platí.";
         [SerializeField, TextArea] private string emptyDialogue =
             "Nekúpil si nič. Bez rizika však nepríde ani zisk.";
+        [Header("Report Reveal")]
+        [SerializeField] private bool enableProfitCountUp = true;
+        [SerializeField, Min(0.01f)] private float profitCountUpDuration = 0.8f;
+        [SerializeField] private bool enableReportStatusStamp = true;
+        [SerializeField, Min(0.01f)] private float reportStampDuration = 0.35f;
+        [SerializeField, Range(1f, 1.5f)] private float reportStampScale = 1.35f;
 
         private static readonly Color Panel = new(0.10f, 0.15f, 0.20f);
         private static readonly Color Row = new(0.15f, 0.21f, 0.27f);
@@ -31,6 +38,16 @@ namespace AuctionGame.Auction
         private bool awaitingCall;
         private bool continuing;
         private TMP_Text continueError;
+        private Coroutine reveal;
+        private ScrollRect revealScroll;
+        private CanvasGroup[] revealRows;
+        private float profitBaseAlpha;
+        private TMP_Text profitLabel;
+        private TMP_Text statusLabel;
+        private string finalProfitText;
+        private Vector3 statusBaseScale;
+        private Quaternion statusBaseRotation;
+        private float statusBaseAlpha;
 
         public AuctionReport Report { get; private set; }
 
@@ -48,6 +65,7 @@ namespace AuctionGame.Auction
         {
             if (auction)
                 auction.OnAuctionPhaseFinished -= OpenReport;
+            CancelReveal();
         }
 
         private void OnDestroy() => RemoveView();
@@ -87,7 +105,7 @@ namespace AuctionGame.Auction
             Report = snapshot;
             CreateView("SALE Report");
             ButtonClickAudio.Find(gameObject.scene)?.ReportOpened(Report.Succeeded);
-            Label(view, "PREDAJ", 28, 18, 110, 32, 24, Accent);
+            Label(view, "SALE", 28, 18, 110, 32, 24, Accent);
             Label(view, "Správa z dražby", 28, 50, 510, 50, 36, Color.white);
             Label(view, Report.Succeeded ? "ÚSPECH" : "KONIEC HRY", 640, 49, 228, 50, 30,
                 Report.Succeeded ? Gain : Loss).alignment = TextAlignmentOptions.Right;
@@ -106,7 +124,7 @@ namespace AuctionGame.Auction
             if (Report.Succeeded)
                 DrawButton("Continue Button", "Pokračovať").onClick.AddListener(Continue);
             else
-                DrawButton("Retry Button", "Zopakovať").onClick.AddListener(Retry);
+                DrawButton("Retry Button", "Skúsiť znova").onClick.AddListener(Retry);
         }
 
         private void CreatePortraitReport()
@@ -130,21 +148,24 @@ namespace AuctionGame.Auction
             }
 
             PortraitLabel(Anchor("Report Title", paper, .05f, .92f, .95f, 1),
-                "SALE REPORT", 32, PreparationUi.Ink).fontStyle = FontStyles.Bold;
+                "SPRÁVA Z DRAŽBY", 32, PreparationUi.Ink).fontStyle = FontStyles.Bold;
             PortraitColumns(Anchor("Report Columns", paper, .02f, .85f, .94f, .92f),
-                "Item", "Your bid", "Worth", "Profit", PreparationUi.Ink, 23);
+                "Predmet", "Nákupná\ncena", "Skutočná\nhodnota", "Zisk", PreparationUi.Ink, 23);
             var viewport = Anchor("Purchases", paper, .02f, .19f, .94f, .85f);
+            ScrollRect purchaseScroll = null;
+            CanvasGroup[] purchaseRows = null;
             if (Report.Purchases.Count == 0)
-                PortraitLabel(PreparationUi.Fill("Empty State", viewport), "No items purchased.", 31, PreparationUi.Ink);
+                PortraitLabel(PreparationUi.Fill("Empty State", viewport), "Žiadne nákupy", 31, PreparationUi.Ink);
             else
-                DrawPortraitItems(viewport, paper);
+                purchaseScroll = DrawPortraitItems(viewport, paper, out purchaseRows);
 
-            PortraitTotal(paper, "Profit target", Money(Report.TargetProfit), .45f, .69f, PreparationUi.Ink);
-            PortraitTotal(paper, "Your profit", SignedMoney(Report.TotalProfit), .71f, .97f,
+            PortraitTotal(paper, "Cieľový zisk", Money(Report.TargetProfit), .45f, .69f, PreparationUi.Ink);
+            var profit = PortraitTotal(paper, "Celkový zisk", SignedMoney(Report.TotalProfit), .71f, .97f,
                 PortraitProfitColor(Report.TotalProfit));
-            PortraitLabel(Anchor("Result", paper, .05f, .01f, .95f, .085f),
-                Report.Succeeded ? "SUCCESS" : "GAME OVER", 34,
-                Report.Succeeded ? PortraitProfitColor(1) : PortraitProfitColor(-1)).fontStyle = FontStyles.Bold;
+            var status = PortraitLabel(Anchor("Result", paper, .05f, .01f, .95f, .085f),
+                Report.Succeeded ? "ÚSPECH" : "KONIEC HRY", 34,
+                Report.Succeeded ? PortraitProfitColor(1) : PortraitProfitColor(-1));
+            status.fontStyle = FontStyles.Bold;
 
             var logoRect = Anchor("Auction Frenzy Logo", view, .29f, .79f, .71f, .94f);
             if (endPresentation.ReportLogo)
@@ -157,24 +178,176 @@ namespace AuctionGame.Auction
                 PortraitLabel(logoRect, "AUCTION FRENZY", 46, PreparationUi.Ink);
 
             var actionRect = Anchor(Report.Succeeded ? "Continue Button" : "Retry Button", view, .075f, .035f, .925f, .165f);
-            var action = PreparationUi.Button(actionRect, Report.Succeeded ? "CONTINUE" : "TRY AGAIN");
+            var action = PreparationUi.Button(actionRect, Report.Succeeded ? "POKRAČOVAŤ" : "SKÚSIŤ ZNOVA");
             var background = (Image)action.targetGraphic;
             background.sprite = reportButton ? reportButton : endPresentation.ReportButton;
             background.color = background.sprite ? Color.white : Accent;
             background.preserveAspect = !reportButton && background.sprite;
             var text = action.GetComponentInChildren<TMP_Text>();
-            text.fontSize = 82;
+            text.enableAutoSizing = true;
+            text.fontSizeMin = 42;
+            text.fontSizeMax = 82;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
             text.fontStyle = FontStyles.Bold;
             text.color = PreparationUi.Ink;
             if (Report.Succeeded)
                 action.onClick.AddListener(Continue);
             else
                 action.onClick.AddListener(Retry);
+            StartReveal(profit, status, purchaseScroll, purchaseRows);
         }
 
-        private void DrawPortraitItems(RectTransform viewport, RectTransform paper)
+        private void StartReveal(TMP_Text profit, TMP_Text status, ScrollRect scroll, CanvasGroup[] rows)
         {
-            const float height = 96;
+            if (!isActiveAndEnabled || (rows == null && !enableProfitCountUp && !enableReportStatusStamp))
+                return;
+
+            CancelReveal();
+            revealScroll = scroll;
+            revealRows = rows;
+            profitLabel = profit;
+            profitBaseAlpha = profit.alpha;
+            statusLabel = status;
+            finalProfitText = profit.text;
+            statusBaseScale = status.rectTransform.localScale;
+            statusBaseRotation = status.rectTransform.localRotation;
+            statusBaseAlpha = status.alpha;
+            statusLabel.alpha = 0f;
+            profitLabel.alpha = 0f;
+            if (revealRows != null)
+                foreach (var row in revealRows)
+                    row.alpha = 0f;
+            reveal = StartCoroutine(RevealReport(Report.TotalProfit));
+        }
+
+        private IEnumerator RevealReport(long totalProfit)
+        {
+            while (endPresentation && endPresentation.IsFading)
+                yield return null;
+            if (revealRows != null)
+                yield return RevealPurchases();
+
+            profitLabel.alpha = profitBaseAlpha;
+            if (enableProfitCountUp)
+            {
+                double started = Time.unscaledTimeAsDouble;
+                float duration = Mathf.Max(0.01f, profitCountUpDuration);
+                long displayed = totalProfit;
+                for (float elapsed = 0f; elapsed < duration; elapsed = (float)(Time.unscaledTimeAsDouble - started))
+                {
+                    if (!profitLabel || !statusLabel)
+                        yield break;
+                    float progress = 1f - elapsed / duration;
+                    long amount = (long)System.Math.Round(totalProfit * (1m - (decimal)(progress * progress)));
+                    if (amount != displayed || elapsed == 0f)
+                    {
+                        profitLabel.text = SignedMoney(amount);
+                        displayed = amount;
+                    }
+                    yield return null;
+                }
+            }
+
+            if (profitLabel)
+                profitLabel.text = finalProfitText;
+            if (enableReportStatusStamp)
+            {
+                double started = Time.unscaledTimeAsDouble;
+                float duration = Mathf.Max(0.01f, reportStampDuration);
+                for (float elapsed = 0f; elapsed < duration; elapsed = (float)(Time.unscaledTimeAsDouble - started))
+                {
+                    if (!statusLabel)
+                        yield break;
+                    float progress = elapsed / duration;
+                    float scale = progress < 0.46f
+                        ? Mathf.SmoothStep(reportStampScale, 0.94f, progress / 0.46f)
+                        : Mathf.SmoothStep(0.94f, 1f, (progress - 0.46f) / 0.54f);
+                    statusLabel.rectTransform.localScale = statusBaseScale * scale;
+                    statusLabel.rectTransform.localRotation =
+                        statusBaseRotation * Quaternion.Euler(0f, 0f, Mathf.SmoothStep(-6f, 0f, progress));
+                    statusLabel.alpha = statusBaseAlpha * Mathf.SmoothStep(0f, 1f, progress / 0.46f);
+                    yield return null;
+                }
+            }
+
+            reveal = null;
+            RestoreReveal();
+        }
+
+        private IEnumerator RevealPurchases()
+        {
+            const float fadeDuration = .20f;
+            float stagger = Mathf.Min(.16f, 2f / revealRows.Length);
+            float duration = (revealRows.Length - 1) * stagger + fadeDuration;
+            double started = Time.unscaledTimeAsDouble;
+            for (float elapsed = 0; elapsed < duration; elapsed = (float)(Time.unscaledTimeAsDouble - started))
+            {
+                for (int i = 0; i < revealRows.Length; i++)
+                {
+                    float progress = Mathf.SmoothStep(0f, 1f, (elapsed - i * stagger) / fadeDuration);
+                    revealRows[i].alpha = progress;
+                    revealRows[i].transform.localScale = Vector3.one * Mathf.Lerp(.94f, 1f, progress);
+                }
+
+                float viewHeight = revealScroll.viewport.rect.height;
+                float travel = revealScroll.content.rect.height - viewHeight;
+                if (travel > 0f)
+                {
+                    float rowsShown = Mathf.Clamp(1f + elapsed / stagger, 1, revealRows.Length);
+                    float revealedHeight = rowsShown * revealScroll.content.rect.height / revealRows.Length;
+                    revealScroll.StopMovement();
+                    revealScroll.verticalNormalizedPosition = 1f - Mathf.Clamp01((revealedHeight - viewHeight) / travel);
+                }
+                yield return null;
+            }
+            RestoreRows();
+        }
+
+        private void RestoreRows()
+        {
+            if (revealRows == null)
+                return;
+            foreach (var row in revealRows)
+            {
+                if (!row)
+                    continue;
+                row.alpha = 1f;
+                row.transform.localScale = Vector3.one;
+            }
+            revealRows = null;
+            revealScroll = null;
+        }
+
+        private void CancelReveal()
+        {
+            if (reveal != null)
+                StopCoroutine(reveal);
+            reveal = null;
+            RestoreReveal();
+        }
+
+        private void RestoreReveal()
+        {
+            RestoreRows();
+            if (profitLabel)
+            {
+                profitLabel.text = finalProfitText;
+                profitLabel.alpha = profitBaseAlpha;
+            }
+            if (statusLabel)
+            {
+                statusLabel.rectTransform.localScale = statusBaseScale;
+                statusLabel.rectTransform.localRotation = statusBaseRotation;
+                statusLabel.alpha = statusBaseAlpha;
+            }
+            profitLabel = null;
+            statusLabel = null;
+            finalProfitText = null;
+        }
+
+        private ScrollRect DrawPortraitItems(RectTransform viewport, RectTransform paper, out CanvasGroup[] rows)
+        {
+            const float height = 112;
             viewport.gameObject.AddComponent<RectMask2D>();
             AddImage(viewport, Color.clear, true);
             var scroll = viewport.gameObject.AddComponent<ScrollRect>();
@@ -199,18 +372,19 @@ namespace AuctionGame.Auction
             scroll.verticalScrollbar = scrollbar;
             scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
 
+            rows = new CanvasGroup[Report.Purchases.Count];
             for (int index = 0; index < Report.Purchases.Count; index++)
             {
                 ReportPurchase purchase = Report.Purchases[index];
                 var row = PreparationUi.Rect($"Purchase {index + 1}", content, Vector2.up, Vector2.one,
                     new Vector2(0, -(index + 1) * height + 4), new Vector2(0, -index * height - 4));
-                AddImage(Anchor("Item Tile", row, 0, .06f, .19f, .94f), Color.white);
+                rows[index] = row.gameObject.AddComponent<CanvasGroup>();
                 string itemLabel = purchase.Sprite ? "" : "—";
                 PortraitColumns(row, itemLabel, Money(purchase.PurchasePrice), Money(purchase.TrueValue),
                     SignedMoney(purchase.Profit), PortraitProfitColor(purchase.Profit), 38);
                 if (purchase.Sprite)
                 {
-                    var image = AddImage(Anchor("Item sprite", row, .01f, .10f, .18f, .90f), Color.white);
+                    var image = AddImage(Anchor("Item sprite", row, 0, 0, .22f, 1), Color.white);
                     image.sprite = purchase.Sprite;
                     image.preserveAspect = true;
                 }
@@ -219,13 +393,14 @@ namespace AuctionGame.Auction
             Canvas.ForceUpdateCanvases();
             scroll.StopMovement();
             scroll.verticalNormalizedPosition = 1;
+            return scroll;
         }
 
         private static void PortraitColumns(RectTransform row, string item, string bid, string worth, string profit,
             Color profitColor, int size)
         {
-            var itemText = PortraitLabel(Anchor("Item", row, 0, 0, .19f, 1), item, size, PreparationUi.Ink);
-            if (item == "Item")
+            var itemText = PortraitLabel(Anchor("Item", row, 0, 0, .22f, 1), item, size, PreparationUi.Ink);
+            if (item == "Predmet")
                 itemText.alignment = TextAlignmentOptions.MidlineLeft;
             PortraitLabel(Anchor("Your Bid", row, .23f, 0, .49f, 1), bid, size, PreparationUi.Ink).alignment =
                 TextAlignmentOptions.MidlineRight;
@@ -235,13 +410,14 @@ namespace AuctionGame.Auction
                 TextAlignmentOptions.MidlineRight;
         }
 
-        private static void PortraitTotal(RectTransform paper, string caption, string value, float left, float right,
+        private static TMP_Text PortraitTotal(RectTransform paper, string caption, string value, float left, float right,
             Color color)
         {
             PortraitLabel(Anchor(caption, paper, left, .145f, right, .18f), caption, 24, PreparationUi.Ink)
                 .alignment = TextAlignmentOptions.MidlineRight;
-            PortraitLabel(Anchor(caption + " Value", paper, left, .085f, right, .145f), value, 34, color)
-                .alignment = TextAlignmentOptions.MidlineRight;
+            var label = PortraitLabel(Anchor(caption + " Value", paper, left, .085f, right, .145f), value, 34, color);
+            label.alignment = TextAlignmentOptions.MidlineRight;
+            return label;
         }
 
         private static TMP_Text PortraitLabel(RectTransform rect, string value, int size, Color color)
@@ -265,13 +441,16 @@ namespace AuctionGame.Auction
 
         private void DrawPurchases()
         {
+            const float viewportHeight = 246;
+            const float rowHeight = 78;
+            const float rowSpacing = 4;
             Label(view, "Predmet", 28, 172, 324, 34, 18, Accent);
-            Label(view, "Zaplatené", 364, 172, 110, 34, 18, Accent);
+            Label(view, "Nákupná cena", 364, 172, 110, 34, 18, Accent);
             Label(view, "Skutočná hodnota", 484, 172, 120, 34, 18, Accent);
             Label(view, "Zisk", 614, 172, 100, 34, 18, Accent);
             Label(view, "Výsledok", 724, 172, 134, 34, 18, Accent);
 
-            var viewport = Box("Purchases", view, 28, 210, 840, 246);
+            var viewport = Box("Purchases", view, 28, 210, 840, viewportHeight);
             viewport.gameObject.AddComponent<RectMask2D>();
             var scroll = viewport.gameObject.AddComponent<ScrollRect>();
             scroll.viewport = viewport;
@@ -279,40 +458,41 @@ namespace AuctionGame.Auction
             scroll.movementType = ScrollRect.MovementType.Clamped;
             scroll.scrollSensitivity = 28;
             AddImage(viewport, Panel, true);
-            scroll.content = Box("Items", viewport, 0, 0, 840, Report.Purchases.Count * 64f);
+            float contentHeight = Report.Purchases.Count * (rowHeight + rowSpacing) - rowSpacing;
+            scroll.content = Box("Items", viewport, 0, 0, 840, contentHeight);
             for (int index = 0; index < Report.Purchases.Count; index++)
             {
                 ReportPurchase purchase = Report.Purchases[index];
-                var row = Box($"Purchase {index + 1}", scroll.content, 0, 64 * index, 840, 60);
+                var row = Box($"Purchase {index + 1}", scroll.content, 0, index * (rowHeight + rowSpacing), 840, rowHeight);
                 AddImage(row, Row);
                 if (purchase.Sprite)
                 {
-                    var icon = AddImage(Box("Item sprite", row, 8, 6, 52, 48), Color.white);
+                    var icon = AddImage(Box("Item sprite", row, 8, 5, 68, 68), Color.white);
                     icon.sprite = purchase.Sprite;
                     icon.preserveAspect = true;
                 }
 
-                int nameLeft = purchase.Sprite ? 72 : 12;
-                Label(row, purchase.ItemName, nameLeft, 0, 324 - nameLeft, 60, 21, Color.white);
-                Label(row, Money(purchase.PurchasePrice), 336, 0, 110, 60, 20, Color.white);
-                Label(row, Money(purchase.TrueValue), 456, 0, 120, 60, 20, Color.white);
+                int nameLeft = purchase.Sprite ? 88 : 12;
+                Label(row, purchase.ItemName, nameLeft, 0, 324 - nameLeft, rowHeight, 21, Color.white);
+                Label(row, Money(purchase.PurchasePrice), 336, 0, 110, rowHeight, 20, Color.white);
+                Label(row, Money(purchase.TrueValue), 456, 0, 120, rowHeight, 20, Color.white);
                 Color profitColor = ProfitColor(purchase.Profit);
-                Label(row, Money(purchase.Profit), 586, 0, 100, 60, 20, profitColor);
+                Label(row, Money(purchase.Profit), 586, 0, 100, rowHeight, 20, profitColor);
                 string outcome = purchase.Outcome switch
                 {
                     PurchaseOutcome.GoodBuy => "DOBRÝ NÁKUP",
                     PurchaseOutcome.Overpaid => "PREPLATENÉ",
                     _ => "BEZ ZISKU"
                 };
-                Label(row, outcome, 696, 0, 134, 60, 18, profitColor);
+                Label(row, outcome, 696, 0, 134, rowHeight, 18, profitColor);
             }
 
-            if (Report.Purchases.Count > 3)
+            if (contentHeight > viewportHeight)
             {
-                var track = Box("Scroll track", view, 876, 210, 8, 246);
+                var track = Box("Scroll track", view, 876, 210, 8, viewportHeight);
                 AddImage(track, Row, true);
                 var scrollbar = track.gameObject.AddComponent<Scrollbar>();
-                var handle = Box("Handle", track, 0, 0, 8, 246);
+                var handle = Box("Handle", track, 0, 0, 8, viewportHeight);
                 handle.anchorMin = Vector2.zero;
                 handle.anchorMax = Vector2.one;
                 handle.offsetMin = handle.offsetMax = Vector2.zero;
@@ -390,11 +570,11 @@ namespace AuctionGame.Auction
             {
                 view = PreparationUi.Fill("Level Completion", endReportParent);
                 PortraitLabel(Anchor("Completion", view, .08f, .45f, .92f, .72f),
-                    $"Level complete\nFinal profit {Money(Report.TotalProfit)}", 44, PortraitProfitColor(1));
+                    $"Úroveň dokončená\nKonečný zisk {Money(Report.TotalProfit)}", 44, PortraitProfitColor(1));
                 return;
             }
             CreateView("Level Completion");
-            Label(view, "PREDAJ", 28, 18, 110, 42, 24, Accent);
+            Label(view, "SALE", 28, 18, 110, 42, 24, Accent);
             Label(view, "Úroveň dokončená", 28, 70, 840, 60, 40, Gain);
             Label(view, $"Konečný zisk  {Money(Report.TotalProfit)}", 28, 144, 840, 56, 26, Color.white);
         }
@@ -408,6 +588,7 @@ namespace AuctionGame.Auction
 
         private void RemoveView()
         {
+            CancelReveal();
             if (!view)
                 return;
 
@@ -424,6 +605,7 @@ namespace AuctionGame.Auction
             ButtonClickAudio.Bind(button);
             button.targetGraphic = background;
             Label(rect, caption, 0, 0, 190, 56, 23, Panel).alignment = TextAlignmentOptions.Center;
+            BidButtonPress.Bind(button);
             return button;
         }
 

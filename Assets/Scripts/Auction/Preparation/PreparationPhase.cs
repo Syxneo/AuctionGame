@@ -25,11 +25,14 @@ namespace AuctionGame.Auction
             "Dobrý večer, agent. Máte {0}. Očakávam aspoň {1} zisku. Vyberajte opatrne.";
         [SerializeField] private int sortingOrder = 100;
         [SerializeField] private NewspaperView.Appearance newsAppearance = new();
+        [SerializeField] private BreakingNewsView.Effects newsEffects = new();
         [SerializeField] private AudioClip newsIntroJingle;
         [SerializeField, TextArea(2, 5)] private string newsPresenterDialogue =
             "Vitajte pri dnešných správach! Trh je stabilný, ceny sú absurdné a zdravý rozum opäť klesol na historické minimum!";
 
         [SerializeField] private BroadcastEdition broadcastEdition = new();
+
+        internal Sprite GetBidderPortrait(AIPersonality bidder) => broadcastEdition.GetBidderPortrait(bidder);
 
         private CampaignProgress campaign;
         public int CurrentDay => campaign?.CurrentDay ?? 1;
@@ -102,7 +105,7 @@ namespace AuctionGame.Auction
                 ShowBrief();
                 readNews.gameObject.SetActive(false);
                 status.gameObject.SetActive(true);
-                status.text = exception.Message;
+                status.text = "Hru sa nepodarilo pripraviť.";
                 Debug.LogError(exception.Message, this);
                 return;
             }
@@ -147,8 +150,8 @@ namespace AuctionGame.Auction
             }
             catch (InvalidOperationException exception)
             {
-                error = exception.Message;
-                Debug.LogError(error, this);
+                error = "Kampaň sa nepodarilo načítať.";
+                Debug.LogError(exception.Message, this);
                 return false;
             }
         }
@@ -180,8 +183,8 @@ namespace AuctionGame.Auction
             }
             catch (InvalidOperationException exception)
             {
-                error = exception.Message;
-                Debug.LogError(error, this);
+                error = "Kampaň sa nepodarilo načítať.";
+                Debug.LogError(exception.Message, this);
                 return false;
             }
         }
@@ -234,7 +237,7 @@ namespace AuctionGame.Auction
 
             string budget = Dollars(level.StartingBudget);
             string target = Dollars(level.ProfitTarget);
-            PreparationUi.Label(CardRow("Title", card, -74, -22), "Brífing PREDAJ", 34,
+            PreparationUi.Label(CardRow("Title", card, -74, -22), "Pokyny od SALE", 34,
                 PreparationUi.Ink, FontStyles.Bold);
             PreparationUi.Label(CardRow("Brief", card, -172, -78), FormatBrief(budget, target),
                 24, PreparationUi.Ink);
@@ -248,9 +251,9 @@ namespace AuctionGame.Auction
             status = PreparationUi.Label(CardRow("Status", card, -289, -241), "", 19, PreparationUi.Ink);
 
             readNews = PreparationUi.Button(PreparationUi.Rect("Read NEWSSSS", card, Vector2.right,
-                Vector2.right, new Vector2(-246, 20), new Vector2(-28, 66)), "Čítaj NOVINKY");
+                Vector2.right, new Vector2(-246, 20), new Vector2(-28, 66)), "Čítať NEWSSSS");
             startAuction = PreparationUi.Button(PreparationUi.Rect("Start Auction", card, Vector2.right,
-                Vector2.right, new Vector2(-246, 20), new Vector2(-28, 66)), "Spustiť dražbu");
+                Vector2.right, new Vector2(-246, 20), new Vector2(-28, 66)), "Začať dražbu");
             readNews.onClick.AddListener(ReadNews);
             startAuction.onClick.AddListener(RequestStart);
 
@@ -262,7 +265,8 @@ namespace AuctionGame.Auction
                 ready.offsetMin = ready.offsetMax = Vector2.zero;
                 startAuction.GetComponentInChildren<TMP_Text>().fontSize = 32;
                 broadcast = PreparationUi.Fill("Breaking News", root).gameObject.AddComponent<BreakingNewsView>();
-                broadcast.Initialize(newsAppearance, intro.SpeechBubble, newsPresenterDialogue, newsIntroJingle);
+                broadcast.Initialize(newsAppearance, intro.SpeechBubble, newsPresenterDialogue, newsIntroJingle,
+                    newsEffects);
             }
             else
             {
@@ -285,13 +289,14 @@ namespace AuctionGame.Auction
                 var image = PreparationUi.Surface(paper, sprite ? Color.white : PreparationUi.Paper);
                 image.sprite = sprite;
                 image.raycastTarget = false;
-                PreparationUi.Label(PreparationUi.Fill("Caption", paper), "START AUCTION", 38,
+                PreparationUi.Label(PreparationUi.Fill("Caption", paper), "ZAČAŤ DRAŽBU", 38,
                     PreparationUi.Ink, FontStyles.Bold).alignment = TextAlignmentOptions.Center;
                 var hint = PreparationUi.Rect("Tap hint", paper, Vector2.zero, Vector2.right,
                     new Vector2(0, -44), new Vector2(0, -4));
-                var hintLabel = PreparationUi.Label(hint, "klepni pre pokračovanie", 25, Color.white);
+                var hintLabel = PreparationUi.Label(hint, "Klepni a pokračuj", 25, Color.white);
                 hintLabel.alignment = TextAlignmentOptions.Center;
                 hintLabel.gameObject.AddComponent<Shadow>().effectDistance = new Vector2(1, -2);
+                BidButtonPress.Bind(openingPrompt, visual: paper);
                 openingPrompt.gameObject.SetActive(false);
             }
             canvasRoot.SetActive(false);
@@ -385,7 +390,7 @@ namespace AuctionGame.Auction
             if (useCampaign || useValueCappedGeneration)
             {
                 if (!auction.StartDailyAuction(DailyPlan, level.Database))
-                    status.text = "The auction could not start. Check the daily plan and catalog.";
+                    status.text = "Dražbu sa nepodarilo spustiť.";
                 return;
             }
 
@@ -397,12 +402,13 @@ namespace AuctionGame.Auction
             catch (InvalidOperationException exception)
             {
                 status.gameObject.SetActive(true);
-                status.text = exception.Message;
+                status.text = "Dražbu sa nepodarilo pripraviť.";
+                Debug.LogError(exception.Message, this);
                 return;
             }
 
             if (!auction.StartAuction(run, level.Database))
-                status.text = "Dražbu sa nepodarilo spustiť. Skontrolujte beh MVP a katalóg.";
+                status.text = "Dražbu sa nepodarilo spustiť.";
         }
 
         private void AuctionStateChanged(AuctionState state)

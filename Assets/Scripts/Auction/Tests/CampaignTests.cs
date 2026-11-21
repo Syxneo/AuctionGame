@@ -142,7 +142,7 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(preparation.CurrentDay, Is.EqualTo(5));
                 Assert.That(preparation.DailyPlan.Seed, Is.EqualTo(expected.Seed));
                 Assert.That(preparation.DailyPlan.Lots, Is.EqualTo(expected.Lots));
-                Assert.That(GameObject.Find("Campaign Day").GetComponent<TMP_Text>().text, Is.EqualTo("DAY 5 / 5"));
+                Assert.That(GameObject.Find("Campaign Day").GetComponent<TMP_Text>().text, Is.EqualTo("DEŇ 5 / 5"));
                 var cinematic = preparation.GetComponent<AuctionResultCinematic>();
                 cinematic.enabled = false;
                 Object.FindFirstObjectByType<SceneIntroOutro>().SkipToEnd();
@@ -215,7 +215,7 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(400));
                 Assert.That(auction.Economy.Purchases, Is.Empty);
                 Assert.That(report.Report, Is.Null);
-                Assert.That(GameObject.Find("Campaign Day").GetComponent<TMP_Text>().text, Is.EqualTo("DAY 1 / 5"));
+                Assert.That(GameObject.Find("Campaign Day").GetComponent<TMP_Text>().text, Is.EqualTo("DEŇ 1 / 5"));
 
                 var saved = new CampaignProgress(Level, true);
                 Assert.That(saved.CurrentDay, Is.EqualTo(1));

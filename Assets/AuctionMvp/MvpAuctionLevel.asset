@@ -99,7 +99,7 @@ MonoBehaviour:
     bodyText: "Z hradnej pokladnice sa stratil tmavomodrý plášť so žltými hviezdami. Patril vraj poslednému dvornému mágovi."
   campaignGenerationAttempts: 32
   campaignDays:
-  - title: Welcome to the Auction
+  - title: Vitaj na dražbe
     focus: Tutorial
     narrativeTone: Showman / Comedy
     startingBudget: 400
@@ -109,7 +109,7 @@ MonoBehaviour:
     minLots: 3
     maxLots: 4
     saleDialogue: []
-  - title: Learning the Market
+  - title: Spoznávanie trhu
     focus: Item Evaluation
     narrativeTone: Salesman / Dark Comedy
     startingBudget: 500
@@ -119,7 +119,7 @@ MonoBehaviour:
     minLots: 4
     maxLots: 6
     saleDialogue: []
-  - title: Know Your Rivals
+  - title: Spoznaj súperov
     focus: AI Competition
     narrativeTone: Manipulator / Suspicion
     startingBudget: 650
@@ -129,7 +129,7 @@ MonoBehaviour:
     minLots: 4
     maxLots: 8
     saleDialogue: []
-  - title: High Stakes
+  - title: Vysoké stávky
     focus: Economic Pressure
     narrativeTone: Owner / Psychological Unease
     startingBudget: 800

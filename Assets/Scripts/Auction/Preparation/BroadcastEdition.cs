@@ -46,6 +46,18 @@ namespace AuctionGame.Auction
     {
         [SerializeField] private BroadcastArticle[] articles = Array.Empty<BroadcastArticle>();
 
+        internal Sprite GetBidderPortrait(AIPersonality bidder)
+        {
+            if (!bidder)
+                return null;
+
+            foreach (BroadcastArticle article in articles)
+                if (article != null && article.type == NewsType.Bidder && article.bidder == bidder && article.image)
+                    return article.image;
+
+            return null;
+        }
+
         internal IReadOnlyList<NewsCard> Select(DailyRunPlan plan, IReadOnlyList<AIPersonality> pool) =>
             Select(plan.Lots, plan.NewspaperEntries, pool, plan.Seed);
 

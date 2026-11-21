@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Linq;
 using TMPro;
 using UnityEngine;
@@ -25,6 +25,14 @@ namespace AuctionGame.Auction
         [SerializeField] private Button fiftyButton;
         [SerializeField] private bool mobileHud;
 
+        [Header("Bid Button Press")]
+        [SerializeField] private bool enableBidButtonPress = true;
+        [SerializeField, Range(0.8f, 1f)] private float pressedScale = 0.94f;
+        [SerializeField, Range(1f, 1.1f)] private float releasedScale = 1.04f;
+        [SerializeField, Min(0.01f)] private float pressReleaseDuration = 0.18f;
+
+        private BidButtonPress[] buttonPresses = System.Array.Empty<BidButtonPress>();
+
         private static readonly Color Placeholder = new(0.15f, 0.24f, 0.30f);
         private TMP_Text tenCaption;
         private TMP_Text twentyFiveCaption;
@@ -35,6 +43,15 @@ namespace AuctionGame.Auction
             ButtonClickAudio.Bind(tenButton);
             ButtonClickAudio.Bind(twentyFiveButton);
             ButtonClickAudio.Bind(fiftyButton);
+            if (enableBidButtonPress)
+            {
+                buttonPresses = new BidButtonPress[]
+                {
+                    BidButtonPress.Bind(tenButton, pressedScale, releasedScale, pressReleaseDuration),
+                    BidButtonPress.Bind(twentyFiveButton, pressedScale, releasedScale, pressReleaseDuration),
+                    BidButtonPress.Bind(fiftyButton, pressedScale, releasedScale, pressReleaseDuration)
+                };
+            }
             if (!mobileHud)
                 return;
 
@@ -47,6 +64,9 @@ namespace AuctionGame.Auction
         {
             if (!manager)
                 return;
+
+            foreach (var press in buttonPresses)
+                press.enabled = true;
 
             manager.OnStateChanged += StateChanged;
             manager.OnBidPlaced += BidPlaced;
@@ -62,6 +82,10 @@ namespace AuctionGame.Auction
             if (!manager)
                 return;
 
+            foreach (var press in buttonPresses)
+                if (press)
+                    press.enabled = false;
+
             manager.OnStateChanged -= StateChanged;
             manager.OnBidPlaced -= BidPlaced;
             manager.OnClockChanged -= UpdateClock;
@@ -70,7 +94,19 @@ namespace AuctionGame.Auction
             fiftyButton.onClick.RemoveListener(BidFifty);
         }
 
-        private void StateChanged(AuctionState state) => Refresh();
+        private void StateChanged(AuctionState state)
+        {
+            if (state != AuctionState.Bidding)
+                ResetButtonPresses();
+            Refresh();
+        }
+
+        private void ResetButtonPresses()
+        {
+            foreach (var press in buttonPresses)
+                if (press)
+                    press.ResetPress();
+        }
         private void BidPlaced(BidRecord bid) => Refresh();
         private void BidTen() => Bid(AuctionManager.MinimumOpeningBid);
         private void BidTwentyFive() => Bid(AuctionManager.MediumIncrement);

@@ -4340,7 +4340,7 @@ MonoBehaviour:
     textPanelColor: {r: 0.88, g: 0.87, b: 0.84, a: 1}
     pictureColor: {r: 0.73, g: 0.73, b: 0.69, a: 1}
     textColor: {r: 0.13, g: 0.16, b: 0.19, a: 1}
-    continuePrompt: "klepni pre pokra\u010Dovanie"
+    continuePrompt: "Klepni a pokra\u010Duj"
   newsIntroJingle: {fileID: 8300000, guid: 67eed0f1c9ac4e628ab2993ba5368fde, type: 3}
   broadcastEdition:
     articles:
@@ -4430,9 +4430,10 @@ MonoBehaviour:
   podium: {fileID: 2161000002}
   auctionHud: {fileID: 1547383902}
   font: {fileID: 11400000, guid: 08a7c03935a3fea4b88d65127c00d588, type: 2}
-  soldStamp: {fileID: 21300000, guid: 7308b2de1816a72469de11938e2f6f67, type: 3}
+  soldStamp: {fileID: 21300000, guid: 9e1570994dcc4bd7bdb50cdf8d7c7b07, type: 3}
   sale: {fileID: 2161300004}
   speechBubble: {fileID: 5826550855767299657, guid: f564888266e09c345b2fd1999d6ce698, type: 3}
+  preparation: {fileID: 1471185885}
 --- !u!114 &1471185897
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4479,20 +4480,19 @@ MonoBehaviour:
   pickupClick: {fileID: 8300000, guid: 63daf9ca86e853e45a449e395a7af790, type: 3}
   speechBubble: {fileID: 5826550855767299657, guid: f564888266e09c345b2fd1999d6ce698, type: 3}
   successEnding:
-  - Well, well, well... You actually made a profit.
-  - I must admit, I didn't expect that from you.
-  - Let's see what you've managed to get your hands on.
+  - Ale, ale, ale... Ty si naozaj dosiahol zisk.
+  - Priznávam, to som od teba nečakal.
+  - Pozrime sa, čo sa ti podarilo uchmatnúť.
   failureEnding:
-  - You did terrible. I expected nothing, and somehow you delivered less.
-  - Let's see how much money you've thrown away.
-  - Remember, darling... Everything is for sale.
+  - To bola bieda. Nečakal som nič, a ty si zvládol ešte menej.
+  - Pozrime sa, koľko peňazí si vyhodil von oknom.
+  - Pamätaj, zlatko... Všetko je na predaj.
   fadeOut: 0.25
   fadeIn: 0.25
-  endLineFade: 0.1
   dialogue:
   - speaker: 0
     order: 0
-    text: "Ahoj, videl si u\u017E dne\u0161n\xE9 NOVINKY? \xDAdajne tam bud\xFA super
+    text: "Ahoj, videl si u\u017E dne\u0161n\xE9 NEWSSSS? \xDAdajne tam bud\xFA super
       veci na n\xE1kup..."
   - speaker: 1
     order: 1

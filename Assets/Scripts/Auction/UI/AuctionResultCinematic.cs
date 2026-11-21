@@ -16,6 +16,14 @@ namespace AuctionGame.Auction
         [SerializeField] private Sprite soldStamp;
         [SerializeField] private SaleAuctioneer sale;
         [SerializeField] private BidderSpeechBubble speechBubble;
+        [SerializeField] private PreparationPhase preparation;
+        [Header("Winner Presentation")]
+        [SerializeField] private bool enableWinnerTextReveal = true;
+        [SerializeField, Min(0.01f)] private float winnerRevealDuration = 0.3f;
+        [SerializeField, Range(1f, 1.12f)] private float winnerRevealScale = 1.08f;
+        [SerializeField] private bool enableAiWinnerEntrance = true;
+        [SerializeField, Min(0.01f)] private float aiEntranceDuration = 0.4f;
+        [SerializeField, Range(0f, 32f)] private float aiEntranceOffset = 24f;
         [Header("SOLD Impact")]
         [SerializeField] private bool enableSoldStampImpact = true;
         [SerializeField, Min(0.01f)] private float stampDuration = 0.35f;
@@ -40,12 +48,20 @@ namespace AuctionGame.Auction
         private Image ribbon;
         private RectTransform banner;
         private Image stamp;
+        private TMP_Text stampCaption;
         private Image[] stampBurst;
         private Image[] confetti;
         private bool soldEffectsPlayed;
         private double soldEffectsStarted = double.NegativeInfinity;
         private TMP_Text outcome;
         private TMP_Text winner;
+        private Image winnerPortrait;
+        private Color winnerBaseColor;
+        private Vector3 winnerBaseScale;
+        private Vector3 portraitBaseScale;
+        private Vector2 portraitBasePosition;
+        private Color portraitBaseColor;
+        private double winnerEffectsStarted = double.NegativeInfinity;
         private TMP_Text price;
         private BidderSpeechBubble saleComment;
         private AuctionResult activeResult;
@@ -87,6 +103,8 @@ namespace AuctionGame.Auction
 
             if (!double.IsNegativeInfinity(soldEffectsStarted))
                 UpdateSoldEffects((float)(Time.unscaledTimeAsDouble - soldEffectsStarted));
+            if (!double.IsNegativeInfinity(winnerEffectsStarted))
+                UpdateWinnerEffects((float)(Time.unscaledTimeAsDouble - winnerEffectsStarted));
         }
 
         private void Cancel()
@@ -153,14 +171,20 @@ namespace AuctionGame.Auction
             ribbon.rectTransform.anchorMin = new Vector2(-ribbonOverhang, 0.08f);
             ribbon.rectTransform.anchorMax = new Vector2(1f + ribbonOverhang, 0.92f);
             stamp.enabled = showStamp;
+            stampCaption.enabled = showStamp;
             outcome.enabled = !showStamp;
             itemBackdrop.anchorMin = new Vector2(0.026f, result.sold ? 0.235f : 0.025f);
             itemImage.rectTransform.anchorMin = new Vector2(0.09f, result.sold ? 0.26f : 0.13f);
             banner.anchorMin = new Vector2(0.055f, result.sold ? 0.36f : 0.19f);
             banner.anchorMax = new Vector2(0.945f, result.sold ? 0.52f : 0.35f);
             outcome.text = result.sold ? "PREDANÉ" : "NEPREDANÉ";
-            winner.text = result.sold ? auction.GetBidderDisplayName(result.winnerId) : "";
+            winner.text = !result.sold ? "" : result.winnerId == BidderIds.Player
+                ? "VYHRAL SI"
+                : $"VÍŤAZ: {auction.GetBidderDisplayName(result.winnerId)}";
             winner.color = result.sold && result.winnerId == BidderIds.Player ? VictoryGreen : Ivory;
+            winnerBaseColor = winner.color;
+            SetWinnerPortrait(result);
+            winner.rectTransform.anchorMin = new Vector2(winnerPortrait.enabled ? 0.26f : 0.05f, 0.101f);
             price.text = result.sold ? $"${result.finalPrice}" : "";
             winner.gameObject.SetActive(result.sold);
             price.gameObject.SetActive(result.sold);
@@ -174,7 +198,11 @@ namespace AuctionGame.Auction
                 sale.StopGavelSlam();
             RestoreHud();
             if (itemImage)
+            {
                 itemImage.sprite = null;
+                winnerPortrait.enabled = false;
+                winnerPortrait.sprite = null;
+            }
             if (auction && activeResult != null)
                 auction.CompleteResultPresentation(activeResult);
             activeResult = null;
@@ -221,9 +249,14 @@ namespace AuctionGame.Auction
                     soldEffectsPlayed = true;
                     soldEffectsStarted = Time.unscaledTimeAsDouble;
                     UpdateSoldEffects(0f);
+                    winnerEffectsStarted = Time.unscaledTimeAsDouble;
+                    UpdateWinnerEffects(0f);
                 }
                 else if (!visible)
+                {
                     ResetSoldEffects();
+                    ResetWinnerEffects();
+                }
                 // The overlay hides exactly when the curtains start reopening after the
                 // player confirmed the result. Complete the presentation right away so
                 // the auction swaps in the next lot while the intro reveal is running,
@@ -268,8 +301,10 @@ namespace AuctionGame.Auction
 
             RectTransform safeArea = Box("Result Safe Area", root, Vector2.zero, Vector2.one);
             safeArea.gameObject.AddComponent<AuctionHudSafeArea>();
-            Label("Continue Prompt", safeArea, new Vector2(0.07f, 0.14f), new Vector2(0.93f, 0.245f),
-                58, Ivory).text = "Klepni pre pokračovanie";
+            var continuePrompt = Label("Continue Prompt", safeArea, new Vector2(0.07f, 0.14f),
+                new Vector2(0.93f, 0.245f), 58, Ivory);
+            continuePrompt.text = "Klepni a pokračuj";
+            BidButtonPress.Bind(continueButton, visual: continuePrompt.rectTransform);
             if (sale)
             {
                 var commentary = Box("SALE Commentary Region", safeArea,
@@ -298,14 +333,92 @@ namespace AuctionGame.Auction
             outcome = Label("Result Outcome", banner, new Vector2(0.08f, 0.1f), new Vector2(0.92f, 0.9f), 92, Ivory);
             outcome.fontStyle = FontStyles.Bold;
             outcome.characterSpacing = 10f;
-            stamp = Fill(Box("SOLD Sticker", banner, new Vector2(-.04f, -.21f),
+            stamp = Fill(Box("Sold Stamp", banner, new Vector2(-.04f, -.21f),
                 new Vector2(1.04f, 1.33f)), Color.white);
             stamp.sprite = soldStamp;
             stamp.preserveAspect = true;
+            var stampFace = Box("Stamp Face", stamp.rectTransform, Vector2.zero, Vector2.one);
+            var stampAspect = stampFace.gameObject.AddComponent<AspectRatioFitter>();
+            stampAspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            stampAspect.aspectRatio = soldStamp ? soldStamp.rect.width / soldStamp.rect.height : 1f;
+            stampCaption = Label("Stamp Caption", stampFace, new Vector2(0.14f, 0.40f),
+                new Vector2(0.81f, 0.68f), 54, Ivory);
+            stampCaption.font = TMP_Settings.defaultFontAsset;
+            stampCaption.fontSizeMin = 16;
+            stampCaption.fontStyle = FontStyles.Bold;
+            stampCaption.text = "PREDANÉ";
 
-            winner = Label("Result Winner", card, new Vector2(0.05f, 0.132f), new Vector2(0.95f, 0.245f), 72, Ivory);
-            price = Label("Result Price", card, new Vector2(0.05f, 0.012f), new Vector2(0.95f, 0.132f), 86, Gold);
+            winnerPortrait = Fill(Box("AI Winner Portrait", card, new Vector2(0.04f, 0.04f),
+                new Vector2(0.25f, 0.232f)), Color.white);
+            winnerPortrait.preserveAspect = true;
+            winnerPortrait.enabled = false;
+            portraitBaseScale = winnerPortrait.rectTransform.localScale;
+            portraitBasePosition = winnerPortrait.rectTransform.anchoredPosition;
+            portraitBaseColor = winnerPortrait.color;
+
+            winner = Label("Result Winner", card, new Vector2(0.05f, 0.101f), new Vector2(0.95f, 0.245f), 96, Ivory);
+            winner.fontStyle = FontStyles.Bold;
+            winnerBaseScale = winner.rectTransform.localScale;
+            winnerBaseColor = winner.color;
+            price = Label("Result Price", card, new Vector2(0.05f, 0.012f), new Vector2(0.95f, 0.101f), 86, Gold);
             price.fontStyle = FontStyles.Bold;
+        }
+
+        private void SetWinnerPortrait(AuctionResult result)
+        {
+            Sprite portrait = null;
+            if (preparation && result.sold && result.winnerId != BidderIds.Player)
+            {
+                foreach (AIBidder bidder in auction.Opponents)
+                {
+                    if (bidder.Id != result.winnerId)
+                        continue;
+
+                    portrait = preparation.GetBidderPortrait(bidder.Personality);
+                    break;
+                }
+            }
+
+            winnerPortrait.sprite = portrait;
+            winnerPortrait.enabled = portrait != null;
+            float left = portrait ? 0.29f : 0.05f;
+            winner.rectTransform.anchorMin = new Vector2(left, 0.101f);
+            price.rectTransform.anchorMin = new Vector2(left, 0.012f);
+        }
+
+        private void UpdateWinnerEffects(float elapsed)
+        {
+            float textProgress = enableWinnerTextReveal ? Mathf.Clamp01(elapsed / winnerRevealDuration) : 1f;
+            float portraitProgress = enableAiWinnerEntrance && winnerPortrait.enabled
+                ? Mathf.Clamp01(elapsed / aiEntranceDuration) : 1f;
+            if (textProgress >= 1f && portraitProgress >= 1f)
+            {
+                ResetWinnerEffects();
+                return;
+            }
+
+            float textScale = textProgress < 0.65f
+                ? Mathf.SmoothStep(0.85f, winnerRevealScale, textProgress / 0.65f)
+                : Mathf.SmoothStep(winnerRevealScale, 1f, (textProgress - 0.65f) / 0.35f);
+            winner.rectTransform.localScale = winnerBaseScale * textScale;
+            winner.alpha = winnerBaseColor.a * Mathf.SmoothStep(0f, 1f, textProgress);
+
+            float rise = 1f - (1f - portraitProgress) * (1f - portraitProgress);
+            winnerPortrait.rectTransform.anchoredPosition = portraitBasePosition - Vector2.up * (aiEntranceOffset * (1f - rise));
+            winnerPortrait.rectTransform.localScale = portraitBaseScale * Mathf.Lerp(0.9f, 1f, rise);
+            Color portraitColor = portraitBaseColor;
+            portraitColor.a *= rise;
+            winnerPortrait.color = portraitColor;
+        }
+
+        private void ResetWinnerEffects()
+        {
+            winnerEffectsStarted = double.NegativeInfinity;
+            winner.rectTransform.localScale = winnerBaseScale;
+            winner.color = winnerBaseColor;
+            winnerPortrait.rectTransform.anchoredPosition = portraitBasePosition;
+            winnerPortrait.rectTransform.localScale = portraitBaseScale;
+            winnerPortrait.color = portraitBaseColor;
         }
 
         private void UpdateSoldEffects(float elapsed)

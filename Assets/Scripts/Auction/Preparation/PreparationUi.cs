@@ -45,7 +45,8 @@ namespace AuctionGame.Auction
             return label;
         }
 
-        internal static Button Button(RectTransform rect, string caption, bool playClick = true)
+        internal static Button Button(RectTransform rect, string caption, bool playClick = true,
+            bool animatePress = true)
         {
             var button = rect.gameObject.AddComponent<Button>();
             if (playClick)
@@ -53,6 +54,8 @@ namespace AuctionGame.Auction
             button.targetGraphic = Surface(rect, new Color(0.22f, 0.33f, 0.43f));
             button.navigation = new Navigation { mode = Navigation.Mode.Explicit };
             Label(Fill("Label", rect), caption, 20, Color.white).alignment = TextAlignmentOptions.Center;
+            if (animatePress && !string.IsNullOrEmpty(caption))
+                BidButtonPress.Bind(button);
             return button;
         }
     }

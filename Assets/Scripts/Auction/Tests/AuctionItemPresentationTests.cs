@@ -19,6 +19,13 @@ namespace AuctionGame.Auction.Tests
         public IEnumerator IntegratedAuctionShowsEachLotOnThePodium()
         {
             yield return new EnterPlayMode();
+            // Create the closure for the broadcast callback after the Play Mode domain reload.
+            yield return VerifyIntegratedAuction();
+            yield return new ExitPlayMode();
+        }
+
+        private static IEnumerator VerifyIntegratedAuction()
+        {
             GameIntroTestDriver.LoadIntegratedScene();
             AuctionItemSpritePresenter presenter = null;
             float loadDeadline = Time.realtimeSinceStartup + 5f;
@@ -220,10 +227,24 @@ namespace AuctionGame.Auction.Tests
                     Is.EqualTo(sold ? "PREDANÉ" : "NEPREDANÉ"));
                 Assert.That(GameObject.Find("SALE Commentary").GetComponent<TMP_Text>().text,
                     Is.EqualTo(sale.ResultLine));
+                var portrait = GameObject.Find("AI Winner Portrait").GetComponent<Image>();
+                bool aiWon = sold && result.winnerId != BidderIds.Player;
+                Assert.That(portrait.enabled, Is.EqualTo(aiWon));
+                if (aiWon)
+                {
+                    var bidder = auction.Opponents.Single(opponent => opponent.Id == result.winnerId);
+                    Assert.That(AssetDatabase.GetAssetPath(portrait.sprite),
+                        Is.EqualTo($"Assets/Art/Characters/{bidder.Personality.DialogueProfileId}_front.png"));
+                    Assert.That(portrait.rectTransform.localScale.x, Is.EqualTo(0.9f).Within(0.001f));
+                    Assert.That(portrait.rectTransform.anchoredPosition.y, Is.LessThan(0f));
+                }
                 if (sold)
                 {
-                    Assert.That(GameObject.Find("Result Winner").GetComponent<TMP_Text>().text,
-                        Is.EqualTo(auction.GetBidderDisplayName(result.winnerId)));
+                    var winner = GameObject.Find("Result Winner").GetComponent<TMP_Text>();
+                    Assert.That(winner.text, Is.EqualTo(auction.GetBidderDisplayName(result.winnerId)));
+                    Assert.That(winner.color.g > winner.color.r, Is.EqualTo(!aiWon));
+                    Assert.That(winner.alpha, Is.Zero);
+                    Assert.That(winner.rectTransform.localScale.x, Is.EqualTo(0.85f).Within(0.001f));
                     Assert.That(GameObject.Find("Result Price").GetComponent<TMP_Text>().text,
                         Is.EqualTo($"${result.finalPrice}"));
                 }
@@ -294,11 +315,23 @@ namespace AuctionGame.Auction.Tests
             Assert.That(visual.sprite, Is.Null);
             Assert.That(auction.Results, Has.Count.EqualTo(6));
             yield return GameIntroTestDriver.OpenFinalReport();
-            Assert.That(auction.GetComponent<AuctionReportUI>().Report, Is.Not.Null);
+            var report = auction.GetComponent<AuctionReportUI>().Report;
+            Assert.That(report, Is.Not.Null);
+            var total = GameObject.Find("Your profit Value").GetComponent<TMP_Text>();
+            var status = GameObject.Find("Report Paper").transform.Find("Result").GetComponent<TMP_Text>();
+            Assert.That(GameObject.Find(report.Succeeded ? "Continue Button" : "Retry Button")
+                .GetComponent<Button>().IsInteractable(), Is.True);
+            yield return new WaitForSecondsRealtime(1.2f);
+            string exactTotal = report.TotalProfit > 0 ? $"+${report.TotalProfit}" :
+                report.TotalProfit < 0 ? $"-${-report.TotalProfit}" : "$0";
+            Assert.That(total.text, Is.EqualTo(exactTotal));
+            Assert.That(status.text, Is.EqualTo(report.Succeeded ? "SUCCESS" : "GAME OVER"));
+            Assert.That(status.alpha, Is.EqualTo(1f));
+            Assert.That(status.rectTransform.localScale, Is.EqualTo(Vector3.one));
+            Assert.That(status.rectTransform.localRotation, Is.EqualTo(Quaternion.identity));
             Assert.That(Object.FindObjectsByType<Camera>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
             Assert.That(Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
             Assert.That(Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
-            yield return new ExitPlayMode();
         }
 
         private static void AssertSalePlacement(Camera camera, SpriteRenderer sale, SpriteRenderer item)
