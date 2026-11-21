@@ -189,6 +189,7 @@ namespace AuctionGame.Auction
             var rect = Box(title + " Button", view, 678, 476, 190, 56);
             var background = AddImage(rect, Accent, true);
             var button = rect.gameObject.AddComponent<Button>();
+            ButtonClickAudio.Bind(button);
             button.targetGraphic = background;
             Label(rect, title, 0, 0, 190, 56, 23, Panel).alignment = TextAlignmentOptions.Center;
             return button;

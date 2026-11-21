@@ -31,6 +31,9 @@ namespace AuctionGame.Auction
 
         private void Awake()
         {
+            ButtonClickAudio.Bind(tenButton);
+            ButtonClickAudio.Bind(twentyFiveButton);
+            ButtonClickAudio.Bind(fiftyButton);
             if (!mobileHud)
                 return;
 

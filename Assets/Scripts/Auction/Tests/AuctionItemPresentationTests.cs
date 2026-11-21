@@ -30,6 +30,20 @@ namespace AuctionGame.Auction.Tests
             var presenter = Object.FindFirstObjectByType<BidderDialoguePresenter>();
             var presenterData = new SerializedObject(presenter);
             Assert.That(presenterData.FindProperty("auction").objectReferenceValue, Is.SameAs(auction));
+            var dialogueAudio = (AudioSource)presenterData.FindProperty("dialogueAudio").objectReferenceValue;
+            var dialogueCue = (AudioClip)presenterData.FindProperty("dialogueCue").objectReferenceValue;
+            Assert.That(dialogueAudio, Is.Not.Null);
+            Assert.That(dialogueAudio.playOnAwake, Is.False);
+            Assert.That(dialogueCue, Is.Not.Null);
+            Assert.That(dialogueCue.length, Is.EqualTo(0.095f).Within(0.001f));
+            var audioRoot = dialogueAudio.gameObject;
+            var ambience = audioRoot.GetComponents<AudioSource>().Where(source => source.playOnAwake).ToArray();
+            Assert.That(ambience.Select(source => source.clip.name),
+                Is.EquivalentTo(new[] { "auction_ambient", "auction_ambient_talking" }));
+            Assert.That(ambience.All(source => source.loop && source.spatialBlend == 0f), Is.True);
+            var clickAudio = new SerializedObject(audioRoot.GetComponent<ButtonClickAudio>());
+            Assert.That(clickAudio.FindProperty("effects").objectReferenceValue, Is.SameAs(dialogueAudio));
+            Assert.That(clickAudio.FindProperty("click").objectReferenceValue.name, Is.EqualTo("button_click"));
             var dialogueCanvas = (Canvas)presenterData.FindProperty("canvas").objectReferenceValue;
             Assert.That(dialogueCanvas.targetDisplay, Is.Zero);
             Assert.That(hudImage.GetComponentInParent<Canvas>(true).targetDisplay, Is.Zero);
@@ -80,6 +94,16 @@ namespace AuctionGame.Auction.Tests
                 {
                     yield return null;
                     Assert.That(dialogueCanvas.GetComponentsInChildren<BidderSpeechBubble>(), Has.Length.EqualTo(3));
+                    var cueTime = typeof(BidderDialoguePresenter).GetField("nextDialogueCue",
+                        BindingFlags.Instance | BindingFlags.NonPublic);
+                    var render = typeof(BidderDialoguePresenter).GetMethod("Render",
+                        BindingFlags.Instance | BindingFlags.NonPublic);
+                    double now = Time.unscaledTimeAsDouble + 0.25;
+                    render.Invoke(presenter, new object[] { now, 0.05f });
+                    double played = (double)cueTime.GetValue(presenter);
+                    Assert.That(played, Is.GreaterThan(0d));
+                    render.Invoke(presenter, new object[] { now + 0.25, 0.05f });
+                    Assert.That(cueTime.GetValue(presenter), Is.EqualTo(played));
                     Click("+$10 Button");
                     Assert.That(auction.CurrentPrice, Is.EqualTo(10));
                     var opponent = auction.Opponents.First(bidder => bidder.IsActiveForLot && bidder.EstimatedValue >= 115);

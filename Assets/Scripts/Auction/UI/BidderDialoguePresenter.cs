@@ -23,6 +23,7 @@ namespace AuctionGame.Auction
             public float StartAlpha { get; set; }
             public float StartScale { get; set; }
             public string PendingText { get; set; }
+            public bool CuePending { get; set; }
             public bool Replacing { get; set; }
             public Vector2 Anchor { get; set; }
             public Vector2 Destination { get; set; }
@@ -38,6 +39,8 @@ namespace AuctionGame.Auction
         [SerializeField] private Camera sceneCamera;
         [SerializeField] private Canvas canvas;
         [SerializeField] private BidderSpeechBubble bubblePrefab;
+        [SerializeField] private AudioSource dialogueAudio;
+        [SerializeField] private AudioClip dialogueCue;
         [SerializeField] private TMP_FontAsset font;
         [SerializeField] private Binding[] bidders = Array.Empty<Binding>();
         [SerializeField] private bool enableDialogueUi = true;
@@ -72,6 +75,7 @@ namespace AuctionGame.Auction
         private Sprite frame;
         private Sprite arrow;
         private Material inactiveMaterial;
+        private double nextDialogueCue;
 
         private void Awake()
         {
@@ -240,6 +244,7 @@ namespace AuctionGame.Auction
         {
             binding.Ends = 0;
             binding.PendingText = null;
+            binding.CuePending = false;
             if (binding.Bubble)
                 binding.Bubble.Hide();
         }
@@ -310,8 +315,11 @@ namespace AuctionGame.Auction
                 SetText(target, line);
         }
 
-        private void SetText(Binding binding, string line) =>
+        private void SetText(Binding binding, string line)
+        {
             binding.Bubble.SetText(line, Mathf.Min(minWidth, maxWidth), maxWidth, textPadding, maxTextLines);
+            binding.CuePending = true;
+        }
 
         private void LateUpdate()
         {
@@ -360,6 +368,7 @@ namespace AuctionGame.Auction
             }
 
             Layout(safe);
+            bool cueRequested = false;
             foreach (Binding binding in visible)
             {
                 var bubble = binding.Bubble;
@@ -378,6 +387,17 @@ namespace AuctionGame.Auction
                     : Mathf.Lerp(binding.StartAlpha, 1, easeOut);
                 bubble.Group.alpha = alpha * (fade * (2 - fade));
                 bubble.Rect.localScale = Vector3.one * Mathf.Lerp(binding.StartScale, 1, show * (2 - show));
+                if (binding.CuePending && bubble.Group.alpha > 0f)
+                {
+                    binding.CuePending = false;
+                    cueRequested = true;
+                }
+            }
+
+            if (cueRequested && dialogueAudio && dialogueCue && now >= nextDialogueCue)
+            {
+                dialogueAudio.PlayOneShot(dialogueCue);
+                nextDialogueCue = now + dialogueCue.length;
             }
         }
 
