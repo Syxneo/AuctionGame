@@ -1,4 +1,4 @@
-﻿using TMPro;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -73,6 +73,7 @@ namespace AuctionGame.Auction
 
             Report = snapshot;
             CreateView("SALE Report");
+            ButtonClickAudio.Find(gameObject.scene)?.ReportOpened(Report.Succeeded);
             Label(view, "PREDAJ", 28, 18, 110, 32, 24, Accent);
             Label(view, "Správa z dražby", 28, 50, 510, 50, 36, Color.white);
             Label(view, Report.Succeeded ? "ÚSPECH" : "KONIEC HRY", 640, 49, 228, 50, 30,

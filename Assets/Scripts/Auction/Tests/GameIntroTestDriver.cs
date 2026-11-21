@@ -40,6 +40,10 @@ namespace AuctionGame.Auction.Tests
             Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.StartScreen));
             Assert.That(GameObject.Find("NEWSSSS presentation"), Is.Null);
             Assert.That(GameObject.Find("SALE briefing"), Is.Null);
+            Assert.That(Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
+            Assert.That(Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
+            intro.SendMessage("OnApplicationFocus", true);
+            Assert.That(GameObject.Find("Parchment").GetComponent<RawImage>().texture, Is.Not.Null);
             var play = GameObject.Find("PLAY").GetComponent<Button>();
             play.onClick.Invoke();
             play.onClick.Invoke();
@@ -50,9 +54,26 @@ namespace AuctionGame.Auction.Tests
             Assert.That(source.clip, Is.Not.Null);
             Assert.That(source.loop, Is.True);
 
+            var phone = GameObject.Find("Incoming Telephone").GetComponent<RectTransform>();
+            for (int frame = 0; frame < 15 && Mathf.Abs(phone.anchoredPosition.x) < .1f; frame++)
+                yield return null;
+            Assert.That(Mathf.Abs(phone.anchoredPosition.x), Is.GreaterThanOrEqualTo(.1f));
+            Assert.That(phone.anchoredPosition.y, Is.Zero);
+
+            intro.SendMessage("OnApplicationPause", true);
+            Assert.That(phone.anchoredPosition, Is.EqualTo(Vector2.zero));
+            Assert.That(source.clip, Is.Null);
+            intro.SendMessage("OnApplicationFocus", false);
+            intro.SendMessage("OnApplicationPause", false);
+            Assert.That(source.clip, Is.Null);
+            intro.SendMessage("OnApplicationFocus", true);
+            Assert.That(source.loop, Is.True);
+
             Click("Pick Up Phone");
+            Assert.That(source.clip, Is.Null);
             Assert.That(source.loop, Is.False);
             AssertSprite("Picked Up Telephone");
+            Assert.That(phone.gameObject.activeInHierarchy, Is.False);
             Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.SaleConversation));
             var messages = GameObject.Find("Messages").transform;
             Assert.That(messages.childCount, Is.Zero);

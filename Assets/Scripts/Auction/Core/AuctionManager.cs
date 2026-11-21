@@ -92,6 +92,7 @@ namespace AuctionGame.Auction
 
         public event Action<AuctionItem> OnItemChanged;
         public event Action<BidRecord> OnBidPlaced;
+        internal event Action OnPlayerBidRejected;
         public event Action<AuctionResult> OnAuctionEnded;
         public event Action<AuctionState> OnStateChanged;
         public event Action OnAuctionPhaseFinished;
@@ -370,7 +371,11 @@ namespace AuctionGame.Auction
         public bool TryPlaceBid(string bidderId, int amount)
         {
             if (publishingBid || !CanPlaceBid(bidderId, amount))
+            {
+                if (bidderId == BidderIds.Player)
+                    OnPlayerBidRejected?.Invoke();
                 return false;
+            }
 
             int previousPrice = CurrentPrice;
             // Only raises contribute to intimidation. An opening bid establishes the first price.

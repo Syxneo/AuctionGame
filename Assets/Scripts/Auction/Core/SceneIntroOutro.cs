@@ -49,6 +49,7 @@ namespace AuctionGame.Auction
         [SerializeField] private AnimationCurve ease = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
         public bool IsPlaying { get; private set; }
+        internal event Action CurtainMovementStarted;
 
         private Camera resultCamera;
         private Pose startLocalPose;
@@ -133,9 +134,15 @@ namespace AuctionGame.Auction
 
             float closedAt = Mathf.Max(approachDuration, curtainCloseDelay + curtainCloseDuration);
             float reopenAt = closedAt + resultHoldDuration;
+            float previousElapsed = resultElapsed;
             resultElapsed = resultConfirmed
                 ? resultElapsed + deltaTime
                 : Mathf.Min(resultElapsed + deltaTime, reopenAt);
+            if (curtainCloseDuration > 0 && previousElapsed <= curtainCloseDelay && resultElapsed > curtainCloseDelay)
+                CurtainMovementStarted?.Invoke();
+            if (reopenDuration > 0 && previousElapsed <= reopenAt && resultElapsed > reopenAt)
+                CurtainMovementStarted?.Invoke();
+
             if (resultElapsed >= reopenAt + reopenDuration)
             {
                 FinishResult();
@@ -207,6 +214,9 @@ namespace AuctionGame.Auction
 
             ApplyPose(from);
             if (delay > 0f) yield return new WaitForSeconds(delay);
+
+            if (duration > 0 && (leftCurtain || rightCurtain))
+                CurtainMovementStarted?.Invoke();
 
             float elapsed = 0f;
             while (elapsed < duration)

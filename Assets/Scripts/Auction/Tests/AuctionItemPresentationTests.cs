@@ -211,7 +211,8 @@ namespace AuctionGame.Auction.Tests
             var click = new SerializedObject(audio.GetComponent<ButtonClickAudio>());
             var dialogue = new SerializedObject(Object.FindFirstObjectByType<BidderDialoguePresenter>());
             Assert.That(click.FindProperty("click").objectReferenceValue.name, Is.EqualTo("button_click"));
-            Assert.That(dialogue.FindProperty("dialogueCue").objectReferenceValue.name, Is.EqualTo("bid"));
+            Assert.That(click.FindProperty("successfulBid").objectReferenceValue.name, Is.EqualTo("bid"));
+            Assert.That(dialogue.FindProperty("dialogueCue").objectReferenceValue.name, Is.EqualTo("BidderDialogueCue"));
             Assert.That(dialogue.FindProperty("dialogueAudio").objectReferenceValue,
                 Is.Not.SameAs(click.FindProperty("effects").objectReferenceValue));
         }

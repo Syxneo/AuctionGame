@@ -52,13 +52,21 @@ namespace AuctionGame.Auction.Tests
             Assert.That(auction.CurrentPrice, Is.Zero);
             Assert.That(auction.HighestBidderId, Is.Empty);
             Assert.That(auction.BidHistory, Is.Empty);
+            var accepted = new List<BidRecord>();
+            int rejected = 0;
+            auction.OnBidPlaced += accepted.Add;
+            auction.OnPlayerBidRejected += () => rejected++;
             foreach (int invalid in new[] { -10, 0, 9, 15 })
                 Assert.That(auction.TryPlaceBid(BidderIds.Player, invalid), Is.False);
             Assert.That(auction.TryPlaceBid("unknown", 10), Is.False);
+            Assert.That(accepted, Is.Empty);
+            Assert.That(rejected, Is.EqualTo(4));
             Assert.That(auction.TryPlaceBid(BidderIds.Player, amount), Is.True);
             Assert.That(auction.CurrentPrice, Is.EqualTo(amount));
             Assert.That(auction.HighestBidderId, Is.EqualTo(BidderIds.Player));
             Assert.That(auction.BidHistory.Single().amount, Is.EqualTo(amount));
+            Assert.That(accepted.Single().amount, Is.EqualTo(amount));
+            Assert.That(rejected, Is.EqualTo(4));
         }
 
         [Test]

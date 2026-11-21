@@ -28,12 +28,12 @@ MonoBehaviour:
     variant: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000003, type: 2}
     familyFallbackBody: "Sochári porovnávajú, ako je na mramorových postavách opracovaná tvár a drapéria. Aj podobné sochy sa pri pohľade zblízka môžu líšiť."
     headline: "Venuša bez rúk sa vynorila zo súkromnej zbierky."
-    bodyText: "Odborníci opisujú antickú Venušu z bieleho mramoru bez rúk, s hlavou sklonenou doľava. Hovoria o objave storočia."
+    bodyText: "Antická socha z bieleho mramoru nemá ruky a hlavu má sklonenú doľava. Odborníci hovoria o objave storočia."
   - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400000b, type: 2}
     variant: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400000d, type: 2}
     familyFallbackBody: "Na výstave kalichov si návštevníci všímajú obrys nádoby, výzdobu a spôsob uchopenia. Katalóg odporúča prezrieť si kalichy aj zboku."
     headline: "Zlatý kalich bez uší."
-    bodyText: "Staré kresby zobrazujú jednoduchý zlatý kalich s tromi červenými kameňmi a bez uší. Archeológovia našli kalich s rovnakými znakmi."
+    bodyText: "Archeológovia vykopali jednoduchý zlatý kalich s tromi červenými kameňmi. Nemá žiadne uchá, presne ako na starých kresbách."
   - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000010, type: 2}
     variant: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000012, type: 2}
     familyFallbackBody: "Výstava starých mečov ukazuje rozličné tvary čepelí a rukovätí. Kurátori odporúčajú porovnať siluetu celej zbrane aj drobnú výzdobu pri rukoväti."
@@ -43,17 +43,17 @@ MonoBehaviour:
     variant: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000008, type: 2}
     familyFallbackBody: "Pri prezeraní amfor odborníci porovnávajú farbu, pásy výzdoby a tvar hrdla. Podobné nádoby sa môžu pri pohľade zblízka výrazne líšiť."
     headline: "Modrá amfora z potopenej lode."
-    bodyText: "Potápači opísali amforu z vraku ako tmavomodrú, s bielymi vlnami okolo pásu."
+    bodyText: "Potápači vyniesli na breh tmavomodrú vázu s bielymi vlnami okolo pásu. Je jediná svojho druhu."
   - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000015, type: 2}
     variant: {fileID: 11400000, guid: bfaa7d080e704c349820f988a4000017, type: 2}
     familyFallbackBody: "Zberatelia hudby si pri prezeraní starých diskov všímajú potlač a stav okraja. Obal sám o sebe veľa o stave disku neprezradí."
     headline: "Prvé vydanie bez škrabanca."
-    bodyText: "Zberatelia hľadajú CD z prvého vydania albumu s celým diskom, bez jedinej praskliny."
+    bodyText: "Na aukciu ide CD z prvého vydania albumu. Disk je celý, bez jedinej praskliny."
   - itemType: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400001a, type: 2}
     variant: {fileID: 11400000, guid: bfaa7d080e704c349820f988a400001c, type: 2}
     familyFallbackBody: "Na výstave kuriozít sa návštevníci pristavujú pri fľaštičkách so slzami. Kurátor ich porovnáva podľa tvaru skla a spôsobu, akým sú uzavreté."
     headline: "Slzy nepriateľov pod korkom."
-    bodyText: "Zberateľ ich vraj plnil tridsať rokov. Pravá fľaštička je uzavretá obyčajnou korkovou zátkou."
+    bodyText: "Slzy nepriateľov. Zberateľ ich plnil tridsať rokov. Pravá fľaštička je uzavretá obyčajnou korkovou zátkou."
   possibleItems:
   - {fileID: 11400000, guid: bfaa7d080e704c349820f988a400000d, type: 2}
   - {fileID: 11400000, guid: bfaa7d080e704c349820f988a400000f, type: 2}

@@ -45,10 +45,11 @@ namespace AuctionGame.Auction
             return label;
         }
 
-        internal static Button Button(RectTransform rect, string caption)
+        internal static Button Button(RectTransform rect, string caption, bool playClick = true)
         {
             var button = rect.gameObject.AddComponent<Button>();
-            ButtonClickAudio.Bind(button);
+            if (playClick)
+                ButtonClickAudio.Bind(button);
             button.targetGraphic = Surface(rect, new Color(0.22f, 0.33f, 0.43f));
             button.navigation = new Navigation { mode = Navigation.Mode.Explicit };
             Label(Fill("Label", rect), caption, 20, Color.white).alignment = TextAlignmentOptions.Center;
