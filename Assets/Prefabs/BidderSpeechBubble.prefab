@@ -217,8 +217,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: "Uk\xE1\u017Eka dial\xF3gu"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 08a7c03935a3fea4b88d65127c00d588, type: 2}
+  m_sharedMaterial: {fileID: -1696924849662945064, guid: 08a7c03935a3fea4b88d65127c00d588, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []

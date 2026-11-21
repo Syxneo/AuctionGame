@@ -62,7 +62,11 @@ namespace AuctionGame.Auction.Tests
             Assert.That(timer.text, Is.EqualTo("15s"));
             Assert.That(progress.anchorMax.x, Is.EqualTo(1f));
             Assert.That(lotName.text, Is.EqualTo(auction.CurrentItem.ItemName));
-            Assert.That(Label("Current Bid").text, Is.EqualTo("$0"));
+            Assert.That(GameObject.Find("Current Bid"), Is.Null);
+            Assert.That(GameObject.Find("Leading Bidder"), Is.Null);
+            Assert.That(GameObject.Find("Latest Bid"), Is.Null);
+            var hands = AssertHandsConfigured();
+            Assert.That(hands.Count(hand => hand.enabled), Is.Zero);
             Assert.That(Caption("+$10 Button"), Is.EqualTo("$10"));
             Assert.That(Caption("+$25 Button"), Is.EqualTo("$25"));
             Assert.That(Caption("+$50 Button"), Is.EqualTo("$50"));
@@ -75,11 +79,11 @@ namespace AuctionGame.Auction.Tests
             var first = auction.CurrentItem;
             OpenLot(auction);
             Click("+$50 Button");
-            Assert.That(Label("Current Bid").text, Is.EqualTo("$50"));
-            Assert.That(Label("Leading Bidder").text, Does.Contain(auction.GetBidderDisplayName(BidderIds.Player)));
+            Assert.That(hands.Count(hand => hand.enabled), Is.Zero);
             Assert.That(Caption("+$10 Button"), Is.EqualTo("+$10"));
             AssertIcons(icons);
             Assert.That(CloseLot(auction).winnerId, Is.EqualTo(BidderIds.Player));
+            Assert.That(hands.Count(hand => hand.enabled), Is.Zero);
             Assert.That(Label("Budget").text, Is.EqualTo("Rozpočet  $950"));
             AssertIcons(icons, first.Sprite);
 
@@ -87,8 +91,7 @@ namespace AuctionGame.Auction.Tests
             string opponent = AuctionItemPresentationTests.FindBidderWithLimit(auction, 10).Id;
             auction.Tick(auction.AiInteractionInterval);
             Assert.That(auction.TryPlaceBid(opponent, 10), Is.True);
-            Assert.That(Label("Leading Bidder").text, Does.Contain(auction.GetBidderDisplayName(opponent)));
-            Assert.That(Label("Latest Bid").text, Does.Contain("$10"));
+            Assert.That(hands.Single(hand => hand.enabled).sprite.name, Is.EqualTo("AuctionHand_" + opponent));
             Assert.That(CloseLot(auction).winnerId, Is.EqualTo(opponent));
             AssertIcons(icons, first.Sprite);
 
@@ -135,6 +138,33 @@ namespace AuctionGame.Auction.Tests
             Assert.That(GameObject.Find("Level Completion"), Is.Not.Null);
 
             yield return new ExitPlayMode();
+        }
+
+        private static SpriteRenderer[] AssertHandsConfigured()
+        {
+            var presenter = Object.FindFirstObjectByType<AuctionBidPaddle>();
+            Assert.That(presenter.GetComponent<Canvas>(), Is.Null);
+            var config = new SerializedObject(presenter);
+            var bindings = config.FindProperty("bidderHands");
+            Assert.That(bindings.arraySize, Is.EqualTo(5));
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/BiddersGroup.prefab");
+            var hands = new SpriteRenderer[bindings.arraySize];
+            for (int index = 0; index < bindings.arraySize; index++)
+            {
+                var binding = bindings.GetArrayElementAtIndex(index);
+                string id = binding.FindPropertyRelative("bidderId").stringValue;
+                var character = (SpriteRenderer)binding.FindPropertyRelative("character").objectReferenceValue;
+                var hand = character.transform.Find("Raised Bid Hand").GetComponent<SpriteRenderer>();
+                var prefabHand = prefab.transform.Find(character.name + "/Raised Bid Hand").GetComponent<SpriteRenderer>();
+                Assert.That(hand.sprite, Is.SameAs(prefabHand.sprite));
+                Assert.That(prefabHand.enabled, Is.False);
+                Assert.That(hand.sprite.name, Is.EqualTo("AuctionHand_" + id));
+                Assert.That(hand.sortingLayerID, Is.EqualTo(character.sortingLayerID));
+                Assert.That(hand.sortingOrder, Is.LessThan(character.sortingOrder));
+                Assert.That(hand.transform.localPosition.z, Is.LessThan(0));
+                hands[index] = hand;
+            }
+            return hands;
         }
 
         private static void AssertDockBackgroundExtendsPastSafeArea(RectTransform dock)

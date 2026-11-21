@@ -110,8 +110,10 @@ namespace AuctionGame.Auction
             category.gameObject.SetActive(!sprite && category.text.Length > 0);
             itemName.text = item ? item.ItemName : "Dražba";
             string price = $"${manager.CurrentPrice}";
-            highestBid.text = !item ? "" : mobileHud ? price : $"Aktuálna ponuka  {price}";
-            highestBidder.text = $"Vedúci dražiteľ  {manager.GetBidderDisplayName(manager.HighestBidderId)}";
+            if (highestBid)
+                highestBid.text = !item ? "" : mobileHud ? price : $"Aktuálna ponuka  {price}";
+            if (highestBidder)
+                highestBidder.text = $"Vedúci dražiteľ  {manager.GetBidderDisplayName(manager.HighestBidderId)}";
             if (opponentNames)
                 opponentNames.text = string.Join("   ·   ", manager.Opponents.Select(opponent => opponent.Personality.Name));
             budget.text = $"Rozpočet  ${manager.Economy.AvailableBudget}";
@@ -135,6 +137,12 @@ namespace AuctionGame.Auction
                 AuctionState.Finished => $"Dražba ukončená · {manager.Economy.Purchases.Count} {Plural(manager.Economy.Purchases.Count, "zakúpený", "zakúpené", "zakúpených")}",
                 _ => "Čaká sa na začiatok"
             };
+
+            if (!history)
+            {
+                UpdateClock();
+                return;
+            }
 
             var lines = new StringBuilder();
             var bids = manager.BidHistory;
