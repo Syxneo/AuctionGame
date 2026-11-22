@@ -333,8 +333,8 @@ namespace AuctionGame.Auction
             outcome = Label("Result Outcome", banner, new Vector2(0.08f, 0.1f), new Vector2(0.92f, 0.9f), 92, Ivory);
             outcome.fontStyle = FontStyles.Bold;
             outcome.characterSpacing = 10f;
-            stamp = Fill(Box("Sold Stamp", banner, new Vector2(-.04f, -.21f),
-                new Vector2(1.04f, 1.33f)), Color.white);
+            stamp = Fill(Box("Sold Stamp", banner, new Vector2(-.04f, -.44f),
+                new Vector2(1.04f, 1.56f)), Color.white);
             stamp.sprite = soldStamp;
             stamp.preserveAspect = true;
             var stampFace = Box("Stamp Face", stamp.rectTransform, Vector2.zero, Vector2.one);
