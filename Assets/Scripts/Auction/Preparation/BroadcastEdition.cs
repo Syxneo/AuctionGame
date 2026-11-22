@@ -25,16 +25,19 @@ namespace AuctionGame.Auction
         internal string Id { get; }
         internal NewsType Type { get; }
         internal string Body { get; }
+        internal string Headline { get; }
+        internal string DisplayText => string.IsNullOrWhiteSpace(Headline) ? Body : Headline + "\n\n" + Body;
         internal Sprite Image { get; }
         internal AuctionItem Item { get; }
         internal AIPersonality Bidder { get; }
 
         internal NewsCard(string id, NewsType type, string body, Sprite image,
-            AuctionItem item = null, AIPersonality bidder = null)
+            AuctionItem item = null, AIPersonality bidder = null, string headline = null)
         {
             Id = id;
             Type = type;
             Body = body;
+            Headline = headline;
             Image = image;
             Item = item;
             Bidder = bidder;
@@ -58,11 +61,13 @@ namespace AuctionGame.Auction
             return null;
         }
 
-        internal IReadOnlyList<NewsCard> Select(DailyRunPlan plan, IReadOnlyList<AIPersonality> pool) =>
-            Select(plan.Lots, plan.NewspaperEntries, pool, plan.Seed);
+        internal IReadOnlyList<NewsCard> Select(DailyRunPlan plan, IReadOnlyList<AIPersonality> pool,
+            CampaignDay day = null) =>
+            Select(plan.Lots, plan.NewspaperEntries, pool, plan.Seed, day);
 
         internal IReadOnlyList<NewsCard> Select(IReadOnlyList<AuctionItem> lots,
-            IReadOnlyList<NewspaperEntry> itemArticles, IReadOnlyList<AIPersonality> pool, int seed)
+            IReadOnlyList<NewspaperEntry> itemArticles, IReadOnlyList<AIPersonality> pool, int seed,
+            CampaignDay day = null)
         {
             var random = new System.Random(seed ^ 0x35192B17);
             var selected = new List<NewsCard>();
@@ -129,6 +134,16 @@ namespace AuctionGame.Auction
             {
                 int other = random.Next(index + 1);
                 (selected[index], selected[other]) = (selected[other], selected[index]);
+            }
+
+            // Keep the original world draw and shuffle so their random calls stay in the same order.
+            if (day != null && !string.IsNullOrWhiteSpace(day.WorldNewsHeadline) &&
+                !string.IsNullOrWhiteSpace(day.WorldNewsBody))
+            {
+                int index = selected.FindIndex(card => card.Type == NewsType.World);
+                var slot = selected[index];
+                selected[index] = new NewsCard(slot.Id, NewsType.World, day.WorldNewsBody, day.WorldNewsImage,
+                    headline: day.WorldNewsHeadline);
             }
             return selected.AsReadOnly();
         }

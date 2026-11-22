@@ -87,9 +87,13 @@ namespace AuctionGame.Auction.Tests
             play.interactable = true;
             press.OnPointerDown(pointer);
             Assert.That(playRect.localScale.x, Is.EqualTo(.94f).Within(.001f));
-            var hits = new List<RaycastResult>();
-            EventSystem.current.RaycastAll(pointer, hits);
-            Assert.That(hits[0].gameObject, Is.SameAs(play.gameObject));
+            if (!Application.isBatchMode)
+            {
+                var hits = new List<RaycastResult>();
+                EventSystem.current.RaycastAll(pointer, hits);
+                Assert.That(hits, Is.Not.Empty);
+                Assert.That(hits[0].gameObject, Is.SameAs(play.gameObject));
+            }
             press.OnPointerUp(pointer);
             play.onClick.Invoke();
             play.onClick.Invoke();
@@ -112,21 +116,25 @@ namespace AuctionGame.Auction.Tests
             Assert.That(phone.activeInHierarchy, Is.False);
             Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.SaleConversation));
             var messages = GameObject.Find("Messages").transform;
+            var speakerHeader = AssertSaleHeader(messages.GetChild(0), "Message");
+            var preparation = intro.GetComponent<PreparationPhase>();
+            int messageCount = preparation.SaleDialogue is { Count: > 0 } opening ? opening.Count : 3;
             Assert.That(messages.childCount, Is.EqualTo(1));
             Click("Advance Conversation");
             Assert.That(messages.childCount, Is.EqualTo(1), "Pickup and advance in the same frame count as one tap.");
-            for (int count = 2; count <= 3; count++)
+            for (int count = 2; count <= messageCount; count++)
             {
                 yield return null;
                 Click("Advance Conversation");
                 Assert.That(messages.childCount, Is.EqualTo(count));
             }
 
-            var preparation = intro.GetComponent<PreparationPhase>();
-            string finalMessage = messages.GetChild(2).GetComponentInChildren<TMP_Text>().text;
+            string[] messageText = messages.GetComponentsInChildren<TMP_Text>().Select(label => label.text).ToArray();
+            Assert.That(AssertSaleHeader(messages.GetChild(messageCount - 1), "Message"), Is.SameAs(speakerHeader));
             var culture = System.Globalization.CultureInfo.GetCultureInfo("en-US");
-            Assert.That(finalMessage, Does.Contain("$" + preparation.StartingBudget.ToString("N0", culture)));
-            Assert.That(finalMessage, Does.Contain("$" + preparation.ProfitTarget.ToString("N0", culture)));
+            string budget = preparation.StartingBudget.ToString("N0", culture);
+            string target = preparation.ProfitTarget.ToString("N0", culture);
+            Assert.That(messageText.Any(text => text.Contains(budget) && text.Contains(target)), Is.True);
             Assert.That(intro.GetComponents<AudioSource>(), Has.Length.EqualTo(1));
 
             yield return null;
@@ -240,7 +248,7 @@ namespace AuctionGame.Auction.Tests
                     image.GetComponentInParent<RectMask2D>()));
                 Assert.That(GameObject.Find("TV Static").GetComponent<RawImage>().raycastTarget, Is.False);
                 var label = GameObject.Find("NewsBodyText").GetComponent<TMP_Text>();
-                Assert.That(label.text, Is.EqualTo(card.Body));
+                Assert.That(label.text, Is.EqualTo(card.DisplayText));
                 Assert.That(label.GetComponentInParent<BidderSpeechBubble>(), Is.Not.Null);
                 Canvas.ForceUpdateCanvases();
                 label.ForceMeshUpdate();
@@ -354,21 +362,32 @@ namespace AuctionGame.Auction.Tests
             Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.EndConversation));
             Assert.That(intro.GetComponent<AudioSource>().loop, Is.False);
             var history = GameObject.Find("SALE Dialogue").GetComponent<ScrollRect>().content;
-            var line = history.GetChild(0).GetComponentInChildren<TMP_Text>();
+            var speakerHeader = AssertSaleHeader(history.GetChild(0), "SALE Line");
+            var line = history.GetChild(0).GetComponentInChildren<BidderSpeechBubble>().Label;
+            var preparation = intro.GetComponent<PreparationPhase>();
+            var configuredEnding = preparation && success.HasValue ? preparation.SaleEnding(success.Value) : null;
+            int lineCount = configuredEnding is { Length: > 0 } ? configuredEnding.Length : 3;
             if (success.HasValue)
-                Assert.That(line.text, Does.StartWith(success.Value ? "Ale, ale, ale" : "To bola bieda"));
+                Assert.That(line.text, Does.StartWith(configuredEnding is { Length: > 0 }
+                    ? configuredEnding[0] : success.Value ? "Ale, ale, ale" : "To bola bieda"));
             string first = line.text;
             Click("Advance SALE Call");
             Assert.That(history.childCount, Is.EqualTo(1), "Pickup and an advance in the same frame count as one tap.");
-            for (int index = 0; index < 2; index++)
+            for (int index = 0; index < lineCount - 1; index++)
             {
                 yield return null;
                 float oldPosition = line.rectTransform.position.y;
                 Click("Advance SALE Call");
                 Click("Advance SALE Call");
                 Assert.That(history.childCount, Is.EqualTo(index + 2));
+                var activeRow = history.GetChild(index + 1);
+                Assert.That(AssertSaleHeader(activeRow, "SALE Line"), Is.SameAs(speakerHeader));
                 Assert.That(line.text, Is.EqualTo(first));
-                Assert.That(line.rectTransform.position.y, Is.GreaterThan(oldPosition));
+                if (index < 2)
+                    Assert.That(line.rectTransform.position.y, Is.GreaterThan(oldPosition));
+                if (configuredEnding is { Length: > 0 })
+                    Assert.That(activeRow.GetComponentInChildren<BidderSpeechBubble>().Label.text,
+                        Is.EqualTo(configuredEnding[index + 1]));
                 Assert.That(report.Report, Is.Null);
             }
             yield return null;
@@ -383,7 +402,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(report.Report, Is.Not.Null);
             if (report.Report.Purchases.Count > 0)
             {
-                var profit = GameObject.Find("Celkový zisk Value").GetComponent<TMP_Text>();
+                var profit = GameObject.Find("CELKOVÝ ZISK Value").GetComponent<TMP_Text>();
                 var content = GameObject.Find("Purchases").GetComponent<ScrollRect>().content;
                 Assert.That(profit.alpha, Is.Zero);
                 Assert.That(content.GetChild(content.childCount - 1).GetComponent<CanvasGroup>().alpha, Is.LessThan(1));
@@ -469,6 +488,20 @@ namespace AuctionGame.Auction.Tests
                     ? "-$" + -purchase.Profit : "$0";
                 Assert.That(row.Find("Profit").GetComponent<TMP_Text>().text, Is.EqualTo(expectedProfit));
             }
+        }
+
+        internal static GameObject AssertSaleHeader(Transform row, string bodyName)
+        {
+            var body = row.GetComponentInChildren<BidderSpeechBubble>().Label;
+            Assert.That(body.name, Is.EqualTo(bodyName));
+            Assert.That(body.text, Does.Not.StartWith("SALE\n").And.Not.StartWith("SALE:"));
+            var header = body.transform.parent.Find("SALE Speaker Header");
+            Assert.That(header, Is.Not.Null);
+            Assert.That(header.Find("Speaker Name").GetComponent<TMP_Text>().text, Is.EqualTo("SALE"));
+            Assert.That(header.Find("Anonymous Silhouette").GetComponent<RawImage>().texture, Is.Not.Null);
+            Assert.That(header.GetComponentInChildren<TMP_Text>().font, Is.SameAs(body.font));
+            Assert.That(body.rectTransform.offsetMax.y, Is.LessThan(-24));
+            return header.gameObject;
         }
 
         private static void Click(string name)

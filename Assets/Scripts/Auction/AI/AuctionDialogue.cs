@@ -215,7 +215,7 @@ namespace AuctionGame.Auction
             else
             {
                 string group = result.sold ? "SALE-01" : "SALE-02";
-                Emit("sale", "Dražobník", group, group, elapsed);
+                Emit("sale", SaleAuctioneer.DisplayName, group, group, elapsed);
             }
         }
 

@@ -105,8 +105,8 @@ namespace AuctionGame.Auction.Tests
             Assert.That(successfulReport.Purchases.Count, Is.EqualTo(3));
             Assert.That(successfulReport.TotalProfit, Is.EqualTo(780));
             var labels = GameObject.Find("SALE Report").GetComponentsInChildren<TMP_Text>().Select(label => label.text);
-            Assert.That(labels, Does.Contain("ÚSPECH").And.Contain(successfulReport.Purchases[0].ItemName).And.Contain("DOBRÝ NÁKUP")
-                .And.Contain("$10").And.Contain("Celkový zisk  $780")
+            Assert.That(labels, Does.Contain("ÚLOHA SPLNENÁ").And.Contain(successfulReport.Purchases[0].ItemName).And.Contain("DOBRÝ NÁKUP")
+                .And.Contain("$10").And.Contain("CELKOVÝ ZISK  $780")
                 .And.Contain("Výborne. Dosiahol si požadovaný zisk. Zdá sa, že máš na obchod dobrý nos."));
             Assert.That(GameObject.Find("Retry Button"), Is.Null);
 

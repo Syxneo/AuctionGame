@@ -57,7 +57,7 @@ namespace AuctionGame.Auction
         internal NewsCard CurrentCard => completed != null && index >= 0 ? cards[index] : null;
 
         internal void Initialize(NewspaperView.Appearance appearance, BidderSpeechBubble speechBubble,
-            string openingDialogue, AudioClip openingJingle, Effects settings)
+            AudioClip openingJingle, Effects settings)
         {
             effects = settings;
             jingleSource = gameObject.AddComponent<AudioSource>();
@@ -127,7 +127,6 @@ namespace AuctionGame.Auction
             BuildTvEffects(screen);
             this.appearance = appearance;
 
-            presenterDialogue = openingDialogue;
             introBubble = BidderSpeechBubble.CreateDialogue(speechBubble,
                 Box("Presenter Speech", safe, .06f, .44f, .94f, .65f), "Presenter Dialogue", 34);
             articleRegion = Box("Article Speech", safe, .06f, .075f, .94f, .32f);
@@ -140,9 +139,11 @@ namespace AuctionGame.Auction
             Hide();
         }
 
-        internal void Present(IReadOnlyList<NewsCard> edition, Func<bool> canAdvance, Action onCompleted)
+        internal void Present(IReadOnlyList<NewsCard> edition, string openingDialogue,
+            Func<bool> canAdvance, Action onCompleted)
         {
             ResetEffects();
+            presenterDialogue = openingDialogue;
             cards = edition;
             completed = onCompleted;
             inputReady = canAdvance;
@@ -213,7 +214,7 @@ namespace AuctionGame.Auction
             broadcast.gameObject.SetActive(true);
             introBubble.Hide();
             introPromptBacking.SetActive(false);
-            articleBubble.SetDialogue(card.Body);
+            articleBubble.SetDialogue(card.DisplayText);
             Sprite placeholder = card.Type switch
             {
                 NewsType.Item => appearance.itemPlaceholder,

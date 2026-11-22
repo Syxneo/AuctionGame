@@ -131,7 +131,7 @@ namespace AuctionGame.Auction
         }
 
         internal bool PlaceSaleBubble(BidderSpeechBubble bubble, SpriteRenderer sprite,
-            bool inFront = false, bool prioritize = false)
+            bool inFront = false, bool prioritize = false, bool allowLowerPlacement = false)
         {
             if (!canvas || !canvas.isActiveAndEnabled || canvas.targetDisplay != 0 || !sceneCamera)
                 return false;
@@ -150,9 +150,13 @@ namespace AuctionGame.Auction
                 return true;
             }
             Vector2 preferred = anchor + Vector2.up * (verticalOffset + size.y / 2);
-            for (float lift = 0; lift <= maxVerticalShift; lift += 8f)
+            float travel = allowLowerPlacement ? safe.height : maxVerticalShift;
+            for (float lift = 0; lift <= travel; lift += allowLowerPlacement ? 24f : 8f)
             {
-                Vector2 center = ClampCenter(preferred + Vector2.up * lift, size, safe);
+                float offset = allowLowerPlacement
+                    ? (Mathf.RoundToInt(lift / 24f) % 2 == 0 ? lift : -lift)
+                    : lift;
+                Vector2 center = ClampCenter(preferred + Vector2.up * offset, size, safe);
                 var body = new Rect(center - size / 2, size);
                 if (OverlapsBidderBubble(body))
                     continue;

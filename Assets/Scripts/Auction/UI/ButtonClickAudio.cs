@@ -104,7 +104,7 @@ namespace AuctionGame.Auction
             nextClick = nextBid = 0;
         }
 
-        private void PlayClick() => PlayLimited(click, uiVolume, ref nextClick, .08);
+        internal void PlayClick() => PlayLimited(click, uiVolume, ref nextClick, .08);
         private void BidPlaced(BidRecord _) => PlayBid(successfulBid);
         private void BidRejected() => PlayBid(rejectedBid);
         private void PlayBid(AudioClip clip) =>

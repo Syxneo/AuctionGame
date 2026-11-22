@@ -7,6 +7,7 @@ namespace AuctionGame.Auction
     [RequireComponent(typeof(SpriteRenderer))]
     public sealed class SaleAuctioneer : MonoBehaviour
     {
+        internal const string DisplayName = "AUKCIONÁR";
         internal enum Pose { Idle, Speaking, Excited, Disappointed }
 
         [SerializeField] private AuctionManager auction;
@@ -46,6 +47,7 @@ namespace AuctionGame.Auction
         private double nextBidComment;
         private double effectEnds;
         private bool mandatory;
+        private bool narrativeOpening;
         private bool cuePending;
         private int playerBids;
         private int aiBids;
@@ -126,7 +128,11 @@ namespace AuctionGame.Auction
             }
 
             if (state == AuctionState.Bidding)
-                Speak("Ponuky, prosím! Kto sa odváži začať?", true);
+            {
+                string opening = auction.Results.Count == 0 ? auction.CampaignDay?.AuctioneerOpening : null;
+                narrativeOpening = !string.IsNullOrWhiteSpace(opening);
+                Speak(narrativeOpening ? opening : "Ponuky, prosím! Kto sa odváži začať?", true);
+            }
             if (state == AuctionState.Sold && auction.HighestBidderId != BidderIds.Player)
                 AnnounceResult(true, auction.SaleLineForAiWin);
         }
@@ -146,6 +152,7 @@ namespace AuctionGame.Auction
             int bidsFromSide = player ? ++playerBids : ++aiBids;
             if (bid.extendedTimer)
             {
+                narrativeOpening = false;
                 ResetCountdownTension();
                 countdown = 0;
                 priceAnnouncementUntil = auction.BiddingElapsed + 0.65;
@@ -276,6 +283,12 @@ namespace AuctionGame.Auction
 
             bubble.Hide();
             bubble.SetSingleLine(line, 150, 440, 12, 34f);
+            if (narrativeOpening)
+            {
+                bubble.Label.textWrappingMode = TMPro.TextWrappingModes.Normal;
+                bubble.Label.fontSizeMin = 24;
+                bubble.SetText(line, 150, 440, 12, 4);
+            }
             started = Time.unscaledTimeAsDouble;
             ends = started + (required ? 2.8 : 1.5);
             mandatory = required;
@@ -285,6 +298,7 @@ namespace AuctionGame.Auction
         internal void ClearBubble()
         {
             ResetCountdownTension();
+            narrativeOpening = false;
             ends = 0;
             cuePending = false;
             if (bubble)
@@ -364,7 +378,7 @@ namespace AuctionGame.Auction
             if (bubble && now < ends)
             {
                 speaking = dialogue && dialogue.PlaceSaleBubble(bubble, sprite,
-                    prioritize: countdown > 0 || priceAnnouncementUntil > 0);
+                    prioritize: countdown > 0 || priceAnnouncementUntil > 0, allowLowerPlacement: narrativeOpening);
                 bubble.gameObject.SetActive(speaking);
                 if (speaking)
                 {

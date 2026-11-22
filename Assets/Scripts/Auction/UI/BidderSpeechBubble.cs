@@ -23,6 +23,7 @@ namespace AuctionGame.Auction
         private LayoutElement dialogueRow;
         private Vector2 lastDialogueSize;
         private const float DialoguePadding = 24;
+        private float dialogueHeaderHeight;
 
         internal static BidderSpeechBubble CreateDialogue(BidderSpeechBubble prefab, RectTransform region,
             string labelName, int fontSize, LayoutElement row = null)
@@ -63,6 +64,13 @@ namespace AuctionGame.Auction
             return label;
         }
 
+        internal void SetDialogueHeaderHeight(float height)
+        {
+            dialogueHeaderHeight = height;
+            label.rectTransform.offsetMax = new Vector2(-DialoguePadding, -DialoguePadding - height);
+            FitDialogue();
+        }
+
         private void LateUpdate()
         {
             if (dialogueRegion && lastDialogueSize != dialogueRegion.rect.size)
@@ -76,7 +84,7 @@ namespace AuctionGame.Auction
             label.enableAutoSizing = false;
             label.fontSize = label.fontSizeMax;
             float height = label.GetPreferredValues(label.text, Mathf.Max(1, width - 2 * DialoguePadding),
-                Mathf.Infinity).y + 2 * DialoguePadding;
+                Mathf.Infinity).y + 2 * DialoguePadding + dialogueHeaderHeight;
             if (dialogueRow)
                 dialogueRow.preferredHeight = height;
             else if (height > lastDialogueSize.y && lastDialogueSize.y > 0)

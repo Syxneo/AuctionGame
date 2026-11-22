@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using TMPro;
@@ -15,7 +16,8 @@ namespace AuctionGame.Auction
         public enum Stage
         {
             StartScreen, IncomingCall, SaleConversation, TransitionToNews, Completed,
-            EndIncomingCall, EndConversation, EndTransition, EndReport, CampaignComplete
+            EndIncomingCall, EndConversation, EndTransition, EndReport, CampaignComplete,
+            FinalReveal, FinalAuctionCard, FinalStatement
         }
         private enum Speaker { Sale, Player }
 
@@ -68,6 +70,22 @@ namespace AuctionGame.Auction
             "Pozrime sa, koľko peňazí si vyhodil von oknom.",
             "Pamätaj, zlatko... Všetko je na predaj."
         };
+        [SerializeField, TextArea] private string[] finalReveal =
+        {
+            "Už ste si prezreli vyúčtovanie? Výborne. Teraz sa môžeme porozprávať o vašej skutočnej hodnote.",
+            "Všimli ste si niekedy, aký dobrý výhľad je z toho aukčného pódia?",
+            "Päť dní som odtiaľ sledoval, ako prihadzujete, riskujete a snažíte sa vyhrať.",
+            "Áno. Ten usmiaty aukcionár som bol celý čas ja.",
+            "A vy ste si mysleli, že ste tam prišli iba nakupovať. Rozkošné!",
+            "Viete, predmety, ktoré ste mi priniesli, boli len začiatok. Najzaujímavejšiu investíciu som mal pred očami každý deň.",
+            "Vás."
+        };
+        [SerializeField, TextArea] private string[] finalStatement =
+        {
+            "Nemajte obavy. Váš nový majiteľ bude nadšený.",
+            "Ďakujem za spoluprácu.",
+            "A pamätajte... všetko je na predaj."
+        };
         [SerializeField, Min(0)] private float fadeOut = .25f;
         [SerializeField, Min(0)] private float fadeIn = .25f;
         [SerializeField] private Message[] dialogue =
@@ -87,7 +105,11 @@ namespace AuctionGame.Auction
         private RectTransform safe;
         private Image fade;
         private ScrollRect scroll;
-        private Message[] messages;
+        private (RectTransform row, BidderSpeechBubble bubble, bool player)[] callRows;
+        private RectTransform saleHeader;
+        private BidderSpeechBubble headerBubble;
+        private Texture2D silhouette;
+        private const float SaleHeaderHeight = 36;
         private int next;
         private Rect lastSafeArea;
         private Vector2Int lastScreen;
@@ -102,7 +124,7 @@ namespace AuctionGame.Auction
         internal Sprite ReportButton => playButton;
         internal BidderSpeechBubble SpeechBubble => speechBubble;
 
-        internal void ShowEndCall(bool succeeded, Action<RectTransform> openReport)
+        internal void ShowEndCall(bool succeeded, Action<RectTransform> openReport, string[] dayEnding = null)
         {
             if (!canvas)
                 Build(101);
@@ -110,7 +132,7 @@ namespace AuctionGame.Auction
             audioSource.Stop();
             fade.gameObject.SetActive(false);
             canvas.gameObject.SetActive(true);
-            ending = succeeded ? successEnding : failureEnding;
+            ending = dayEnding is { Length: > 0 } ? dayEnding : succeeded ? successEnding : failureEnding;
             showEndReport = openReport;
             next = 0;
             lastCallTap = -1;
@@ -129,6 +151,7 @@ namespace AuctionGame.Auction
             Open(Stage.EndConversation);
             DrawPhone("SALE Telephone", true, "Klepni a pokračuj");
             BuildConversation("SALE Dialogue", "Advance SALE Call", AdvanceEndCall, alignBottom: true);
+            PrepareCallRows((ending ?? Array.Empty<string>()).Select(text => (text, false)), "SALE Line");
             ShowNextEndLine();
         }
 
@@ -182,7 +205,7 @@ namespace AuctionGame.Auction
         {
             if (ending != null && next < ending.Length)
             {
-                AppendMessage("SALE", "SALE Line", ending[next++]);
+                ShowCallRow(next++);
                 return;
             }
             CurrentStage = Stage.EndTransition;
@@ -199,6 +222,87 @@ namespace AuctionGame.Auction
             openReport?.Invoke(safe);
             yield return Fade(1, 0, fadeIn);
             fade.gameObject.SetActive(false);
+        }
+
+        internal void ShowFinale(Sprite cardParchment, Action complete)
+        {
+            StopAllCoroutines();
+            fade.gameObject.SetActive(false);
+            ShowFinalDialogue(Stage.FinalReveal, finalReveal,
+                () => StartCoroutine(ShowFinalAuctionCard(cardParchment, complete)));
+        }
+
+        private void ShowFinalDialogue(Stage stage, string[] lines, Action finished)
+        {
+            Open(stage);
+            DrawPhone("SALE Telephone", true, "Klepni a pokračuj");
+            int line = 0;
+            lastCallTap = Time.frameCount;
+            void AdvanceLine()
+            {
+                if (CurrentStage != stage || lastCallTap == Time.frameCount)
+                    return;
+
+                lastCallTap = Time.frameCount;
+                if (++line == lines.Length)
+                {
+                    finished();
+                    return;
+                }
+
+                callRows[line - 1].row.gameObject.SetActive(false);
+                ShowCallRow(line);
+            }
+
+            BuildConversation("SALE Dialogue", "Advance Finale", AdvanceLine, alignBottom: true);
+            PrepareCallRows(lines.Select(text => (text, false)), "SALE Line");
+            ShowCallRow(line);
+        }
+
+        private IEnumerator ShowFinalAuctionCard(Sprite cardParchment, Action complete)
+        {
+            Open(Stage.FinalAuctionCard);
+            var background = view.GetComponent<Image>();
+            if (cardParchment)
+            {
+                background.sprite = cardParchment;
+                background.color = Color.white;
+            }
+
+            var frame = Box("Final Auction Card", safe, .07f, .18f, .93f, .82f);
+            PreparationUi.Surface(frame, PreparationUi.Ink);
+            var paper = PreparationUi.Rect("Final Auction Paper", frame, Vector2.zero, Vector2.one,
+                new Vector2(5, 5), new Vector2(-5, -5));
+            PreparationUi.Surface(paper, PreparationUi.Paper);
+            Caption(Box("Final Lot Header", paper, .08f, .87f, .92f, .97f), "POSLEDNÝ PREDMET", 40);
+            var itemFrame = Box("Final Lot Frame", paper, .24f, .43f, .76f, .85f);
+            PreparationUi.Surface(itemFrame, PreparationUi.Ink);
+            var mount = PreparationUi.Rect("Final Lot Mount", itemFrame, Vector2.zero, Vector2.one,
+                new Vector2(3, 3), new Vector2(-3, -3));
+            PreparationUi.Surface(mount, new Color32(233, 216, 181, 255));
+
+            yield return new WaitForSecondsRealtime(.55f);
+            var portraitSpace = Box("Final Lot Art", mount, .12f, .26f, .88f, .96f);
+            var portrait = AddAnonymousSilhouette(PreparationUi.Fill("Final Lot Silhouette", portraitSpace));
+            portrait.gameObject.AddComponent<AspectRatioFitter>().aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            Caption(Box("Final Lot Name", mount, .10f, .015f, .90f, .28f), "TY", 64);
+            Caption(Box("Final Lot Description", paper, .09f, .28f, .91f, .42f),
+                "Päť dní testovaný. Ochotný riskovať. Výborný stav.", 34);
+            Caption(Box("Final Lot Buyer", paper, .08f, .19f, .92f, .28f), "NEZNÁMY KUPUJÚCI", 36);
+
+            yield return new WaitForSecondsRealtime(.55f);
+            var stamp = Box("Final Lot Result", paper, .19f, .045f, .81f, .17f);
+            stamp.localRotation = Quaternion.Euler(0, 0, -5);
+            PreparationUi.Surface(stamp, new Color32(133, 37, 40, 255));
+            PreparationUi.Label(PreparationUi.Fill("Sold Caption", stamp), "PREDANÉ", 56,
+                PreparationUi.Paper, FontStyles.Bold).alignment =
+                TextAlignmentOptions.Center;
+
+            AddButton("POKRAČOVAŤ", Box("Continue Final Card", safe, .19f, .07f, .81f, .145f), () =>
+            {
+                if (CurrentStage == Stage.FinalAuctionCard)
+                    ShowFinalDialogue(Stage.FinalStatement, finalStatement, complete);
+            });
         }
 
         internal void ShowStart(PreparationPhase owner, int order)
@@ -287,7 +391,7 @@ namespace AuctionGame.Auction
             PreparationUi.Surface(card, new Color32(79, 26, 38, 255)).raycastTarget = false;
             var confetti = PreparationUi.Fill("Celebration Confetti", safe);
             var headline = Box("Campaign Complete", safe, .10f, .45f, .90f, .68f);
-            var title = PreparationUi.Label(headline, "KAMPAŇ\nDOKONČENÁ", 68, gold, FontStyles.Bold);
+            var title = PreparationUi.Label(headline, "EVERYTHING IS FOR SALE", 68, gold, FontStyles.Bold);
             title.alignment = TextAlignmentOptions.Center;
             title.enableAutoSizing = true;
             title.fontSizeMin = 34;
@@ -296,7 +400,7 @@ namespace AuctionGame.Auction
             if (logo)
                 Art("Celebration Logo", Box("Celebration Logo Space", safe, .28f, .69f, .72f, .84f), logo, "");
             var message = PreparationUi.Label(Box("Congratulations", safe, .11f, .33f, .89f, .44f),
-                $"Gratulujeme! Zvládol si všetkých {owner.CampaignDayCount} dražobných dní.", 29, cream);
+                "KONIEC", 35, cream);
             message.alignment = TextAlignmentOptions.Center;
 
             var status = PreparationUi.Label(Box("Restart Error", safe, .10f, .09f, .90f, .16f),
@@ -378,6 +482,13 @@ namespace AuctionGame.Auction
         {
             CurrentStage = stage;
             dust = null;
+            if (saleHeader)
+            {
+                saleHeader.gameObject.SetActive(false);
+                saleHeader.SetParent(canvas.transform, false);
+                headerBubble = null;
+            }
+            callRows = null;
             if (view)
             {
                 view.gameObject.SetActive(false);
@@ -386,7 +497,8 @@ namespace AuctionGame.Auction
 
             view = PreparationUi.Fill(stage.ToString(), canvas.transform);
             fade.transform.SetAsLastSibling();
-            bool endingStage = stage is Stage.EndIncomingCall or Stage.EndConversation or Stage.EndReport;
+            bool endingStage = stage is Stage.EndIncomingCall or Stage.EndConversation or Stage.EndReport
+                or Stage.FinalReveal or Stage.FinalStatement;
             Color fallback = endingStage ? new Color(.89f, .84f, .53f) : PreparationUi.Paper;
             if (stage == Stage.StartScreen && startParchment)
             {
@@ -435,16 +547,19 @@ namespace AuctionGame.Auction
             Open(Stage.SaleConversation);
             next = 0;
             var custom = preparation.SaleDialogue?.Where(line => !string.IsNullOrWhiteSpace(line)).ToArray();
-            messages = custom is { Length: > 0 }
+            var messages = custom is { Length: > 0 }
                 ? custom.Select((line, index) => new Message(Speaker.Sale, index, line)).ToArray()
                 : dialogue.OrderBy(message => message.order).ToArray();
             if (preparation.CampaignDayCount > 0 &&
                 !messages.Any(message => message.speaker == Speaker.Sale &&
-                    message.text.Contains("{budget}") && message.text.Contains("{profit}")))
+                    (message.text.Contains("{budget}") && message.text.Contains("{profit}") ||
+                     message.text.Contains("{budgetAmount}") && message.text.Contains("{profitAmount}"))))
                 messages = messages.Append(new Message(Speaker.Sale, messages.Length,
                     "Máš {budget}. Dosiahni aspoň {profit} zisku.")).ToArray();
             DrawPhone("Picked Up Telephone", true, "Klepni a pokračuj");
             BuildConversation("Conversation", "Advance Conversation", Advance);
+            PrepareCallRows(messages.Select(message => (Format(message.text), message.speaker == Speaker.Player)),
+                "Message");
             ShowNextMessage();
         }
 
@@ -489,35 +604,112 @@ namespace AuctionGame.Auction
 
         private void ShowNextMessage()
         {
-            if (next >= messages.Length)
+            if (next >= callRows.Length)
             {
                 CurrentStage = Stage.TransitionToNews;
                 StartCoroutine(Transition());
                 return;
             }
 
-            Message message = messages[next++];
-            bool player = message.speaker == Speaker.Player;
-            string speaker = player ? "Ja" : "SALE";
-            AppendMessage(speaker, "Message", speaker + "\n" + Format(message.text), player);
+            ShowCallRow(next++);
         }
 
-        private void AppendMessage(string speaker, string labelName, string text, bool player = false)
+        private void PrepareCallRows(IEnumerable<(string text, bool player)> lines,
+            string labelName)
         {
-            var row = PreparationUi.Fill(speaker, scroll.content);
-            var region = Box("Bubble Region", row, player ? .10f : 0, 0, player ? 1 : .90f, 1);
-            var rowLayout = row.gameObject.AddComponent<LayoutElement>();
+            var pool = PreparationUi.Fill("Pending Call Lines", scroll.viewport);
+            pool.gameObject.SetActive(false);
+            callRows = lines.Select(line =>
+            {
+                bool player = line.player;
+                var row = PreparationUi.Fill(player ? "Ja" : "SALE", pool);
+                var region = Box("Bubble Region", row, player ? .10f : 0, 0, player ? 1 : .90f, 1);
+                var rowLayout = row.gameObject.AddComponent<LayoutElement>();
+                var bubble = BidderSpeechBubble.CreateDialogue(speechBubble, region, labelName, 36, rowLayout);
+                bubble.Label.text = player ? "Ja\n" + line.text : line.text;
+                return (row, bubble, player);
+            }).ToArray();
+            if (!saleHeader && callRows.Any(line => !line.player))
+                BuildSaleHeader();
+        }
+
+        private void ShowCallRow(int index)
+        {
+            var (row, bubble, player) = callRows[index];
+            row.SetParent(scroll.content, false);
+            row.gameObject.SetActive(true);
             Canvas.ForceUpdateCanvases();
-            var bubble = BidderSpeechBubble.CreateDialogue(speechBubble, region, labelName, 36, rowLayout);
-            bubble.SetDialogue(text);
+            if (!player)
+            {
+                if (headerBubble)
+                    headerBubble.SetDialogueHeaderHeight(0);
+                saleHeader.SetParent(bubble.Rect, false);
+                saleHeader.gameObject.SetActive(true);
+                headerBubble = bubble;
+                bubble.SetDialogueHeaderHeight(SaleHeaderHeight);
+            }
+            bubble.SetDialogue(bubble.Label.text);
             LayoutRebuilder.ForceRebuildLayoutImmediate(scroll.content);
             Canvas.ForceUpdateCanvases();
             scroll.StopMovement();
             scroll.verticalNormalizedPosition = 0;
+            if (index > 0)
+                ButtonClickAudio.Find(gameObject.scene)?.PlayClick();
+        }
+
+        private void BuildSaleHeader()
+        {
+            var topLeft = Vector2.up;
+            saleHeader = PreparationUi.Rect("SALE Speaker Header", canvas.transform, topLeft, Vector2.one,
+                new Vector2(24, -60), new Vector2(-24, -24));
+            AddAnonymousSilhouette(PreparationUi.Rect("Anonymous Silhouette", saleHeader, topLeft, topLeft,
+                new Vector2(0, -28), new Vector2(27, -1)));
+
+            var name = PreparationUi.Rect("Speaker Name", saleHeader, Vector2.zero, Vector2.one,
+                new Vector2(36, 5), Vector2.zero);
+            PreparationUi.Label(name, "SALE", 26, PreparationUi.Ink, FontStyles.Bold).alignment =
+                TextAlignmentOptions.MidlineLeft;
+            var rule = PreparationUi.Rect("Header Rule", saleHeader, Vector2.zero, Vector2.right,
+                Vector2.zero, new Vector2(0, 1));
+            PreparationUi.Surface(rule, new Color(.24f, .15f, .09f, .42f)).raycastTarget = false;
+            saleHeader.gameObject.SetActive(false);
+        }
+
+        private RawImage AddAnonymousSilhouette(RectTransform rect)
+        {
+            if (!silhouette)
+                BuildSilhouette();
+            var image = rect.gameObject.AddComponent<RawImage>();
+            image.texture = silhouette;
+            image.raycastTarget = false;
+            return image;
+        }
+
+        private void BuildSilhouette()
+        {
+            silhouette = new Texture2D(48, 48, TextureFormat.RGBA32, false);
+            var pixels = new Color32[48 * 48];
+            for (int y = 0; y < 48; y++)
+            for (int x = 0; x < 48; x++)
+            {
+                Vector2 point = new Vector2(x + .5f, y + .5f);
+                float head = 10f - Vector2.Distance(point, new Vector2(24, 32));
+                float shoulders = (1f - Vector2.Scale(point - new Vector2(24, 7),
+                    new Vector2(1f / 19, 1f / 14)).magnitude) * 14;
+                float neck = Mathf.Min(5 - Mathf.Abs(point.x - 24), 4 - Mathf.Abs(point.y - 22));
+                float shape = Mathf.Max(head, Mathf.Max(neck, shoulders));
+                float alpha = Mathf.Clamp01(Mathf.Min(shape + .5f, point.y - 5));
+                pixels[y * 48 + x] = new Color32(0, 0, 0, (byte)(255 * alpha));
+            }
+            silhouette.SetPixels32(pixels);
+            silhouette.Apply(false, true);
         }
 
         private string Format(string value) =>
-            value.Replace("{budget}", Dollars(preparation.StartingBudget)).Replace("{profit}", Dollars(preparation.ProfitTarget));
+            value.Replace("{budget}", Dollars(preparation.StartingBudget))
+                .Replace("{profit}", Dollars(preparation.ProfitTarget))
+                .Replace("{budgetAmount}", preparation.StartingBudget.ToString(CultureInfo.InvariantCulture))
+                .Replace("{profitAmount}", preparation.ProfitTarget.ToString(CultureInfo.InvariantCulture));
 
         private static string Dollars(int value) =>
             "$" + value.ToString("N0", CultureInfo.GetCultureInfo("en-US"));
@@ -557,6 +749,12 @@ namespace AuctionGame.Auction
                 audioSource.Stop();
             if (canvas)
                 canvas.gameObject.SetActive(false);
+        }
+
+        private void OnDestroy()
+        {
+            if (silhouette)
+                Destroy(silhouette);
         }
 
         private static RectTransform Box(string name, Transform parent, float left, float bottom,

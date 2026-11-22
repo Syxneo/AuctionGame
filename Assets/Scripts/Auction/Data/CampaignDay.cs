@@ -19,6 +19,14 @@ namespace AuctionGame.Auction
         [SerializeField, Min(0), Tooltip("Zero allows as many lots as the catalog and value limit permit.")]
         private int maxLots;
         [SerializeField, TextArea] private string[] saleDialogue = Array.Empty<string>();
+        [SerializeField, TextArea] private string[] saleSuccessEnding = Array.Empty<string>();
+        [SerializeField, TextArea] private string[] saleFailureEnding = Array.Empty<string>();
+        [SerializeField, TextArea] private string auctioneerOpening;
+        [SerializeField, TextArea(2, 5)] private string newsPresenterGreeting;
+        [SerializeField] private string worldNewsHeadline;
+        [SerializeField, TextArea] private string worldNewsBody;
+        [SerializeField] private Sprite worldNewsImage;
+        [SerializeField, TextArea] private string reportNote;
 
         public string Title => title;
         public string Focus => focus;
@@ -30,6 +38,13 @@ namespace AuctionGame.Auction
         public int MinLots => minLots;
         public int MaxLots => maxLots;
         public IReadOnlyList<string> SaleDialogue => saleDialogue;
+        internal string[] SaleEnding(bool succeeded) => succeeded ? saleSuccessEnding : saleFailureEnding;
+        internal string AuctioneerOpening => auctioneerOpening;
+        internal string NewsPresenterGreeting => newsPresenterGreeting;
+        internal string WorldNewsHeadline => worldNewsHeadline;
+        internal string WorldNewsBody => worldNewsBody;
+        internal Sprite WorldNewsImage => worldNewsImage;
+        internal string ReportNote => reportNote;
 
         internal int ScaleAiBudget(int baseBudget)
         {

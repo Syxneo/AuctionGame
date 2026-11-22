@@ -98,16 +98,17 @@ namespace AuctionGame.Auction
                     Report = snapshot;
                     endReportParent = parent;
                     CreatePortraitReport();
-                });
+                }, preparation ? preparation.SaleEnding(snapshot.Succeeded) : null);
                 return;
             }
 
             Report = snapshot;
             CreateView("SALE Report");
             ButtonClickAudio.Find(gameObject.scene)?.ReportOpened(Report.Succeeded);
-            Label(view, "SALE", 28, 18, 110, 32, 24, Accent);
-            Label(view, "Správa z dražby", 28, 50, 510, 50, 36, Color.white);
-            Label(view, Report.Succeeded ? "ÚSPECH" : "KONIEC HRY", 640, 49, 228, 50, 30,
+            Label(view, "ZADÁVATEĽ: SALE", 28, 18, 290, 32, 24, Accent);
+            Label(view, $"DEŇ {ReportDay}", 722, 18, 146, 32, 24, Accent).alignment = TextAlignmentOptions.Right;
+            Label(view, "DENNÉ VYÚČTOVANIE", 28, 50, 510, 50, 36, Color.white);
+            Label(view, Report.Succeeded ? "ÚLOHA SPLNENÁ" : "CIEĽ NESPLNENÝ", 540, 49, 328, 50, 30,
                 Report.Succeeded ? Gain : Loss).alignment = TextAlignmentOptions.Right;
 
             string dialogue = Report.Purchases.Count == 0 ? emptyDialogue
@@ -119,13 +120,15 @@ namespace AuctionGame.Auction
             else
                 Label(view, "Žiadne nákupy", 28, 206, 840, 68, 24, Accent);
 
-            Label(view, $"Celkový zisk  {Money(Report.TotalProfit)}", 28, 476, 310, 56, 26, ProfitColor(Report.TotalProfit));
-            Label(view, $"Cieľový zisk  {Money(Report.TargetProfit)}", 352, 476, 290, 56, 23, Color.white);
+            Label(view, $"CELKOVÝ ZISK  {Money(Report.TotalProfit)}", 28, 476, 310, 56, 26, ProfitColor(Report.TotalProfit));
+            Label(view, $"CIEĽOVÝ ZISK  {Money(Report.TargetProfit)}", 352, 476, 290, 56, 23, Color.white);
             if (Report.Succeeded)
-                DrawButton("Continue Button", "Pokračovať").onClick.AddListener(Continue);
+                DrawButton("Continue Button", "POKRAČOVAŤ").onClick.AddListener(Continue);
             else
-                DrawButton("Retry Button", "Skúsiť znova").onClick.AddListener(Retry);
+                DrawButton("Retry Button", "SKÚSIŤ ZNOVA").onClick.AddListener(Retry);
         }
+
+        private int ReportDay => preparation ? preparation.CurrentDay : 1;
 
         private void CreatePortraitReport()
         {
@@ -148,9 +151,9 @@ namespace AuctionGame.Auction
             }
 
             PortraitLabel(Anchor("Report Title", paper, .05f, .92f, .95f, 1),
-                "SPRÁVA Z DRAŽBY", 32, PreparationUi.Ink).fontStyle = FontStyles.Bold;
+                "DENNÉ VYÚČTOVANIE", 32, PreparationUi.Ink).fontStyle = FontStyles.Bold;
             PortraitColumns(Anchor("Report Columns", paper, .02f, .85f, .94f, .92f),
-                "Predmet", "Nákupná\ncena", "Skutočná\nhodnota", "Zisk", PreparationUi.Ink, 23);
+                "NAKÚPENÉ\nPREDMETY", "NÁKUPNÁ\nCENA", "SKUTOČNÁ\nHODNOTA", "ZISK / STRATA", PreparationUi.Ink, 21);
             var viewport = Anchor("Purchases", paper, .02f, .19f, .94f, .85f);
             ScrollRect purchaseScroll = null;
             CanvasGroup[] purchaseRows = null;
@@ -159,15 +162,20 @@ namespace AuctionGame.Auction
             else
                 purchaseScroll = DrawPortraitItems(viewport, paper, out purchaseRows);
 
-            PortraitTotal(paper, "Cieľový zisk", Money(Report.TargetProfit), .45f, .69f, PreparationUi.Ink);
-            var profit = PortraitTotal(paper, "Celkový zisk", SignedMoney(Report.TotalProfit), .71f, .97f,
+            PortraitLabel(Anchor("Report Day", paper, .04f, .085f, .38f, .18f),
+                $"DEŇ {ReportDay}", 27, PreparationUi.Ink);
+            PortraitTotal(paper, "CIEĽOVÝ ZISK", Money(Report.TargetProfit), .36f, .64f, PreparationUi.Ink);
+            var profit = PortraitTotal(paper, "CELKOVÝ ZISK", SignedMoney(Report.TotalProfit), .66f, .97f,
                 PortraitProfitColor(Report.TotalProfit));
             var status = PortraitLabel(Anchor("Result", paper, .05f, .01f, .95f, .085f),
-                Report.Succeeded ? "ÚSPECH" : "KONIEC HRY", 34,
+                Report.Succeeded ? "ÚLOHA SPLNENÁ" : "CIEĽ NESPLNENÝ", 34,
                 Report.Succeeded ? PortraitProfitColor(1) : PortraitProfitColor(-1));
             status.fontStyle = FontStyles.Bold;
+            if (preparation && !string.IsNullOrWhiteSpace(preparation.ReportNote))
+                PortraitLabel(Anchor("Internal Report Note", view, .09f, .169f, .91f, .208f),
+                    preparation.ReportNote, 20, PreparationUi.Ink);
 
-            var logoRect = Anchor("Auction Frenzy Logo", view, .29f, .79f, .71f, .94f);
+            var logoRect = Anchor("Auction Frenzy Logo", view, .29f, .83f, .71f, .96f);
             if (endPresentation.ReportLogo)
             {
                 var logoImage = AddImage(logoRect, Color.white);
@@ -176,6 +184,8 @@ namespace AuctionGame.Auction
             }
             else
                 PortraitLabel(logoRect, "AUCTION FRENZY", 46, PreparationUi.Ink);
+            PortraitLabel(Anchor("Report Sender", view, .08f, .78f, .92f, .83f),
+                "ZADÁVATEĽ: SALE", 28, PreparationUi.Ink);
 
             var actionRect = Anchor(Report.Succeeded ? "Continue Button" : "Retry Button", view, .075f, .035f, .925f, .165f);
             var action = PreparationUi.Button(actionRect, Report.Succeeded ? "POKRAČOVAŤ" : "SKÚSIŤ ZNOVA");
@@ -400,7 +410,7 @@ namespace AuctionGame.Auction
             Color profitColor, int size)
         {
             var itemText = PortraitLabel(Anchor("Item", row, 0, 0, .22f, 1), item, size, PreparationUi.Ink);
-            if (item == "Predmet")
+            if (!string.IsNullOrEmpty(item))
                 itemText.alignment = TextAlignmentOptions.MidlineLeft;
             PortraitLabel(Anchor("Your Bid", row, .23f, 0, .49f, 1), bid, size, PreparationUi.Ink).alignment =
                 TextAlignmentOptions.MidlineRight;
@@ -444,10 +454,10 @@ namespace AuctionGame.Auction
             const float viewportHeight = 246;
             const float rowHeight = 78;
             const float rowSpacing = 4;
-            Label(view, "Predmet", 28, 172, 324, 34, 18, Accent);
-            Label(view, "Nákupná cena", 364, 172, 110, 34, 18, Accent);
-            Label(view, "Skutočná hodnota", 484, 172, 120, 34, 18, Accent);
-            Label(view, "Zisk", 614, 172, 100, 34, 18, Accent);
+            Label(view, "NAKÚPENÉ PREDMETY", 28, 172, 324, 34, 18, Accent);
+            Label(view, "NÁKUPNÁ CENA", 364, 172, 110, 34, 16, Accent);
+            Label(view, "SKUTOČNÁ HODNOTA", 484, 172, 120, 34, 14, Accent);
+            Label(view, "ZISK / STRATA", 614, 172, 100, 34, 16, Accent);
             Label(view, "Výsledok", 724, 172, 134, 34, 18, Accent);
 
             var viewport = Box("Purchases", view, 28, 210, 840, viewportHeight);
@@ -534,6 +544,19 @@ namespace AuctionGame.Auction
 
             if (preparation && preparation.CampaignDayCount > 0)
             {
+                if (preparation.IsFinalCampaignDay)
+                {
+                    if (auction.State != AuctionState.Finished || !endReportParent ||
+                        endPresentation.CurrentStage != GameIntroFlow.Stage.EndReport || endPresentation.IsFading)
+                        return;
+
+                    continuing = true;
+                    RemoveView();
+                    endReportParent = null;
+                    preparation.ShowFinale(reportParchment);
+                    return;
+                }
+
                 continuing = true;
                 try
                 {
@@ -549,18 +572,14 @@ namespace AuctionGame.Auction
                         return;
                     }
 
-                    if (!preparation.CampaignCompleted)
-                    {
-                        Report = null;
-                        auctionPanel.gameObject.SetActive(true);
-                    }
+                    Report = null;
+                    auctionPanel.gameObject.SetActive(true);
                     RemoveView();
                     endReportParent = null;
                 }
                 finally
                 {
-                    // Keep the final report snapshot, even after leaving its presentation.
-                    continuing = preparation.CampaignCompleted;
+                    continuing = false;
                 }
                 return;
             }

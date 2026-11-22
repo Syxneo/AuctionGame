@@ -42,6 +42,9 @@ namespace AuctionGame.Auction
         public int StartingBudget => campaign?.Day.StartingBudget ?? level.StartingBudget;
         public int ProfitTarget => campaign?.Day.ProfitTarget ?? level.ProfitTarget;
         internal IReadOnlyList<string> SaleDialogue => campaign?.Day.SaleDialogue;
+        internal string ReportNote => campaign?.Day.ReportNote;
+        internal string[] SaleEnding(bool succeeded) => campaign?.Day.SaleEnding(succeeded);
+        internal bool IsFinalCampaignDay => campaign != null && CurrentDay == CampaignDayCount;
         public event Action OnCampaignCompletePresented;
 
         private BreakingNewsView broadcast;
@@ -82,7 +85,7 @@ namespace AuctionGame.Auction
                     if (!CampaignCompleted)
                     {
                         var plan = campaign.Open(NewDailySeed(HighestUnlockedDay));
-                        ApplyCampaignDay(HighestUnlockedDay, plan, broadcastEdition.Select(plan, auction.NewsBidderPool));
+                        ApplyCampaignDay(HighestUnlockedDay, plan, SelectCampaignNews(HighestUnlockedDay, plan));
                     }
                 }
                 else if (useValueCappedGeneration)
@@ -125,7 +128,12 @@ namespace AuctionGame.Auction
                 Destroy(canvasRoot);
         }
 
-        internal void RecordSuccess() => campaign?.RecordSuccess();
+        internal void RecordSuccess()
+        {
+            // Keep Day 5 resumable until the player has seen the finale.
+            if (!IsFinalCampaignDay)
+                campaign?.RecordSuccess();
+        }
 
         internal bool TryContinueCampaign(out string error)
         {
@@ -133,11 +141,8 @@ namespace AuctionGame.Auction
             if (campaign == null || auction.State != AuctionState.Finished)
                 return false;
 
-            if (CampaignCompleted)
-            {
-                ShowCampaignComplete();
-                return true;
-            }
+            if (IsFinalCampaignDay)
+                return false;
 
             try
             {
@@ -145,7 +150,7 @@ namespace AuctionGame.Auction
                 if (nextDay > HighestUnlockedDay)
                     return false;
                 var plan = campaign.Generate(nextDay, NewDailySeed(nextDay), out _);
-                var news = broadcastEdition.Select(plan, auction.NewsBidderPool);
+                var news = SelectCampaignNews(nextDay, plan);
                 return auction.ResetLevel(() => ApplyCampaignDay(nextDay, plan, news));
             }
             catch (InvalidOperationException exception)
@@ -154,6 +159,16 @@ namespace AuctionGame.Auction
                 Debug.LogError(exception.Message, this);
                 return false;
             }
+        }
+
+        internal void ShowFinale(Sprite cardParchment)
+        {
+            CoverControls();
+            intro.ShowFinale(cardParchment, () =>
+            {
+                campaign.RecordSuccess();
+                ShowCampaignComplete();
+            });
         }
 
         internal bool TryRestartCampaign(out string error)
@@ -165,7 +180,7 @@ namespace AuctionGame.Auction
             try
             {
                 var plan = campaign.Generate(1, NewDailySeed(1), out _);
-                var news = broadcastEdition.Select(plan, auction.NewsBidderPool);
+                var news = SelectCampaignNews(1, plan);
                 void Restart()
                 {
                     campaign.Restart(plan);
@@ -191,6 +206,9 @@ namespace AuctionGame.Auction
 
         private int NewDailySeed(int day) =>
             useFixedDailySeed ? unchecked(fixedDailySeed + day - 1) : new System.Random().Next();
+
+        private IReadOnlyList<NewsCard> SelectCampaignNews(int day, DailyRunPlan plan) =>
+            broadcastEdition.Select(plan, auction.NewsBidderPool, level.CampaignDays[day - 1]);
 
         private void ApplyCampaignDay(int day, DailyRunPlan plan, IReadOnlyList<NewsCard> news)
         {
@@ -265,7 +283,7 @@ namespace AuctionGame.Auction
                 ready.offsetMin = ready.offsetMax = Vector2.zero;
                 startAuction.GetComponentInChildren<TMP_Text>().fontSize = 32;
                 broadcast = PreparationUi.Fill("Breaking News", root).gameObject.AddComponent<BreakingNewsView>();
-                broadcast.Initialize(newsAppearance, intro.SpeechBubble, newsPresenterDialogue, newsIntroJingle,
+                broadcast.Initialize(newsAppearance, intro.SpeechBubble, newsIntroJingle,
                     newsEffects);
             }
             else
@@ -284,16 +302,16 @@ namespace AuctionGame.Auction
 
                 var paper = PreparationUi.Rect("Start Auction Parchment", hitArea,
                     new Vector2(.5f, .24f), new Vector2(.5f, .24f),
-                    new Vector2(-210, -54), new Vector2(210, 54));
+                    new Vector2(-270, -120), new Vector2(270, 120));
                 Sprite sprite = intro ? intro.ReportButton : null;
                 var image = PreparationUi.Surface(paper, sprite ? Color.white : PreparationUi.Paper);
                 image.sprite = sprite;
                 image.raycastTarget = false;
-                PreparationUi.Label(PreparationUi.Fill("Caption", paper), "ZAČAŤ DRAŽBU", 38,
+                PreparationUi.Label(PreparationUi.Fill("Caption", paper), "ZAČAŤ DRAŽBU", 48,
                     PreparationUi.Ink, FontStyles.Bold).alignment = TextAlignmentOptions.Center;
                 var hint = PreparationUi.Rect("Tap hint", paper, Vector2.zero, Vector2.right,
-                    new Vector2(0, -44), new Vector2(0, -4));
-                var hintLabel = PreparationUi.Label(hint, "Klepni a pokračuj", 25, Color.white);
+                    new Vector2(0, -58), new Vector2(0, -6));
+                var hintLabel = PreparationUi.Label(hint, "Klikni a pokračuj", 34, Color.white);
                 hintLabel.alignment = TextAlignmentOptions.Center;
                 hintLabel.gameObject.AddComponent<Shadow>().effectDistance = new Vector2(1, -2);
                 BidButtonPress.Bind(openingPrompt, visual: paper);
@@ -326,7 +344,9 @@ namespace AuctionGame.Auction
             briefing.SetActive(false);
             if (broadcast)
             {
-                broadcast.Present(selectedNews, () => intro.CurrentStage == GameIntroFlow.Stage.Completed, ShowReady);
+                string greeting = campaign?.Day.NewsPresenterGreeting;
+                broadcast.Present(selectedNews, string.IsNullOrWhiteSpace(greeting) ? newsPresenterDialogue : greeting,
+                    () => intro.CurrentStage == GameIntroFlow.Stage.Completed, ShowReady);
             }
             else
                 newspaper.Present(DailyPlan?.NewspaperEntries ?? level.GetNewspaperEntries(), level.Database,
