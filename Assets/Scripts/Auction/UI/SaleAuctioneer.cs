@@ -61,6 +61,19 @@ namespace AuctionGame.Auction
 
         internal Pose CurrentPose { get; private set; }
         internal string ResultLine { get; private set; }
+        internal RectTransform TutorialPrice => priceBubble ? priceBubble.Rect : null;
+
+        internal void ShowTutorialPrice(bool visible)
+        {
+            if (auction.State != AuctionState.Opening)
+                return;
+
+            sprite.enabled = visible;
+            if (visible)
+                ShowPrice();
+            else if (priceBubble)
+                priceBubble.Hide();
+        }
 
         private void Awake()
         {

@@ -15,6 +15,7 @@ namespace AuctionGame.Auction
         [SerializeField] private Sprite reportParchment;
         [SerializeField] private Sprite reportOutline;
         [SerializeField] private Sprite reportButton;
+        internal Sprite ReportParchment => reportParchment;
         [SerializeField, TextArea] private string successDialogue =
             "Výborne. Dosiahol si požadovaný zisk. Zdá sa, že máš na obchod dobrý nos.";
         [SerializeField, TextArea] private string failureDialogue =
@@ -204,6 +205,13 @@ namespace AuctionGame.Auction
                 action.onClick.AddListener(Continue);
             else
                 action.onClick.AddListener(Retry);
+            if (preparation && preparation.IsDayOne)
+            {
+                var help = PreparationUi.ParchmentButton(Anchor("Day 1 Help", view, .85f, .81f, .95f, .865f),
+                    "?", endPresentation.ReportButton, text.font, 30);
+                help.onClick.AddListener(() => preparation.ReviewTutorial(view, reportParchment,
+                    text.font, help));
+            }
             StartReveal(profit, status, purchaseScroll, purchaseRows);
         }
 

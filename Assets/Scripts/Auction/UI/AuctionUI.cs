@@ -24,6 +24,22 @@ namespace AuctionGame.Auction
         [SerializeField] private Button twentyFiveButton;
         [SerializeField] private Button fiftyButton;
         [SerializeField] private bool mobileHud;
+        private bool showingTutorialControls;
+
+        internal TMP_FontAsset HudFont => highestBid.font;
+        internal RectTransform[] BidTutorialTargets => new[]
+        {
+            highestBid.rectTransform, (RectTransform)tenButton.transform,
+            (RectTransform)twentyFiveButton.transform, (RectTransform)fiftyButton.transform
+        };
+        internal RectTransform TimerTutorialTarget => timer ? timer.rectTransform : timerProgress;
+        internal RectTransform BudgetTutorialTarget => budget.rectTransform;
+
+        internal void ShowTutorialControls(bool visible)
+        {
+            showingTutorialControls = visible;
+            Refresh();
+        }
 
         [Header("Bid Button Press")]
         [SerializeField] private bool enableBidButtonPress = true;
@@ -156,7 +172,7 @@ namespace AuctionGame.Auction
                 opponentNames.text = string.Join("   ·   ", manager.Opponents.Select(opponent => opponent.Personality.Name));
             if (budget)
                 budget.text = $"Rozpočet  ${manager.Economy.AvailableBudget}";
-            bool showBidButtons = item && manager.State != AuctionState.Opening;
+            bool showBidButtons = item && (manager.State != AuctionState.Opening || showingTutorialControls);
             SetButton(tenButton, showBidButtons, AuctionManager.MinimumOpeningBid);
             SetButton(twentyFiveButton, showBidButtons, AuctionManager.MediumIncrement);
             SetButton(fiftyButton, showBidButtons, AuctionManager.HighIncrement);

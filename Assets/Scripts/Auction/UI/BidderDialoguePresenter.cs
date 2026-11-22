@@ -45,6 +45,15 @@ namespace AuctionGame.Auction
         [SerializeField] private AudioClip dialogueCue;
         [SerializeField] private TMP_FontAsset font;
         [SerializeField] private Binding[] bidders = Array.Empty<Binding>();
+        internal IEnumerable<SpriteRenderer> TutorialBidders
+        {
+            get
+            {
+                foreach (var bidder in bidders)
+                    if (bidder.sprite)
+                        yield return bidder.sprite;
+            }
+        }
         [SerializeField] private bool enableDialogueUi = true;
         [SerializeField] private bool showParticipation;
         [SerializeField] private Shader inactiveBidderShader;

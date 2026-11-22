@@ -59,7 +59,7 @@ namespace AuctionGame.Auction.Tests
             }
         }
 
-        internal static IEnumerator OpenNewsFromIntro()
+        internal static IEnumerator OpenNewsFromIntro(bool skipKnown = false)
         {
             var intro = Object.FindFirstObjectByType<GameIntroFlow>();
             Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.StartScreen));
@@ -118,6 +118,8 @@ namespace AuctionGame.Auction.Tests
             var messages = GameObject.Find("Messages").transform;
             var speakerHeader = AssertSaleHeader(messages.GetChild(0), "Message");
             var preparation = intro.GetComponent<PreparationPhase>();
+            Assert.That(GameObject.Find("Skip Call") != null,
+                Is.EqualTo(preparation.HasViewed(CampaignProgress.Viewed.Opening)));
             int messageCount = preparation.SaleDialogue is { Count: > 0 } opening ? opening.Count : 3;
             Assert.That(messages.childCount, Is.EqualTo(1));
             Click("Advance Conversation");
@@ -138,7 +140,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(intro.GetComponents<AudioSource>(), Has.Length.EqualTo(1));
 
             yield return null;
-            Click("Advance Conversation");
+            Click(skipKnown ? "Skip Call" : "Advance Conversation");
             Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.TransitionToNews));
             float deadline = Time.realtimeSinceStartup + 5;
             while (intro.CurrentStage != GameIntroFlow.Stage.Completed && Time.realtimeSinceStartup < deadline)
@@ -177,7 +179,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(lines.alpha, Is.GreaterThan(.1f));
         }
 
-        internal static IEnumerator ReadBroadcast(System.Action duringOpening = null)
+        internal static IEnumerator ReadBroadcast(System.Action duringOpening = null, bool skipKnown = false)
         {
             var preparation = Object.FindFirstObjectByType<PreparationPhase>();
             var auction = preparation.GetComponent<AuctionManager>();
@@ -193,6 +195,8 @@ namespace AuctionGame.Auction.Tests
             Assert.That(cards.Count, Is.EqualTo(cards.Count(card => card.Type == NewsType.Item) + 3));
             var view = preparation.GetComponentInChildren<BreakingNewsView>();
             var tap = GameObject.Find("Continue News").GetComponent<Button>();
+            var skipGreeting = GameObject.Find("Skip Greeting");
+            Assert.That(skipGreeting != null, Is.EqualTo(preparation.HasViewed(CampaignProgress.Viewed.Greeting)));
             var safe = (RectTransform)GameObject.Find("News Safe Area").transform;
             Assert.That(safe.anchorMin, Is.EqualTo(new Vector2(
                 Screen.safeArea.xMin / Screen.width, Screen.safeArea.yMin / Screen.height)));
@@ -214,7 +218,10 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(hits, Is.Not.Empty);
                 Assert.That(hits[0].gameObject, Is.SameAs(tap.gameObject));
                 var previous = view.CurrentCard;
-                ExecuteEvents.Execute(tap.gameObject, pointer, ExecuteEvents.pointerClickHandler);
+                if (skipKnown)
+                    Click("Skip Greeting");
+                else
+                    ExecuteEvents.Execute(tap.gameObject, pointer, ExecuteEvents.pointerClickHandler);
                 tap.onClick.Invoke();
                 if (previous != null)
                 {
@@ -254,9 +261,12 @@ namespace AuctionGame.Auction.Tests
                 label.ForceMeshUpdate();
                 Assert.That(label.isTextOverflowing, Is.False, card.Id);
                 Assert.That(view.GetComponentsInChildren<ScrollRect>(), Is.Empty);
-                Assert.That(view.GetComponentsInChildren<Button>(), Has.Length.EqualTo(1));
+                bool knownEdition = preparation.HasViewed(CampaignProgress.Viewed.News);
+                Assert.That(view.GetComponentsInChildren<Button>(), Has.Length.EqualTo(knownEdition ? 2 : 1));
                 Assert.That(view.GetComponentsInChildren<TMP_Text>().Length,
-                    Is.EqualTo(card.Image ? 4 : 5));
+                    Is.EqualTo((card.Image ? 4 : 5) + (knownEdition ? 1 : 0)));
+                if (skipKnown)
+                    break;
             }
 
             yield return null;
@@ -264,7 +274,11 @@ namespace AuctionGame.Auction.Tests
             int dialogueLines = 0;
             auction.OnItemChanged += CountIntroduction;
             auction.OnAiDialogue += CountDialogue;
-            tap.onClick.Invoke();
+            bool expectTutorial = preparation.IsDayOne && !preparation.DayOneTutorialCompleted;
+            if (skipKnown)
+                Click("Skip Articles");
+            else
+                tap.onClick.Invoke();
             Assert.That(GameObject.Find("Continue News"), Is.Null);
             var start = GameObject.Find("Start Auction").GetComponent<Button>();
             Assert.That(auction.State, Is.EqualTo(AuctionState.Opening));
@@ -314,8 +328,36 @@ namespace AuctionGame.Auction.Tests
             duringOpening?.Invoke();
 
             float deadline = Time.realtimeSinceStartup + 5f;
-            while (auction.State == AuctionState.Opening && Time.realtimeSinceStartup < deadline)
+            while (auction.State == AuctionState.Opening && !GameObject.Find("Day 1 Auction Tutorial") &&
+                   Time.realtimeSinceStartup < deadline)
                 yield return null;
+            var tutorial = GameObject.Find("Day 1 Auction Tutorial");
+            Assert.That(tutorial != null, Is.EqualTo(expectTutorial));
+            if (tutorial)
+            {
+                Assert.That(auction.State, Is.EqualTo(AuctionState.Opening));
+                int playerBudget = auction.Economy.AvailableBudget;
+                var budgets = auction.Opponents.Select(bidder => bidder.AvailableBudget).ToArray();
+                auction.Tick(60f);
+                Assert.That(auction.RemainingTime, Is.Zero);
+                Assert.That(auction.BiddingElapsed, Is.Zero);
+                Assert.That(dialogueLines, Is.Zero);
+                Assert.That(auction.BidHistory, Is.Empty);
+                Assert.That(auction.Results, Is.Empty);
+                Assert.That(auction.TryPlaceBid(BidderIds.Player, 10), Is.False);
+                Assert.That(auction.TryPlaceBid(auction.Opponents[0].Id, 10), Is.False);
+                Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(playerBudget));
+                Assert.That(auction.Opponents.Select(bidder => bidder.AvailableBudget), Is.EqualTo(budgets));
+                foreach (string title in new[] { "PRIHADZOVANIE", "ČAS DRAŽBY", "NAKUPUJ ROZUMNE" })
+                {
+                    yield return null;
+                    Assert.That(tutorial.GetComponentsInChildren<TMP_Text>().Any(label => label.text == title), Is.True);
+                    var next = GameObject.Find("Next Tutorial Step").GetComponent<Button>();
+                    next.onClick.Invoke();
+                    next.onClick.Invoke();
+                }
+                Assert.That(preparation.DayOneTutorialCompleted, Is.True);
+            }
             Assert.That(auction.State, Is.EqualTo(AuctionState.ItemReveal));
             Assert.That(introductions, Is.EqualTo(1));
             Assert.That(camera.transform.localPosition, Is.EqualTo(position));
@@ -366,6 +408,9 @@ namespace AuctionGame.Auction.Tests
             var line = history.GetChild(0).GetComponentInChildren<BidderSpeechBubble>().Label;
             var preparation = intro.GetComponent<PreparationPhase>();
             var configuredEnding = preparation && success.HasValue ? preparation.SaleEnding(success.Value) : null;
+            if (preparation && success.HasValue)
+                Assert.That(GameObject.Find("Skip Call") != null, Is.EqualTo(preparation.HasViewed(
+                    success.Value ? CampaignProgress.Viewed.Success : CampaignProgress.Viewed.Failure)));
             int lineCount = configuredEnding is { Length: > 0 } ? configuredEnding.Length : 3;
             if (success.HasValue)
                 Assert.That(line.text, Does.StartWith(configuredEnding is { Length: > 0 }

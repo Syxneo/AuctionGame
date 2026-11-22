@@ -35,9 +35,13 @@ namespace AuctionGame.Auction
         private const float EntranceDuration = .32f;
         private NewspaperView.Appearance appearance;
         private GameObject introPromptBacking;
+        private RectTransform continuePrompt;
         private IReadOnlyList<NewsCard> cards;
         private Action completed;
         private Func<bool> inputReady;
+        private CampaignProgress progress;
+        private Button skipGreeting;
+        private Button skipArticles;
         private int index;
         private int lastAdvanceFrame;
         private Effects effects;
@@ -57,7 +61,7 @@ namespace AuctionGame.Auction
         internal NewsCard CurrentCard => completed != null && index >= 0 ? cards[index] : null;
 
         internal void Initialize(NewspaperView.Appearance appearance, BidderSpeechBubble speechBubble,
-            AudioClip openingJingle, Effects settings)
+            AudioClip openingJingle, Effects settings, Sprite buttonParchment = null)
         {
             effects = settings;
             jingleSource = gameObject.AddComponent<AudioSource>();
@@ -133,20 +137,28 @@ namespace AuctionGame.Auction
             articleBubble = BidderSpeechBubble.CreateDialogue(speechBubble, articleRegion, "NewsBodyText", 36);
             introPromptBacking = Art(Box("Intro prompt backing", safe, .32f, .021f, .68f, .059f), null,
                 new Color(.24f, .15f, .07f, .87f)).gameObject;
-            var continuePrompt = Label(Box("TapToContinue", safe, .08f, .015f, .92f, .065f),
-                appearance.continuePrompt, 25, appearance.articleFont);
-            BidButtonPress.Bind(tap, visual: continuePrompt.rectTransform);
+            continuePrompt = Label(Box("TapToContinue", safe, .08f, .015f, .92f, .065f),
+                appearance.continuePrompt, 25, appearance.articleFont).rectTransform;
+            BidButtonPress.Bind(tap, visual: continuePrompt);
+            skipGreeting = PreparationUi.ParchmentButton(Box("Skip Greeting", safe, .54f, .012f, .96f, .067f),
+                "PRESKOČIŤ", buttonParchment, appearance.articleFont);
+            skipGreeting.onClick.AddListener(Advance);
+            skipArticles = PreparationUi.ParchmentButton(Box("Skip Articles", safe, .54f, .012f, .96f, .067f),
+                "PRESKOČIŤ SPRÁVY", buttonParchment, appearance.articleFont);
+            skipArticles.onClick.AddListener(SkipArticles);
             Hide();
         }
 
         internal void Present(IReadOnlyList<NewsCard> edition, string openingDialogue,
-            Func<bool> canAdvance, Action onCompleted)
+            Func<bool> canAdvance, Action onCompleted, CampaignProgress campaign = null)
         {
             ResetEffects();
             presenterDialogue = openingDialogue;
             cards = edition;
             completed = onCompleted;
             inputReady = canAdvance;
+            progress = campaign;
+            SetFooter(false, false);
             index = -1;
             lastAdvanceFrame = Time.frameCount;
             reader.gameObject.SetActive(true);
@@ -171,6 +183,7 @@ namespace AuctionGame.Auction
             completed = null;
             inputReady = null;
             cards = null;
+            progress = null;
             articleBubble.Hide();
             introBubble.Hide();
             illustration.sprite = null;
@@ -179,16 +192,16 @@ namespace AuctionGame.Auction
 
         private void Advance()
         {
-            if (!isActiveAndEnabled || completed == null || transitioning || !inputReady() ||
-                lastAdvanceFrame == Time.frameCount)
+            if (!CanAdvance())
                 return;
 
             lastAdvanceFrame = Time.frameCount;
+            if (index < 0)
+                progress?.MarkViewed(CampaignProgress.Viewed.Greeting);
             if (index + 1 >= cards.Count)
             {
-                Action onCompleted = completed;
-                Hide();
-                onCompleted();
+                progress?.MarkViewed(CampaignProgress.Viewed.News);
+                FinishEdition();
                 return;
             }
 
@@ -206,6 +219,24 @@ namespace AuctionGame.Auction
                 StartStatic();
         }
 
+        private bool CanAdvance() => isActiveAndEnabled && completed != null && !transitioning &&
+            inputReady() && lastAdvanceFrame != Time.frameCount &&
+            (progress == null || index >= 0 || string.IsNullOrWhiteSpace(presenterDialogue) ||
+                introBubble.gameObject.activeSelf);
+
+        private void SkipArticles()
+        {
+            if (index >= 0 && CanAdvance() && progress?.HasViewed(CampaignProgress.Viewed.News) == true)
+                FinishEdition();
+        }
+
+        private void FinishEdition()
+        {
+            Action onCompleted = completed;
+            Hide();
+            onCompleted();
+        }
+
         private void ShowCard(int cardIndex)
         {
             NewsCard card = cards[cardIndex];
@@ -214,6 +245,7 @@ namespace AuctionGame.Auction
             broadcast.gameObject.SetActive(true);
             introBubble.Hide();
             introPromptBacking.SetActive(false);
+            SetFooter(false, progress?.HasViewed(CampaignProgress.Viewed.News) == true);
             articleBubble.SetDialogue(card.DisplayText);
             Sprite placeholder = card.Type switch
             {
@@ -399,6 +431,8 @@ namespace AuctionGame.Auction
             UpdateHeadline(now);
             UpdateCardTransition(now);
             UpdateStatic(now);
+            skipGreeting.interactable = inputReady();
+            skipArticles.interactable = !transitioning && inputReady();
             if (index >= 0)
                 return;
 
@@ -412,7 +446,20 @@ namespace AuctionGame.Auction
             {
                 introBubble.SetDialogue(presenterDialogue);
                 introBubble.ShowBottomPointer(110);
+                SetFooter(this.progress?.HasViewed(CampaignProgress.Viewed.Greeting) == true, false);
             }
+        }
+
+        private void SetFooter(bool greetingSkip, bool articleSkip)
+        {
+            skipGreeting.gameObject.SetActive(greetingSkip);
+            skipArticles.gameObject.SetActive(articleSkip);
+            bool split = greetingSkip || articleSkip;
+            continuePrompt.anchorMin = new Vector2(split ? .04f : .08f, .015f);
+            continuePrompt.anchorMax = new Vector2(split ? .50f : .92f, .065f);
+            var backing = (RectTransform)introPromptBacking.transform;
+            backing.anchorMin = new Vector2(split ? .07f : .32f, .021f);
+            backing.anchorMax = new Vector2(split ? .47f : .68f, .059f);
         }
 
         private static RectTransform Box(string name, Transform parent, float left, float bottom,

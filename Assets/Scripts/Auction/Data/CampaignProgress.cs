@@ -6,6 +6,9 @@ namespace AuctionGame.Auction
 {
     internal sealed class CampaignProgress
     {
+        [Flags]
+        internal enum Viewed { Opening = 1, Greeting = 2, News = 4, Success = 8, Failure = 16 }
+
         internal const string SaveKey = "AuctionGame.Campaign.v1";
 
         [Serializable]
@@ -16,6 +19,8 @@ namespace AuctionGame.Auction
             public bool completed;
             public int seed;
             public string[] lots;
+            public bool dayOneAuctionTutorialCompleted;
+            public Viewed viewed;
         }
 
         private readonly bool persistent;
@@ -27,6 +32,25 @@ namespace AuctionGame.Auction
         internal bool Completed => save.completed;
         internal int DayCount => level.CampaignDays.Count;
         internal CampaignDay Day => level.CampaignDays[CurrentDay - 1];
+        internal bool TutorialCompleted => save.dayOneAuctionTutorialCompleted;
+
+        internal bool HasViewed(Viewed phase) => (save.viewed & phase) != 0;
+
+        internal void MarkViewed(Viewed phase)
+        {
+            if (HasViewed(phase))
+                return;
+            save.viewed |= phase;
+            Persist();
+        }
+
+        internal void CompleteTutorial()
+        {
+            if (CurrentDay != 1 || TutorialCompleted)
+                return;
+            save.dayOneAuctionTutorialCompleted = true;
+            Persist();
+        }
 
         internal CampaignProgress(MvpAuctionLevel level, bool persistent)
         {
@@ -94,6 +118,9 @@ namespace AuctionGame.Auction
         {
             if ((day != CurrentDay && day != CurrentDay + 1) || day > HighestUnlockedDay || Completed)
                 throw new InvalidOperationException($"Cannot open campaign day {day}.");
+            if (day != CurrentDay || plan.Seed != save.seed ||
+                save.lots == null || !save.lots.SequenceEqual(plan.Lots.Select(item => item.ItemId)))
+                save.viewed = 0;
             save.currentDay = day;
             save.seed = plan.Seed;
             save.lots = plan.Lots.Select(item => item.ItemId).ToArray();

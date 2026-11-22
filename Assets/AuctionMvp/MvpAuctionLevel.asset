@@ -109,26 +109,24 @@ MonoBehaviour:
     aiBudgetMultiplier: 0.70
     minLots: 3
     maxLots: 4
-    worldNewsHeadline: "Muž predal vlastný tieň. Kupujúci žiada vrátenie peňazí."
-    worldNewsBody: "Neobvyklý obchod pobavil celé mesto. Predávajúci tvrdí, že tieň odovzdal v perfektnom stave. Kupujúci sa sťažuje, že ho nový majetok odmieta nasledovať po zotmení."
+    worldNewsHeadline: "Muž predal vlastný tieň."
+    worldNewsBody: "Kupujúci žiada vrátenie peňazí. Tieň ho po zotmení odmieta nasledovať."
     worldNewsImage: {fileID: 21300000, guid: 9f67b4c98e0f454991811f0e7e381f8e, type: 3}
     saleDialogue:
-    - "Haló? Výborne, dovolal som sa! Dúfam, že máte radi peniaze. Ja ich osobne zbožňujem."
-    - "Som SALE. Od dnešného dňa budete nakupovať predmety v mojom mene. Peniaze dodám ja, vy dodáte trochu zdravého rozumu."
-    - "Dnes máte k dispozícii {budgetAmount} dolárov. Chcem vidieť zisk aspoň {profitAmount} dolárov."
-    - "Nebojte sa, čo by sa mohlo pokaziť? Teda... okrem úplne všetkého. Veľa šťastia!"
+    - "Haló! Som SALE. Odteraz nakupujete v mojom mene. Peniaze dodám ja, vy dodáte zdravý rozum."
+    - "Máte {budgetAmount} dolárov. Zarobte mi aspoň {profitAmount} dolárov. Nakupujte lacnejšie, než je skutočná hodnota predmetov."
+    - "Sledujte NEWSSSS. Dozviete sa niečo o predmetoch aj záujmoch súperov."
+    - "Čo by sa mohlo pokaziť? Teda... okrem úplne všetkého. Veľa šťastia!"
     saleSuccessEnding:
-    - "Haló! Tak sa pozrime, čo ste mi dnes nakúpili."
-    - "Výborne! Prvé výsledky vyzerajú sľubne. Možno som konečne zamestnal niekoho schopného."
-    - "Posielam vám vyúčtovanie. Nájdete v ňom skutočné hodnoty predmetov aj svoj zisk."
-    - "Dobre si oddýchnite. Zajtra budeme zarábať znova!"
+    - "Výborne! Možno som konečne zamestnal niekoho schopného."
+    - "Skutočná hodnota mínus nákupná cena. Tak vzniká zisk. Alebo strata, čo je menej zábavné."
+    - "Posielam vyúčtovanie. Zajtra zarábame znova!"
     saleFailureEnding:
-    - "Haló! Mám pred sebou vaše výsledky a... ach jaj."
-    - "Viete, nákup za veľa peňazí ešte automaticky neznamená dobrý obchod."
-    - "Posielam vyúčtovanie. Pozrite si, kde ste sa pomýlili."
-    - "Skúste to znova. Tentoraz by som ocenil aj nejaký zisk."
+    - "Ach jaj. Takto zo mňa milionára neurobíte. A to ním už som!"
+    - "Skutočná hodnota mínus nákupná cena. Tak vzniká zisk. Alebo strata, ako vidíte."
+    - "Posielam vyúčtovanie. Pozrite si chyby a skúste to znova."
   - title: Spoznávanie trhu
-    newsPresenterGreeting: "Vitajte pri ďalšom vysielaní NEWSSSS! Prinášame vám informácie, ktoré inde nenájdete. Hlavne preto, že ich nikto iný nechce vysielať!"
+    newsPresenterGreeting: "Vitajte pri NEWSSSS! Správy, ktoré inde nenájdete. Hlavne preto, že ich nikto iný nechce vysielať!"
     focus: Item Evaluation
     narrativeTone: Salesman / Dark Comedy
     startingBudget: 500
@@ -137,26 +135,21 @@ MonoBehaviour:
     aiBudgetMultiplier: 0.85
     minLots: 4
     maxLots: 6
-    worldNewsHeadline: "Tajomný investor ponúka prácu snov. Podrobnosti neuvádza."
-    worldNewsBody: "V meste sa objavili pracovné ponuky s mimoriadne štedrým rozpočtom. Uchádzači nemusia mať skúsenosti, stačí ochota riskovať. Meno zamestnávateľa zostáva neznáme."
+    worldNewsHeadline: "Tajomný investor ponúka prácu snov."
+    worldNewsBody: "Vysoké odmeny, žiadne skúsenosti. Meno zamestnávateľa zostáva neznáme."
     worldNewsImage: {fileID: 21300000, guid: 9dbf9c4b3da9419aae35df19039e048f, type: 3}
     saleDialogue:
-    - "Dobré ráno! Dúfam, že ste sa vyspali. Peniaze totiž nespia. A ja tiež nie."
-    - "Dnes vám zverím {budgetAmount} dolárov. Požadovaný zisk je {profitAmount} dolárov."
-    - "Pamätajte, že cena a hodnota sú dve rozdielne veci. Niektorí ľudia si to pletú celý život."
-    - "A niektorí ľudia si tú chybu už nemôžu dovoliť. Ale dosť filozofie! Hor sa nakupovať."
+    - "Dobré ráno! Peniaze nespia. A ja tiež nie."
+    - "Dnes máte {budgetAmount} dolárov. Zarobte mi aspoň {profitAmount} dolárov."
+    - "Pamätajte, cena a hodnota nie sú to isté. Keby to ľudia chápali, nezarábali by sme!"
     saleSuccessEnding:
-    - "Tak, vaša dnešná účtovná uzávierka je hotová."
-    - "Musím uznať, začínate ma príjemne prekvapovať. A to sa nestáva často."
-    - "Posielam vyúčtovanie. Niektoré vaše nákupy boli naozaj výborné."
-    - "Pokračujte takto a čaká nás veľmi výnosná spolupráca."
+    - "Začínate ma príjemne prekvapovať. A to sa nestáva často."
+    - "Posielam vyúčtovanie. Len tak ďalej!"
     saleFailureEnding:
-    - "Tak sa pozrime na dnešné čísla... Hm. Zaujímavé rozhodnutia."
-    - "Problém nie je v tom, že ste míňali. Problém je v tom, za čo ste míňali."
-    - "Vyúčtovanie už máte pripravené."
-    - "Dáme tomu ešte jeden pokus. Trh je neúprosný, ale ja som dnes výnimočne veľkorysý."
+    - "Zaujímavé nákupy. Menej zaujímavé výsledky."
+    - "Posielam vyúčtovanie. Dáme tomu ešte jeden pokus."
   - title: Spoznaj súperov
-    newsPresenterGreeting: "Dobré ráno! Dnes máme niekoľko zaujímavých správ. Jednu nám síce odporučili nevysielať, ale odkedy počúvame odporúčania?"
+    newsPresenterGreeting: "Jednu správu nám odporučili nevysielať. Ale odkedy počúvame odporúčania?"
     focus: AI Competition
     narrativeTone: Manipulator / Suspicion
     startingBudget: 650
@@ -165,28 +158,22 @@ MonoBehaviour:
     aiBudgetMultiplier: 1.00
     minLots: 4
     maxLots: 8
-    worldNewsHeadline: "Miestny obchodník sa nevrátil do práce. Kolegovia zostali zaskočení."
-    worldNewsBody: "Známy obchodník včera bez vysvetlenia opustil svoje pracovisko. Na stole nechal dokonale vyplnené účtovné knihy a krátky odkaz: „Obchod uzavretý.“ Polícia zatiaľ nevidí dôvod na znepokojenie."
+    worldNewsHeadline: "Obchodník záhadne zmizol."
+    worldNewsBody: "Na stole zostali účtovné knihy a jediný odkaz: „Obchod uzavretý.“"
     worldNewsImage: {fileID: 21300000, guid: 2dfbfdf8f9004dc5ae3c34978f905ea1, type: 3}
     reportNote: "Interné označenie: S-03. Pozorovanie pokračuje."
     saleDialogue:
-    - "Dobré ráno, môj obľúbený obchodný partner! Teda... zatiaľ jediný, ktorému dnes volám."
-    - "Dnes máte {budgetAmount} dolárov. Chcem zisk aspoň {profitAmount} dolárov."
-    - "Dávajte si pozor na ostatných dražiteľov. Niektorí sa tvária, že vedia viac, než v skutočnosti vedia."
-    - "A nebuďte takí nervózni ako minule pri závere aukcie. Človek sa potom zbytočne prezradí."
-    - "Ale čo ja viem? Veď ma poznáte. Rád si vypočujem, čo sa kde šuchne. Veľa šťastia!"
+    - "Dobré ráno, môj obľúbený obchodný partner!"
+    - "Dnes máte {budgetAmount} dolárov. Očakávam zisk aspoň {profitAmount} dolárov."
+    - "Ku koncu včerajšej aukcie ste pôsobili nervózne. Vraj. Mám svoje zdroje!"
     saleSuccessEnding:
-    - "Práve som dokončil vaše dnešné vyúčtovanie."
-    - "Zlepšujete sa. Už dokážete celkom dobre odhadnúť, kedy súperi iba blafujú."
     - "Mám rád ľudí, ktorí sa vedia rozhodovať pod tlakom."
-    - "Posielam výsledky. Zajtra trochu zvýšime nároky."
+    - "Posielam výsledky. Zajtra zvýšime nároky."
     saleFailureEnding:
-    - "Tak čo sa nám to dnes prihodilo? Súperi vám trochu podkúrili?"
-    - "Viete, práve preto vás na tie aukcie posielam. Niektoré veci sa človek naučí iba pod tlakom."
-    - "Posielam vyúčtovanie. Pozrite si, kde ste nechali peniaze na stole."
-    - "Skúste to ešte raz. Som zvedavý, ako sa rozhodnete tentoraz."
+    - "Pod tlakom sa človek veľa naučí. Aj o sebe."
+    - "Posielam vyúčtovanie. Skúste to znova."
   - title: Vysoké stávky
-    newsPresenterGreeting: "Vitajte pri NEWSSSS! Dnes vysielame výhradne overené a schválené informácie. Kým schválené? Výborná otázka! Ďalšia otázka, prosím."
+    newsPresenterGreeting: "Dnes iba schválené informácie! Kým schválené? Ďalšia otázka, prosím."
     focus: Economic Pressure
     narrativeTone: Owner / Psychological Unease
     startingBudget: 800
@@ -195,30 +182,23 @@ MonoBehaviour:
     aiBudgetMultiplier: 1.10
     minLots: 4
     maxLots: 0
-    worldNewsHeadline: "Anonymný zberateľ hľadá výnimočné talenty. Ponúka vysoké odmeny."
-    worldNewsBody: "Neznámy investor údajne rozširuje svoju zbierku o mimoriadne schopných spolupracovníkov. Podľa zverejnenej ponuky ho zaujíma odhad hodnoty, rozhodovanie pod tlakom a ochota podstupovať riziko."
+    worldNewsHeadline: "Anonymný zberateľ hľadá talenty."
+    worldNewsBody: "Oceňuje dobrý úsudok, odolnosť voči tlaku a ochotu riskovať."
     worldNewsImage: {fileID: 21300000, guid: 55c5695a0f93499cb1afeb580ffbf490, type: 3}
     reportNote: "Hodnotenie prebieha podľa očakávaní. Reakcie pod tlakom zaznamenané."
     saleDialogue:
-    - "Dobré ráno. Viete, začínam mať pocit, že sa poznáme už veľmi dlho."
-    - "Dnes máte rozpočet {budgetAmount} dolárov. Požadovaný zisk je {profitAmount} dolárov."
-    - "Musím povedať, že vás posledné dni pozorne sledujem. Vaše rozhodnutia sú... fascinujúce."
+    - "Dobré ráno. Vaše rozhodnutia sú čoraz zaujímavejšie."
+    - "Rozpočet je {budgetAmount} dolárov. Chcem zisk aspoň {profitAmount} dolárov."
     - "Dobrý obchod sa nekončí, keď niekto zaplatí. Končí sa, keď už nemá čo ponúknuť."
-    - "Ale nebudeme melancholickí. Čaká vás predsa ďalší krásny deň plný výhodných nákupov!"
     saleSuccessEnding:
-    - "Výborne. Veľmi dobrý deň. Veľmi, veľmi dobrý."
-    - "Viete, vaše výsledky mi už hovoria oveľa viac než len to, koľko dokážete zarobiť."
-    - "Zaujíma ma, ako premýšľate. Kedy riskujete. Kedy ustúpite. A čo všetko ste ochotní obetovať."
-    - "Ale dosť o vás. Posielam vyúčtovanie."
-    - "Zajtra nás čaká posledný deň. A verte mi, bude nezabudnuteľný."
+    - "Vaše výsledky mi hovoria oveľa viac než len to, koľko dokážete zarobiť."
+    - "Posielam vyúčtovanie. Zajtra nás čaká nezabudnuteľný deň."
     saleFailureEnding:
-    - "Ach. Dnes ste ma trochu sklamali."
-    - "Zaujímavé však je, ako sa človek správa, keď vie, že mu dochádzajú možnosti."
-    - "Niekto bojuje. Niekto cúvne. A niekto ponúkne aj to posledné, čo mu zostalo."
-    - "Posielam vyúčtovanie. Skúste to znovu."
+    - "Fascinuje ma, ako sa ľudia správajú, keď im dochádzajú možnosti."
+    - "Posielam vyúčtovanie. Skúste to znova."
     auctioneerOpening: "Tak kto ešte má čo ponúknuť? Verte mi, dámy a páni, každý má svoju cenu!"
   - title: Everything Is for Sale
-    newsPresenterGreeting: "Vitajte pri dnešnom vysielaní! Čaká nás mimoriadne zaujímavý deň. Takže si dobre zapamätajte naše správy. Človek nikdy nevie, kedy sa sám stane správou."
+    newsPresenterGreeting: "Pozorne sledujte správy. Človek nikdy nevie, kedy sa sám stane správou!"
     focus: Grand Finale
     narrativeTone: True SALE / Psychological Horror
     startingBudget: 950
@@ -227,24 +207,17 @@ MonoBehaviour:
     aiBudgetMultiplier: 1.20
     minLots: 4
     maxLots: 0
-    worldNewsHeadline: "Aukčný dom pripravuje tajomný posledný predmet."
-    worldNewsBody: "Organizátori dnešnej aukcie oznámili, že po skončení programu môže nasledovať ešte jedno mimoriadne odhalenie. Podrobnosti odmietajú komentovať. Zástupca aukčného domu iba dodal: „Nie všetko má cenovku. Zatiaľ.“"
+    worldNewsHeadline: "Aukčný dom chystá prekvapenie."
+    worldNewsBody: "Po dnešnom programe má nasledovať mimoriadne odhalenie. Podrobnosti sú tajné."
     worldNewsImage: {fileID: 21300000, guid: 6307808895814ae2aacaa811b0c126cc, type: 3}
     reportNote: "Záverečné hodnotenie dokončené. Spis pripravený na odovzdanie."
     saleDialogue:
-    - "Dobré ráno. Tak sme sa konečne dostali až sem."
-    - "Dnes vám zverím {budgetAmount} dolárov. Očakávam zisk aspoň {profitAmount} dolárov."
-    - "Päť dní spoločnej práce. Musím povedať, že ste mi poskytli veľmi cenné informácie."
-    - "Niektoré investície sa totiž nevyplácajú hneď. Na tie najlepšie sa oplatí počkať."
-    - "Dnes vás čaká posledná aukcia. Dúfam, že si to predstavenie poriadne vychutnáte."
+    - "Tak sme sa konečne dostali až sem. Moja najzaujímavejšia investícia."
+    - "Dnes máte {budgetAmount} dolárov. Očakávam zisk aspoň {profitAmount} dolárov."
+    - "Posledná aukcia. Dúfam, že si to predstavenie poriadne vychutnáte."
     saleSuccessEnding:
-    - "Haló. Tak je to tu. Posledný deň je za nami."
-    - "Päť dní, desiatky rozhodnutí a množstvo veľmi zaujímavých nákupov."
-    - "Musím povedať, že výsledky prekonali moje očakávania."
-    - "Pripravil som vám posledné vyúčtovanie. Prezrite si ho poriadne."
-    - "A keď skončíte... ešte pre vás mám jedno malé prekvapenie."
+    - "Päť dní. Prekonali ste moje očakávania."
+    - "Posielam posledné vyúčtovanie. Potom mám pre vás ešte jedno prekvapenie."
     saleFailureEnding:
-    - "Tak blízko. A predsa ešte nie celkom tam."
-    - "Posledný deň býva najťažší. Nie každý zvládne tlak, keď na výsledku naozaj záleží."
-    - "Posielam vám vyúčtovanie. Pozrite sa, čo vám dnes uniklo."
-    - "Skúste to znova. Nerád nechávam rozpracované obchody nedokončené."
+    - "Tak blízko. Nerád nechávam obchody nedokončené."
+    - "Posielam vyúčtovanie. Skúste to znova."

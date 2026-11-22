@@ -36,11 +36,11 @@ namespace AuctionGame.Auction.Tests
 
             string[] headlines =
             {
-                "Muž predal vlastný tieň. Kupujúci žiada vrátenie peňazí.",
-                "Tajomný investor ponúka prácu snov. Podrobnosti neuvádza.",
-                "Miestny obchodník sa nevrátil do práce. Kolegovia zostali zaskočení.",
-                "Anonymný zberateľ hľadá výnimočné talenty. Ponúka vysoké odmeny.",
-                "Aukčný dom pripravuje tajomný posledný predmet."
+                "Muž predal vlastný tieň.",
+                "Tajomný investor ponúka prácu snov.",
+                "Obchodník záhadne zmizol.",
+                "Anonymný zberateľ hľadá talenty.",
+                "Aukčný dom chystá prekvapenie."
             };
             string[] illustrations =
             {
@@ -280,13 +280,13 @@ namespace AuctionGame.Auction.Tests
                 var revealRows = GameObject.Find("Messages").transform;
                 var header = GameIntroTestDriver.AssertSaleHeader(revealRows.GetChild(0), "SALE Line");
                 Assert.That(new CampaignProgress(Level, true).Completed, Is.False);
-                for (int index = 0; index < 7; index++)
+                for (int index = 0; index < 4; index++)
                 {
                     yield return null;
                     var advance = GameObject.Find("Advance Finale").GetComponent<Button>();
                     advance.onClick.Invoke();
                     advance.onClick.Invoke();
-                    if (index < 6)
+                    if (index < 3)
                         Assert.That(GameIntroTestDriver.AssertSaleHeader(revealRows.GetChild(index + 1), "SALE Line"),
                             Is.SameAs(header));
                 }
@@ -314,7 +314,7 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.FinalStatement));
                 Assert.That(GameIntroTestDriver.AssertSaleHeader(
                     GameObject.Find("Messages").transform.GetChild(0), "SALE Line"), Is.SameAs(header));
-                for (int index = 0; index < 3; index++)
+                for (int index = 0; index < 2; index++)
                 {
                     yield return null;
                     GameObject.Find("Advance Finale").GetComponent<Button>().onClick.Invoke();

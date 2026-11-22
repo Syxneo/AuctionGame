@@ -45,6 +45,10 @@ namespace AuctionGame.Auction
         internal string ReportNote => campaign?.Day.ReportNote;
         internal string[] SaleEnding(bool succeeded) => campaign?.Day.SaleEnding(succeeded);
         internal bool IsFinalCampaignDay => campaign != null && CurrentDay == CampaignDayCount;
+        internal bool IsDayOne => campaign != null && CurrentDay == 1;
+        internal bool DayOneTutorialCompleted => campaign?.TutorialCompleted == true;
+        internal bool HasViewed(CampaignProgress.Viewed phase) => campaign?.HasViewed(phase) == true;
+        internal void MarkViewed(CampaignProgress.Viewed phase) => campaign?.MarkViewed(phase);
         public event Action OnCampaignCompletePresented;
 
         private BreakingNewsView broadcast;
@@ -284,7 +288,7 @@ namespace AuctionGame.Auction
                 startAuction.GetComponentInChildren<TMP_Text>().fontSize = 32;
                 broadcast = PreparationUi.Fill("Breaking News", root).gameObject.AddComponent<BreakingNewsView>();
                 broadcast.Initialize(newsAppearance, intro.SpeechBubble, newsIntroJingle,
-                    newsEffects);
+                    newsEffects, intro.ReportButton);
             }
             else
             {
@@ -346,7 +350,7 @@ namespace AuctionGame.Auction
             {
                 string greeting = campaign?.Day.NewsPresenterGreeting;
                 broadcast.Present(selectedNews, string.IsNullOrWhiteSpace(greeting) ? newsPresenterDialogue : greeting,
-                    () => intro.CurrentStage == GameIntroFlow.Stage.Completed, ShowReady);
+                    () => intro.CurrentStage == GameIntroFlow.Stage.Completed, ShowReady, campaign);
             }
             else
                 newspaper.Present(DailyPlan?.NewspaperEntries ?? level.GetNewspaperEntries(), level.Database,
@@ -393,8 +397,8 @@ namespace AuctionGame.Auction
                 openingPrompt.gameObject.SetActive(false);
                 canvasRoot.SetActive(false);
                 Select(null);
-                if (!openingStage || !openingStage.PlayOpening(auction.CompleteOpening))
-                    auction.CompleteOpening();
+                if (!openingStage || !openingStage.PlayOpening(FinishOpening))
+                    FinishOpening();
                 return;
             }
 
@@ -409,6 +413,13 @@ namespace AuctionGame.Auction
 
             if (useCampaign || useValueCappedGeneration)
             {
+                if (NeedsTutorial && auction.PrepareOpening(DailyPlan.Lots, level.Database, DailyPlan))
+                {
+                    stage = Stage.Opening;
+                    briefing.SetActive(false);
+                    FinishOpening();
+                    return;
+                }
                 if (!auction.StartDailyAuction(DailyPlan, level.Database))
                     status.text = "Dražbu sa nepodarilo spustiť.";
                 return;
@@ -429,6 +440,41 @@ namespace AuctionGame.Auction
 
             if (!auction.StartAuction(run, level.Database))
                 status.text = "Dražbu sa nepodarilo spustiť.";
+        }
+
+        private bool NeedsTutorial => IsDayOne && !DayOneTutorialCompleted;
+
+        private void FinishOpening()
+        {
+            if (!NeedsTutorial)
+            {
+                auction.CompleteOpening();
+                return;
+            }
+
+            if (coveredHudAlpha.HasValue)
+                auctionControls.alpha = coveredHudAlpha.Value;
+            var hud = auctionControls.GetComponentInChildren<AuctionUI>(true);
+            hud.ShowTutorialControls(true);
+            canvasRoot.SetActive(true);
+            var report = auction.GetComponent<AuctionReportUI>();
+            AuctionTutorial.Show((RectTransform)canvasRoot.transform, report ? report.ReportParchment : intro.ReportButton,
+                intro.ReportButton, hud.HudFont, hud,
+                auction, () =>
+                {
+                    campaign.CompleteTutorial();
+                    hud.ShowTutorialControls(false);
+                    RestoreControls();
+                    Select(null);
+                    auction.CompleteOpening();
+                });
+        }
+
+        internal void ReviewTutorial(RectTransform parent, Sprite parchment, TMP_FontAsset font, Button help)
+        {
+            if (IsDayOne && auction.State == AuctionState.Finished)
+                AuctionTutorial.Show(parent, parchment, intro.ReportButton, font, null, auction,
+                    () => Select(help.gameObject));
         }
 
         private void AuctionStateChanged(AuctionState state)

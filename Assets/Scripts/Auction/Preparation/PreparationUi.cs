@@ -58,5 +58,26 @@ namespace AuctionGame.Auction
                 BidButtonPress.Bind(button);
             return button;
         }
+
+        internal static Button ParchmentButton(RectTransform rect, string caption, Sprite parchment,
+            TMP_FontAsset font, float maxFontSize = 28)
+        {
+            var button = Button(rect, caption);
+            var image = (Image)button.targetGraphic;
+            image.sprite = parchment;
+            image.color = parchment ? Color.white : Paper;
+            var label = button.GetComponentInChildren<TMP_Text>();
+            if (font)
+                label.font = font;
+            label.color = Ink;
+            label.fontStyle = FontStyles.Bold;
+            label.enableAutoSizing = true;
+            label.fontSizeMin = 18;
+            label.fontSizeMax = maxFontSize;
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.rectTransform.offsetMin = new Vector2(12, 4);
+            label.rectTransform.offsetMax = new Vector2(-12, -4);
+            return button;
+        }
     }
 }

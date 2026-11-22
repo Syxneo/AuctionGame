@@ -314,8 +314,8 @@ namespace AuctionGame.Auction.Tests
             settings.FindProperty("paceAiInteractions").boolValue = false;
             settings.ApplyModifiedPropertiesWithoutUndo();
 
-            yield return GameIntroTestDriver.OpenNewsFromIntro();
-            yield return GameIntroTestDriver.ReadBroadcast();
+            yield return GameIntroTestDriver.OpenNewsFromIntro(skipKnown: true);
+            yield return GameIntroTestDriver.ReadBroadcast(skipKnown: true);
             Assert.That(auction.DailyPlan, Is.SameAs(plan));
             foreach (AuctionItem item in plan.Lots)
             {
@@ -336,6 +336,7 @@ namespace AuctionGame.Auction.Tests
             Assert.That(report.Report.Purchases, Has.Count.EqualTo(plan.Lots.Count));
             Assert.That(report.Report.TotalProfit, Is.EqualTo(plan.TotalTrueValue - 10 * plan.Lots.Count));
             Assert.That(report.Report.TargetProfit, Is.EqualTo(25));
+            Assert.That(GameObject.Find("Day 1 Help"), Is.Not.Null);
             var bar = Object.FindFirstObjectByType<AuctionPurchaseBar>(FindObjectsInactive.Include);
             Assert.That(bar.GetComponentsInChildren<Image>(true).Where(image => image.enabled).Select(image => image.sprite),
                 Is.EqualTo(plan.Lots.Select(item => item.Sprite)));
@@ -354,6 +355,7 @@ namespace AuctionGame.Auction.Tests
             foreach (var bidder in auction.Opponents)
                 Assert.That(bidder.AvailableBudget, Is.EqualTo(
                     Math.Round(bidder.Personality.StartingBudget * 0.85m, MidpointRounding.AwayFromZero)));
+            Assert.That(GameObject.Find("Day 1 Help"), Is.Null);
             yield return new ExitPlayMode();
         }
 

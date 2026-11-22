@@ -7,6 +7,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using static AuctionGame.Auction.CampaignProgress.Viewed;
 
 namespace AuctionGame.Auction
 {
@@ -72,18 +73,14 @@ namespace AuctionGame.Auction
         };
         [SerializeField, TextArea] private string[] finalReveal =
         {
-            "Už ste si prezreli vyúčtovanie? Výborne. Teraz sa môžeme porozprávať o vašej skutočnej hodnote.",
-            "Všimli ste si niekedy, aký dobrý výhľad je z toho aukčného pódia?",
-            "Päť dní som odtiaľ sledoval, ako prihadzujete, riskujete a snažíte sa vyhrať.",
+            "Päť dní som vás pozoroval. Z toho aukčného pódia je naozaj dobrý výhľad.",
             "Áno. Ten usmiaty aukcionár som bol celý čas ja.",
-            "A vy ste si mysleli, že ste tam prišli iba nakupovať. Rozkošné!",
-            "Viete, predmety, ktoré ste mi priniesli, boli len začiatok. Najzaujímavejšiu investíciu som mal pred očami každý deň.",
-            "Vás."
+            "Predmety boli len začiatok. Celý čas som zisťoval aj vašu hodnotu.",
+            "A teraz... vás čaká posledný obchod."
         };
         [SerializeField, TextArea] private string[] finalStatement =
         {
             "Nemajte obavy. Váš nový majiteľ bude nadšený.",
-            "Ďakujem za spoluprácu.",
             "A pamätajte... všetko je na predaj."
         };
         [SerializeField, Min(0)] private float fadeOut = .25f;
@@ -114,6 +111,7 @@ namespace AuctionGame.Auction
         private Rect lastSafeArea;
         private Vector2Int lastScreen;
         private string[] ending;
+        private CampaignProgress.Viewed endingPhase;
         private Action<RectTransform> showEndReport;
         private int lastCallTap;
         private Image[] dust;
@@ -133,6 +131,7 @@ namespace AuctionGame.Auction
             fade.gameObject.SetActive(false);
             canvas.gameObject.SetActive(true);
             ending = dayEnding is { Length: > 0 } ? dayEnding : succeeded ? successEnding : failureEnding;
+            endingPhase = succeeded ? Success : Failure;
             showEndReport = openReport;
             next = 0;
             lastCallTap = -1;
@@ -153,6 +152,7 @@ namespace AuctionGame.Auction
             BuildConversation("SALE Dialogue", "Advance SALE Call", AdvanceEndCall, alignBottom: true);
             PrepareCallRows((ending ?? Array.Empty<string>()).Select(text => (text, false)), "SALE Line");
             ShowNextEndLine();
+            AddSkip(endingPhase, FinishEndCall);
         }
 
         private void DrawPhone(string name, bool answered, string prompt)
@@ -208,6 +208,14 @@ namespace AuctionGame.Auction
                 ShowCallRow(next++);
                 return;
             }
+            preparation?.MarkViewed(endingPhase);
+            FinishEndCall();
+        }
+
+        private void FinishEndCall()
+        {
+            if (CurrentStage != Stage.EndConversation)
+                return;
             CurrentStage = Stage.EndTransition;
             StartCoroutine(TransitionToReport());
         }
@@ -561,6 +569,7 @@ namespace AuctionGame.Auction
             PrepareCallRows(messages.Select(message => (Format(message.text), message.speaker == Speaker.Player)),
                 "Message");
             ShowNextMessage();
+            AddSkip(Opening, FinishOpeningCall);
         }
 
         private void BuildConversation(string name, string advanceName, UnityEngine.Events.UnityAction advance,
@@ -606,12 +615,37 @@ namespace AuctionGame.Auction
         {
             if (next >= callRows.Length)
             {
-                CurrentStage = Stage.TransitionToNews;
-                StartCoroutine(Transition());
+                preparation.MarkViewed(Opening);
+                FinishOpeningCall();
                 return;
             }
 
             ShowCallRow(next++);
+        }
+
+        private void FinishOpeningCall()
+        {
+            if (CurrentStage != Stage.SaleConversation)
+                return;
+            CurrentStage = Stage.TransitionToNews;
+            StartCoroutine(Transition());
+        }
+
+        private void AddSkip(CampaignProgress.Viewed phase, Action skip)
+        {
+            if (!preparation || !preparation.HasViewed(phase))
+                return;
+            var prompt = (RectTransform)safe.Find("SALE Call Prompt");
+            prompt.anchorMax = new Vector2(.50f, prompt.anchorMax.y);
+            var button = PreparationUi.ParchmentButton(Box("Skip Call", safe, .55f, .02f, .95f, .075f),
+                "PRESKOČIŤ", playButton, prompt.GetComponent<TMP_Text>().font);
+            button.onClick.AddListener(() =>
+            {
+                if (lastCallTap == Time.frameCount)
+                    return;
+                lastCallTap = Time.frameCount;
+                skip();
+            });
         }
 
         private void PrepareCallRows(IEnumerable<(string text, bool player)> lines,
