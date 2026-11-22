@@ -116,6 +116,10 @@ namespace AuctionGame.Auction.Tests
             Assert.That(phone.activeInHierarchy, Is.False);
             Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.SaleConversation));
             var messages = GameObject.Find("Messages").transform;
+            var callContent = (RectTransform)messages;
+            Assert.That(callContent.anchorMin.y, Is.Zero);
+            Assert.That(callContent.anchorMax.y, Is.Zero);
+            Assert.That(callContent.pivot.y, Is.Zero);
             var speakerHeader = AssertSaleHeader(messages.GetChild(0), "Message");
             var preparation = intro.GetComponent<PreparationPhase>();
             Assert.That(GameObject.Find("Skip Call") != null,

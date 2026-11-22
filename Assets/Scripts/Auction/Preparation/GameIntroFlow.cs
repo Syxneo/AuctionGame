@@ -149,7 +149,7 @@ namespace AuctionGame.Auction
             StopRinging();
             Open(Stage.EndConversation);
             DrawPhone("SALE Telephone", true, "Klepni a pokračuj");
-            BuildConversation("SALE Dialogue", "Advance SALE Call", AdvanceEndCall, alignBottom: true);
+            BuildConversation("SALE Dialogue", "Advance SALE Call", AdvanceEndCall);
             PrepareCallRows((ending ?? Array.Empty<string>()).Select(text => (text, false)), "SALE Line");
             ShowNextEndLine();
             AddSkip(endingPhase, FinishEndCall);
@@ -262,7 +262,7 @@ namespace AuctionGame.Auction
                 ShowCallRow(line);
             }
 
-            BuildConversation("SALE Dialogue", "Advance Finale", AdvanceLine, alignBottom: true);
+            BuildConversation("SALE Dialogue", "Advance Finale", AdvanceLine);
             PrepareCallRows(lines.Select(text => (text, false)), "SALE Line");
             ShowCallRow(line);
         }
@@ -572,8 +572,7 @@ namespace AuctionGame.Auction
             AddSkip(Opening, FinishOpeningCall);
         }
 
-        private void BuildConversation(string name, string advanceName, UnityEngine.Events.UnityAction advance,
-            bool alignBottom = false)
+        private void BuildConversation(string name, string advanceName, UnityEngine.Events.UnityAction advance)
         {
             CallTap(advanceName, advance);
             view.Find(advanceName).SetAsFirstSibling();
@@ -589,11 +588,10 @@ namespace AuctionGame.Auction
             scroll.viewport = viewport;
             scroll.horizontal = false;
             scroll.movementType = ScrollRect.MovementType.Clamped;
-            // Pin the end-call history to the bottom, even while all messages fit.
-            float edge = alignBottom ? 0 : 1;
-            var content = PreparationUi.Rect("Messages", viewport, new Vector2(0, edge), new Vector2(1, edge),
+            // Keep the latest bubble at the bottom even when the whole conversation fits.
+            var content = PreparationUi.Rect("Messages", viewport, Vector2.zero, Vector2.right,
                 Vector2.zero, Vector2.zero);
-            content.pivot = new Vector2(0, edge);
+            content.pivot = Vector2.zero;
             var layout = content.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.spacing = 14;
             layout.childControlHeight = true;
