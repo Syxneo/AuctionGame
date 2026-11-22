@@ -17,6 +17,62 @@ namespace AuctionGame.Auction.Tests
             AssetDatabase.LoadAssetAtPath<MvpAuctionLevel>(EconomyPlaytest.LevelPath);
 
         [Test]
+        public void CampaignWorldNewsReplacesOnlyTheShuffledWorldSlot()
+        {
+            var level = Level;
+            var progress = new CampaignProgress(level, false);
+            var profiles = new[] { "Helena", "Ferko", "Viktor", "Zuzu", "Grumblewick" }
+                .Select(name => Resources.Load<AIPersonality>("Auction/Personalities/" + name)).ToArray();
+            var categories = new[] { ItemCategory.Art, ItemCategory.Silly, ItemCategory.Archeological,
+                ItemCategory.PopCulture, ItemCategory.Fantasy };
+            var entries = profiles.Select((profile, index) => new BroadcastArticle
+            {
+                id = $"bidder-{index}", type = NewsType.Bidder, body = "Test bidder",
+                bidder = profile, category = categories[index]
+            }).Append(new BroadcastArticle { id = "baseline-world", type = NewsType.World, body = "Test world" });
+            var edition = new BroadcastEdition();
+            typeof(BroadcastEdition).GetField("articles", System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic).SetValue(edition, entries.ToArray());
+
+            string[] headlines =
+            {
+                "Muž predal vlastný tieň. Kupujúci žiada vrátenie peňazí.",
+                "Tajomný investor ponúka prácu snov. Podrobnosti neuvádza.",
+                "Miestny obchodník sa nevrátil do práce. Kolegovia zostali zaskočení.",
+                "Anonymný zberateľ hľadá výnimočné talenty. Ponúka vysoké odmeny.",
+                "Aukčný dom pripravuje tajomný posledný predmet."
+            };
+            string[] illustrations =
+            {
+                "day01-shadow", "day02-job", "day03-merchant", "day04-collector", "day05-lot"
+            };
+            for (int index = 0; index < headlines.Length; index++)
+            {
+                var day = level.CampaignDays[index];
+                var plan = progress.Generate(index + 1, 456, out _);
+                var baseline = edition.Select(plan, profiles);
+                var selected = edition.Select(plan, profiles, day);
+                var retry = edition.Select(plan, profiles, day);
+                var world = selected.Single(card => card.Type == NewsType.World);
+                Assert.That(world.Headline, Is.EqualTo(headlines[index]));
+                Assert.That(world.Body, Is.EqualTo(day.WorldNewsBody).And.Not.Empty);
+                var expectedImage = AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/Art/News/{illustrations[index]}.png");
+                Assert.That(expectedImage, Is.Not.Null);
+                Assert.That(world.Image, Is.SameAs(expectedImage));
+                Assert.That(selected.Select(card => (card.Id, card.Type)),
+                    Is.EqualTo(baseline.Select(card => (card.Id, card.Type))));
+                Assert.That(selected.Where(card => card.Type != NewsType.World).Select(CardContent),
+                    Is.EqualTo(baseline.Where(card => card.Type != NewsType.World).Select(CardContent)));
+                Assert.That(retry.Select(CardContent), Is.EqualTo(selected.Select(CardContent)));
+                Assert.That(selected.Select(card => card.Id).Distinct().Count(), Is.EqualTo(selected.Count));
+                Assert.That(string.IsNullOrWhiteSpace(day.ReportNote), Is.EqualTo(index < 2));
+            }
+
+            static object CardContent(NewsCard card) =>
+                (card.Id, card.Type, card.Headline, card.Body, card.Image, card.Item, card.Bidder);
+        }
+
+        [Test]
         public void ApprovedEconomyAndGenerationAcrossOneHundredSeedsPerDay()
         {
             var progress = new CampaignProgress(Level, false);
@@ -154,6 +210,29 @@ namespace AuctionGame.Auction.Tests
 
                 yield return GameIntroTestDriver.OpenNewsFromIntro();
                 yield return GameIntroTestDriver.ReadBroadcast();
+                var acceptedPlan = preparation.DailyPlan;
+                var acceptedNews = preparation.SelectedNews;
+                auction.Tick(1000f);
+                Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
+                yield return GameIntroTestDriver.OpenFinalReport(false);
+                var report = auction.GetComponent<AuctionReportUI>();
+                Assert.That(report.Report.TotalProfit, Is.Zero);
+                Assert.That(report.Report.TargetProfit, Is.EqualTo(300));
+                Assert.That(GameObject.Find("Internal Report Note").GetComponent<TMP_Text>().text,
+                    Is.EqualTo("Záverečné hodnotenie dokončené. Spis pripravený na odovzdanie."));
+                Assert.That(GameObject.Find("Continue Button"), Is.Null);
+                Assert.That(GameObject.Find("Advance Finale"), Is.Null);
+                Assert.That(preparation.CampaignCompleted, Is.False);
+                var retry = GameObject.Find("Retry Button").GetComponent<Button>();
+                retry.onClick.Invoke();
+                retry.onClick.Invoke();
+                Assert.That(preparation.CurrentDay, Is.EqualTo(5));
+                Assert.That(preparation.DailyPlan, Is.SameAs(acceptedPlan));
+                Assert.That(preparation.SelectedNews, Is.SameAs(acceptedNews));
+                Assert.That(GameObject.Find("Advance Finale"), Is.Null);
+
+                yield return GameIntroTestDriver.OpenNewsFromIntro();
+                yield return GameIntroTestDriver.ReadBroadcast();
                 Assert.That(auction.Economy.AvailableBudget, Is.EqualTo(950));
                 foreach (var bidder in auction.Opponents)
                     Assert.That(bidder.AvailableBudget, Is.EqualTo(
@@ -184,16 +263,62 @@ namespace AuctionGame.Auction.Tests
                 Assert.That(auction.State, Is.EqualTo(AuctionState.Finished));
 
                 yield return GameIntroTestDriver.OpenFinalReport(true);
-                var report = auction.GetComponent<AuctionReportUI>();
                 var snapshot = report.Report;
+                Assert.That(snapshot.TotalProfit, Is.EqualTo(auction.Economy.CalculateProfit()));
+                Assert.That(GameObject.Find("Internal Report Note").GetComponent<TMP_Text>().text,
+                    Is.EqualTo("Záverečné hodnotenie dokončené. Spis pripravený na odovzdanie."));
                 Assert.That(snapshot.TargetProfit, Is.EqualTo(300));
-                Assert.That(preparation.CampaignCompleted, Is.True);
+                Assert.That(preparation.CampaignCompleted, Is.False);
                 Assert.That(GameObject.Find("Campaign Complete"), Is.Null);
                 int endings = 0;
                 preparation.OnCampaignCompletePresented += () => endings++;
                 var action = GameObject.Find("Continue Button").GetComponent<Button>();
                 action.onClick.Invoke();
                 action.onClick.Invoke();
+                var intro = preparation.GetComponent<GameIntroFlow>();
+                Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.FinalReveal));
+                var revealRows = GameObject.Find("Messages").transform;
+                var header = GameIntroTestDriver.AssertSaleHeader(revealRows.GetChild(0), "SALE Line");
+                Assert.That(new CampaignProgress(Level, true).Completed, Is.False);
+                for (int index = 0; index < 7; index++)
+                {
+                    yield return null;
+                    var advance = GameObject.Find("Advance Finale").GetComponent<Button>();
+                    advance.onClick.Invoke();
+                    advance.onClick.Invoke();
+                    if (index < 6)
+                        Assert.That(GameIntroTestDriver.AssertSaleHeader(revealRows.GetChild(index + 1), "SALE Line"),
+                            Is.SameAs(header));
+                }
+                Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.FinalAuctionCard));
+                Assert.That(GameObject.Find("Final Lot Frame"), Is.Not.Null);
+                Assert.That(GameObject.Find("Final Lot Silhouette"), Is.Null);
+                Assert.That(GameObject.Find("Final Lot Result"), Is.Null);
+                Assert.That(GameObject.Find("Continue Final Card"), Is.Null);
+                deadline = Time.realtimeSinceStartup + 4;
+                while (!GameObject.Find("Final Lot Silhouette") && Time.realtimeSinceStartup < deadline)
+                    yield return null;
+                var portrait = GameObject.Find("Final Lot Silhouette").GetComponent<RawImage>();
+                Assert.That(portrait.texture, Is.SameAs(header.GetComponentInChildren<RawImage>(true).texture));
+                Assert.That(GameObject.Find("Final Lot Name").GetComponent<TMP_Text>().text, Is.EqualTo("TY"));
+                Assert.That(GameObject.Find("Final Lot Buyer").GetComponent<TMP_Text>().text,
+                    Is.EqualTo("NEZNÁMY KUPUJÚCI"));
+                Assert.That(GameObject.Find("Final Lot Result"), Is.Null);
+                while (!GameObject.Find("Continue Final Card") && Time.realtimeSinceStartup < deadline)
+                    yield return null;
+                Assert.That(GameObject.Find("Sold Caption").GetComponent<TMP_Text>().text, Is.EqualTo("PREDANÉ"));
+                Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.FinalAuctionCard));
+                var continueFinal = GameObject.Find("Continue Final Card").GetComponent<Button>();
+                continueFinal.onClick.Invoke();
+                continueFinal.onClick.Invoke();
+                Assert.That(intro.CurrentStage, Is.EqualTo(GameIntroFlow.Stage.FinalStatement));
+                Assert.That(GameIntroTestDriver.AssertSaleHeader(
+                    GameObject.Find("Messages").transform.GetChild(0), "SALE Line"), Is.SameAs(header));
+                for (int index = 0; index < 3; index++)
+                {
+                    yield return null;
+                    GameObject.Find("Advance Finale").GetComponent<Button>().onClick.Invoke();
+                }
                 Assert.That(GameObject.Find("Campaign Complete"), Is.Not.Null);
                 Assert.That(endings, Is.EqualTo(1));
                 Assert.That(report.Report, Is.SameAs(snapshot));
